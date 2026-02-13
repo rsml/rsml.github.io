@@ -213,7 +213,6 @@ const html = `<!doctype html>
   <body>
     <main>
       <h1>Games</h1>
-      <p class="subtitle">Auto-generated on pre-commit from files and folders in this directory.</p>
       <span class="pill">${items.length} game${items.length === 1 ? "" : "s"}</span>
       <section class="game-grid">
 ${cardsHtml}
