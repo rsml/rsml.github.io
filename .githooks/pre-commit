@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+
+node "$repo_root/scripts/generate-games-index.js"
+
+# Keep the generated game index in the commit.
+git add "$repo_root/games/index.html"

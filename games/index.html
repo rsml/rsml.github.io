@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Games</title>
+    <style>
+      :root {
+        --background: hsl(210 40% 98%);
+        --foreground: hsl(222.2 84% 4.9%);
+        --muted-foreground: hsl(215.4 16.3% 46.9%);
+        --card: hsl(0 0% 100%);
+        --border: hsl(214.3 31.8% 91.4%);
+        --ring: hsl(221.2 83.2% 53.3%);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--foreground);
+        font-family: "Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at 15% 15%, hsl(210 100% 97%), transparent 28rem),
+          radial-gradient(circle at 85% 0%, hsl(200 100% 96%), transparent 22rem),
+          var(--background);
+      }
+
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 3.5rem 1rem 4rem;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 5vw, 3rem);
+        letter-spacing: -0.02em;
+      }
+
+      .subtitle {
+        margin: 0.75rem 0 1.5rem;
+        color: var(--muted-foreground);
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0.3rem 0.65rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--muted-foreground);
+        background: color-mix(in hsl, var(--card) 84%, hsl(205 98% 92%));
+      }
+
+      .game-grid {
+        margin-top: 1.1rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 0.8rem;
+      }
+
+      .game-button {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        text-decoration: none;
+        color: var(--foreground);
+        background: var(--card);
+        box-shadow: 0 1px 2px hsl(222 47% 11% / 0.06);
+        transition: transform 140ms ease, box-shadow 180ms ease, border-color 180ms ease,
+          background-color 180ms ease;
+      }
+
+      .game-button:hover {
+        transform: translateY(-2px);
+        border-color: hsl(216 82% 64%);
+        background: hsl(210 40% 99.5%);
+        box-shadow: 0 10px 24px hsl(222 47% 11% / 0.12);
+      }
+
+      .game-button:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+      }
+
+      .game-title {
+        font-size: 0.98rem;
+        font-weight: 650;
+        line-height: 1.3;
+      }
+
+      .game-meta {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.73rem;
+        color: var(--muted-foreground);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Games</h1>
+      <p class="subtitle">Auto-generated on pre-commit from files and folders in this directory.</p>
+      <span class="pill">11 games</span>
+      <section class="game-grid">
+        <a class="game-button" href="./bray8.html">
+          <span class="game-title">Bray8</span>
+          <span class="game-meta">bray8.html</span>
+        </a>
+        <a class="game-button" href="./game/game.html">
+          <span class="game-title">Game</span>
+          <span class="game-meta">game/game.html</span>
+        </a>
+        <a class="game-button" href="./game2/index.html">
+          <span class="game-title">Game2</span>
+          <span class="game-meta">game2/index.html</span>
+        </a>
+        <a class="game-button" href="./game3/index.html">
+          <span class="game-title">Game3</span>
+          <span class="game-meta">game3/index.html</span>
+        </a>
+        <a class="game-button" href="./game4/index.html">
+          <span class="game-title">Game4</span>
+          <span class="game-meta">game4/index.html</span>
+        </a>
+        <a class="game-button" href="./game6/index.html">
+          <span class="game-title">Game6</span>
+          <span class="game-meta">game6/index.html</span>
+        </a>
+        <a class="game-button" href="./game8/index.html">
+          <span class="game-title">Game8</span>
+          <span class="game-meta">game8/index.html</span>
+        </a>
+        <a class="game-button" href="./game10/index.html">
+          <span class="game-title">Game10</span>
+          <span class="game-meta">game10/index.html</span>
+        </a>
+        <a class="game-button" href="./game13/index.html">
+          <span class="game-title">Game13</span>
+          <span class="game-meta">game13/index.html</span>
+        </a>
+        <a class="game-button" href="./game14/ladybug_platformer.html">
+          <span class="game-title">Game14</span>
+          <span class="game-meta">game14/ladybug_platformer.html</span>
+        </a>
+        <a class="game-button" href="./pjmasks_style_game/index.html">
+          <span class="game-title">Pjmasks Style Game</span>
+          <span class="game-meta">pjmasks_style_game/index.html</span>
+        </a>
+      </section>
+    </main>
+  </body>
+</html>
