@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ladybug Platformer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        #gameCanvas {
+            border: 4px solid #2d5016;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            background: #87CEEB;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div id="level">Level: 1</div>
+        <div id="lives">Lives: 3</div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 800;
+        canvas.height = 600;
+
+        // Game state
+        let gameState = {
+            level: 1,
+            lives: 3,
+            maxLives: 3,
+            score: 0,
+            isBossLevel: false,
+            gameOver: false,
+            won: false,
+            bossesDefeated: 0
+        };
+
+        // Player (Ladybug)
+        const player = {
+            x: 100,
+            y: 400,
+            width: 40,
+            height: 40,
+            velocityY: 0,
+            velocityX: 0,
+            speed: 5,
+            jumpPower: 15,
+            gravity: 0.6,
+            isJumping: false,
+            onGround: false
+        };
+
+        // Platforms (leaves)
+        let platforms = [];
+        let fallingLeaves = [];
+        let boss = null;
+
+        // Controls
+        const keys = {};
+        window.addEventListener('keydown', (e) => keys[e.key] = true);
+        window.addEventListener('keyup', (e) => keys[e.key] = false);
+
+        // Initialize level
+        function initLevel(levelNum) {
+            platforms = [];
+            fallingLeaves = [];
+            boss = null;
+            player.x = 100;
+            player.y = 400;
+            player.velocityY = 0;
+            player.velocityX = 0;
+
+            // Every 5th level is a boss level
+            if (levelNum % 5 === 0) {
+                gameState.isBossLevel = true;
+                initBossLevel();
+            } else {
+                gameState.isBossLevel = false;
+                generatePlatforms(levelNum);
+            }
+        }
+
+        function generatePlatforms(levelNum) {
+            // Ground platform
+            platforms.push({
+                x: 0,
+                y: 550,
+                width: 200,
+                height: 50,
+                type: 'green',
+                isStable: true
+            });
+
+            // Generate platforms from left to right
+            let currentX = 200;
+            let currentY = 450;
+            const goalX = 750;
+            
+            // Maximum jump distance calculation:
+            // Horizontal: player speed (5) * jump duration (~30 frames at 60fps) = ~150 pixels
+            // Vertical: jump power allows reaching ~120 pixels up
+            const maxHorizontalGap = 120; // Safe horizontal distance
+            const maxVerticalGap = 100; // Safe vertical distance
+
+            while (currentX < goalX) {
+                // Random gap but constrained to be jumpable
+                const gap = 80 + Math.random() * 40; // 80-120 pixels
+                currentX += gap;
+                
+                // Vertical position varies but stays within jumpable range
+                const maxYChange = Math.min(maxVerticalGap, 80);
+                const yChange = -maxYChange + Math.random() * (maxYChange * 2);
+                currentY = Math.max(250, Math.min(500, currentY + yChange));
+
+                // Increase difficulty with level
+                const yellowChance = Math.min(0.3 + (levelNum * 0.1), 0.7);
+                const isYellow = Math.random() < yellowChance;
+
+                const platformWidth = 80 + Math.random() * 40;
+
+                platforms.push({
+                    x: currentX,
+                    y: currentY,
+                    width: platformWidth,
+                    height: 20,
+                    type: isYellow ? 'yellow' : 'green',
+                    isStable: !isYellow,
+                    standTime: 0,
+                    fallDelay: isYellow ? 1000 : 0,
+                    isFalling: false
+                });
+                
+                // Move currentX to the end of the platform for next gap calculation
+                currentX += platformWidth;
+            }
+
+            // Goal platform - positioned above the last leaf (always yellow)
+            const lastLeaf = platforms[platforms.length - 1];
+            platforms.push({
+                x: lastLeaf.x + lastLeaf.width + 30,
+                y: lastLeaf.y - 80,
+                width: 60,
+                height: 30,
+                type: 'yellow-goal',
+                isStable: true
+            });
+        }
+
+        function initBossLevel() {
+            // Simple platform for player
+            platforms.push({
+                x: 50,
+                y: 550,
+                width: 700,
+                height: 50,
+                type: 'green',
+                isStable: true
+            });
+
+            // Boss scales with number of bosses defeated
+            const bossNumber = gameState.bossesDefeated + 1;
+            const baseHealth = 5;
+            const healthIncrease = Math.floor(bossNumber / 2); // +1 health every 2 bosses
+            const dropSpeed = Math.max(1000, 2000 - (bossNumber * 100)); // Drops faster each boss
+            
+            boss = {
+                x: 650,
+                y: 100,
+                width: 80,
+                height: 80,
+                health: baseHealth + healthIncrease,
+                maxHealth: baseHealth + healthIncrease,
+                dropTimer: 0,
+                dropInterval: dropSpeed,
+                defeated: false,
+                attackChance: Math.min(0.3 + (bossNumber * 0.05), 0.7) // More attacks as bosses increase
+            };
+        }
+
+        function drawLadybug(x, y, width, height) {
+            // Body
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.ellipse(x + width/2, y + height/2, width/2, height/2, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Black center line
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(x + width/2, y);
+            ctx.lineTo(x + width/2, y + height);
+            ctx.stroke();
+
+            // Spots
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(x + width * 0.3, y + height * 0.3, width * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + width * 0.7, y + height * 0.3, width * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + width * 0.3, y + height * 0.7, width * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + width * 0.7, y + height * 0.7, width * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Head
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(x + width/2, y, width * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Antennae
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x + width/2 - 5, y);
+            ctx.lineTo(x + width/2 - 10, y - 10);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x + width/2 + 5, y);
+            ctx.lineTo(x + width/2 + 10, y - 10);
+            ctx.stroke();
+        }
+
+        function drawLeaf(x, y, width, height, type) {
+            if (type === 'green') {
+                ctx.fillStyle = '#2d5016';
+            } else if (type === 'yellow' || type === 'yellow-goal') {
+                ctx.fillStyle = '#DAA520';
+            } else if (type === 'goal') {
+                ctx.fillStyle = '#FFD700';
+            } else if (type === 'red-attack') {
+                ctx.fillStyle = '#DC143C'; // Crimson red for attack leaves
+            }
+
+            // Leaf shape
+            ctx.beginPath();
+            ctx.ellipse(x + width/2, y + height/2, width/2, height/2, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Vein
+            if (type === 'red-attack') {
+                ctx.strokeStyle = '#8B0000'; // Dark red
+            } else {
+                ctx.strokeStyle = (type === 'yellow' || type === 'yellow-goal') ? '#8B6914' : '#1a3009';
+            }
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y + height/2);
+            ctx.lineTo(x + width, y + height/2);
+            ctx.stroke();
+            
+            // Add sparkle/glow effect for goal
+            if (type === 'yellow-goal') {
+                ctx.strokeStyle = '#FFD700';
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = 0.6;
+                ctx.beginPath();
+                ctx.ellipse(x + width/2, y + height/2, width/2 + 3, height/2 + 3, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 1.0;
+            }
+            
+            // Add warning glow for attack leaves
+            if (type === 'red-attack') {
+                ctx.strokeStyle = '#FF0000';
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.ellipse(x + width/2, y + height/2, width/2 + 2, height/2 + 2, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        function update(deltaTime) {
+            if (gameState.gameOver) return;
+
+            // Player movement
+            if (keys['ArrowLeft'] || keys['a']) {
+                player.velocityX = -player.speed;
+            } else if (keys['ArrowRight'] || keys['d']) {
+                player.velocityX = player.speed;
+            } else {
+                player.velocityX = 0;
+            }
+
+            // Jump - can now fly by mashing jump
+            if ((keys['ArrowUp'] || keys['w'] || keys[' ']) && !this.lastJumpKey) {
+                player.velocityY = -player.jumpPower;
+                player.isJumping = true;
+            }
+            this.lastJumpKey = keys['ArrowUp'] || keys['w'] || keys[' '];
+
+            // Apply gravity
+            player.velocityY += player.gravity;
+            player.y += player.velocityY;
+            player.x += player.velocityX;
+
+            // Keep player in bounds (except right side - that advances level)
+            if (player.x < 0) player.x = 0;
+            if (player.x > canvas.width) {
+                // Player went past right edge - advance to next level
+                gameState.level++;
+                initLevel(gameState.level);
+            }
+
+            // Check if fell off screen
+            if (player.y > canvas.height) {
+                gameState.lives--;
+                if (gameState.lives <= 0) {
+                    gameState.gameOver = true;
+                } else {
+                    player.x = 100;
+                    player.y = 400;
+                    player.velocityY = 0;
+                }
+            }
+
+            // Platform collision
+            player.onGround = false;
+            for (let platform of platforms) {
+                if (platform.isFalling) continue;
+
+                if (player.x < platform.x + platform.width &&
+                    player.x + player.width > platform.x &&
+                    player.y + player.height > platform.y &&
+                    player.y + player.height < platform.y + platform.height &&
+                    player.velocityY > 0) {
+                    
+                    player.y = platform.y - player.height;
+                    player.velocityY = 0;
+                    player.onGround = true;
+                    player.isJumping = false;
+
+                    // Yellow leaf falling logic
+                    if (platform.type === 'yellow' && !platform.isFalling) {
+                        platform.standTime += deltaTime;
+                        if (platform.standTime > platform.fallDelay) {
+                            platform.isFalling = true;
+                        }
+                    }
+
+                    // Goal reached
+                    if (platform.type === 'goal' || platform.type === 'yellow-goal') {
+                        gameState.level++;
+                        initLevel(gameState.level);
+                    }
+                }
+            }
+
+            // Collision with falling leaves in boss level (can jump on them)
+            if (gameState.isBossLevel) {
+                for (let leaf of fallingLeaves) {
+                    // Only allow jumping on yellow leaves, not red attack leaves
+                    if (leaf.type === 'yellow' &&
+                        player.x < leaf.x + leaf.width &&
+                        player.x + player.width > leaf.x &&
+                        player.y + player.height > leaf.y &&
+                        player.y + player.height < leaf.y + leaf.height &&
+                        player.velocityY > 0) {
+                        
+                        player.y = leaf.y - player.height;
+                        player.velocityY = 0;
+                        player.onGround = true;
+                        player.isJumping = false;
+
+                        // Jumping on yellow leaf damages boss by 20% (1 out of 5 health)
+                        if (boss && !boss.defeated && !leaf.hasDealtDamage) {
+                            boss.health--;
+                            leaf.hasDealtDamage = true; // Prevent multiple damage from same leaf
+                            
+                            if (boss.health <= 0) {
+                                boss.defeated = true;
+                                gameState.bossesDefeated++;
+                                gameState.maxLives++; // Gain 1 max life per boss defeated
+                                gameState.lives = gameState.maxLives; // Restore to full health
+                                
+                                // Continue to next level
+                                setTimeout(() => {
+                                    gameState.level++;
+                                    initLevel(gameState.level);
+                                }, 1000);
+                            }
+                        }
+
+                        // Give the leaf downward momentum when jumped on
+                        leaf.velocityY = 8;
+                    }
+                }
+            }
+
+            // Update falling platforms
+            platforms = platforms.filter(platform => {
+                if (platform.isFalling) {
+                    platform.y += 5;
+                    return platform.y < canvas.height;
+                }
+                return true;
+            });
+
+            // Boss level logic
+            if (gameState.isBossLevel && boss && !boss.defeated) {
+                boss.dropTimer += deltaTime;
+                if (boss.dropTimer > boss.dropInterval) {
+                    boss.dropTimer = 0;
+                    
+                    // Use boss's attack chance which increases with each boss
+                    const isAttack = Math.random() < boss.attackChance;
+                    
+                    fallingLeaves.push({
+                        x: boss.x + Math.random() * boss.width,
+                        y: boss.y + boss.height,
+                        width: 60,
+                        height: 20,
+                        velocityY: isAttack ? 2.5 : 2, // Slower falling speed
+                        type: isAttack ? 'red-attack' : 'yellow'
+                    });
+                }
+
+                // Update falling leaves
+                for (let leaf of fallingLeaves) {
+                    leaf.y += leaf.velocityY;
+                    
+                    // Check if red attack leaf hits player
+                    if (leaf.type === 'red-attack' &&
+                        leaf.x < player.x + player.width &&
+                        leaf.x + leaf.width > player.x &&
+                        leaf.y < player.y + player.height &&
+                        leaf.y + leaf.height > player.y) {
+                        
+                        gameState.lives--;
+                        fallingLeaves = fallingLeaves.filter(l => l !== leaf);
+                        
+                        if (gameState.lives <= 0) {
+                            gameState.gameOver = true;
+                        } else {
+                            // Brief invincibility by repositioning player
+                            player.x = 100;
+                            player.y = 400;
+                            player.velocityY = 0;
+                        }
+                    }
+                }
+
+                // Remove leaves that fell off screen
+                fallingLeaves = fallingLeaves.filter(leaf => leaf.y < canvas.height);
+            }
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw platforms
+            for (let platform of platforms) {
+                drawLeaf(platform.x, platform.y, platform.width, platform.height, platform.type);
+            }
+
+            // Draw boss
+            if (gameState.isBossLevel && boss && !boss.defeated) {
+                drawLadybug(boss.x, boss.y, boss.width, boss.height);
+                
+                // Health bar
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(boss.x, boss.y - 20, boss.width, 10);
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(boss.x, boss.y - 20, boss.width * (boss.health / boss.maxHealth), 10);
+            }
+
+            // Draw falling leaves
+            for (let leaf of fallingLeaves) {
+                drawLeaf(leaf.x, leaf.y, leaf.width, leaf.height, leaf.type);
+            }
+
+            // Draw player
+            drawLadybug(player.x, player.y, player.width, player.height);
+
+            // Draw UI
+            document.getElementById('level').textContent = `Level: ${gameState.level}`;
+            document.getElementById('lives').textContent = `Lives: ${gameState.lives}/${gameState.maxLives} | Bosses: ${gameState.bossesDefeated}`;
+
+            // Game over screen
+            if (gameState.gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ff0000';
+                ctx.font = '48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', canvas.width/2, canvas.height/2 - 40);
+                ctx.font = '24px Arial';
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(`Level Reached: ${gameState.level}`, canvas.width/2, canvas.height/2 + 10);
+                ctx.fillText(`Bosses Defeated: ${gameState.bossesDefeated}`, canvas.width/2, canvas.height/2 + 40);
+                ctx.fillText('Press R to Restart', canvas.width/2, canvas.height/2 + 80);
+            }
+
+            if (gameState.isBossLevel && boss && !boss.defeated) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`BOSS ${gameState.bossesDefeated + 1} - Jump on YELLOW leaves to damage! Dodge RED attack leaves!`, canvas.width/2, 30);
+                
+                // Show boss defeated message briefly
+                if (boss.defeated) {
+                    ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
+                    ctx.font = '36px Arial';
+                    ctx.fillText('BOSS DEFEATED!', canvas.width/2, canvas.height/2);
+                    ctx.font = '24px Arial';
+                    ctx.fillText('+1 Max Life!', canvas.width/2, canvas.height/2 + 40);
+                }
+            }
+        }
+
+        // Game loop
+        let lastTime = 0;
+        function gameLoop(timestamp) {
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+
+            update(deltaTime);
+            draw();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Restart
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'r' || e.key === 'R') {
+                gameState = {
+                    level: 1,
+                    lives: 3,
+                    maxLives: 3,
+                    score: 0,
+                    isBossLevel: false,
+                    gameOver: false,
+                    won: false,
+                    bossesDefeated: 0
+                };
+                initLevel(1);
+            }
+        });
+
+        // Start game
+        initLevel(1);
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>

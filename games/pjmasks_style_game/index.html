@@ -1,0 +1,550 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PJ-Style Sprite Fighter</title>
+  <style>
+    html, body { margin:0; height:100%; background:#0b1020; color:#e9eefc; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    #wrap { display:flex; align-items:center; justify-content:center; height:100%; }
+    canvas { background: radial-gradient(1200px 600px at 50% 70%, #162145, #070a14); border: 2px solid rgba(255,255,255,0.12); border-radius: 14px; }
+    .hint { position:fixed; left:16px; bottom:14px; opacity:0.85; font-size:13px; line-height:1.3; }
+    .hint kbd { background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.14); padding:2px 6px; border-radius:6px; }
+    .hint code { background:rgba(255,255,255,0.08); padding:1px 4px; border-radius:6px; }
+  </style>
+</head>
+<body>
+<div id="wrap"><canvas id="c" width="960" height="540"></canvas></div>
+<div class="hint">
+  <div><b>Controls</b> — <kbd>Space</kbd> start/confirm, <kbd>←</kbd><kbd>→</kbd> select, <kbd>U</kbd>/<kbd>H</kbd> move, <kbd>Y</kbd> jump, <kbd>X</kbd> back-jump, <kbd>O</kbd>/<kbd>P</kbd>/<kbd>L</kbd> attack</div>
+  <div>Assets live in <code>/assets</code>. Replace hero1/2/3.png + slime.png to reskin.</div>
+</div>
+
+<script>
+(() => {
+  // ---------- Helpers ----------
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const now = () => performance.now();
+  const rnd = (a,b) => a + Math.random()*(b-a);
+
+  // ---------- Canvas ----------
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+
+  // ---------- Input ----------
+  const keys = new Set();
+  window.addEventListener("keydown", (e) => {
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    keys.add(k);
+    if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(e.key)) e.preventDefault();
+  }, {passive:false});
+  window.addEventListener("keyup", (e) => {
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    keys.delete(k);
+  });
+
+  const pressed = (k) => keys.has(k);
+  const consumeEdge = (() => {
+    const last = new Map();
+    return (k) => {
+      const isDown = pressed(k);
+      const wasDown = last.get(k) || false;
+      last.set(k, isDown);
+      return isDown && !wasDown;
+    };
+  })();
+
+  // ---------- Assets ----------
+  function loadImage(url) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ ok:true, img });
+      img.onerror = () => resolve({ ok:false, img:null });
+      img.src = url;
+    });
+  }
+
+  const ASSET = {
+    heroes: ["assets/hero1.png", "assets/hero2.png", "assets/hero3.png"],
+    slime: "assets/slime.png",
+  };
+
+  // ---------- SpriteSheet (grid-based) ----------
+  class SpriteSheet {
+    constructor(img, frameW, frameH, rows, cols) {
+      this.img = img;
+      this.fw = frameW;
+      this.fh = frameH;
+      this.rows = rows;
+      this.cols = cols;
+    }
+    drawFrame(ctx, frameIndex, x, y, flip=false, scale=2) {
+      if (!this.img) return false;
+      const cols = this.cols;
+      const sx = (frameIndex % cols) * this.fw;
+      const sy = Math.floor(frameIndex / cols) * this.fh;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(flip ? -1 : 1, 1);
+      const dx = flip ? -this.fw*scale : 0;
+      ctx.drawImage(this.img, sx, sy, this.fw, this.fh, dx, 0, this.fw*scale, this.fh*scale);
+      ctx.restore();
+      return true;
+    }
+  }
+
+  // ---------- Game State ----------
+  const W = canvas.width, H = canvas.height;
+  const GROUND_Y = 420;
+  const GRAV = 2200;
+
+  const GameMode = {
+    BOOT: "boot",
+    TITLE: "title",
+    SELECT: "select",
+    PLAY: "play",
+    GAMEOVER: "gameover",
+  };
+
+  const state = {
+    mode: GameMode.BOOT,
+    selected: 0,
+    heroSheets: [null,null,null],
+    slimeSheet: null,
+    // The names are just UI labels. Replace art freely.
+    heroName: ["Catboy", "Gekko", "Owlette"],
+    score: 0,
+    lastSpawn: 0,
+  };
+
+  // ---------- Entities ----------
+  function makeHero() {
+    return {
+      x: 160, y: GROUND_Y-64,
+      vx: 0, vy: 0,
+      w: 44, h: 64,
+      face: 1, // 1 right, -1 left
+      hp: 100,
+      onGround: false,
+      invulnUntil: 0,
+      atkUntil: 0,
+      atkType: null,
+      animT: 0,
+    };
+  }
+  function makeEnemy() {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    return {
+      x: side < 0 ? -40 : W+40,
+      y: GROUND_Y-40,
+      vx: side < 0 ? rnd(70,120) : rnd(-120,-70),
+      vy: 0,
+      w: 40, h: 40,
+      hp: 40,
+      animT: 0,
+      hitUntil: 0,
+    };
+  }
+
+  const hero = makeHero();
+  const enemies = [];
+  const particles = [];
+
+  function resetRun() {
+    Object.assign(hero, makeHero());
+    enemies.length = 0;
+    particles.length = 0;
+    state.score = 0;
+    state.lastSpawn = now();
+  }
+
+  // ---------- Combat ----------
+  function attackSpec(type) {
+    if (type === "light") return { dmg: 10, kb: 380, dur: 160, range: 52, height: 40 };
+    if (type === "heavy") return { dmg: 18, kb: 520, dur: 220, range: 60, height: 46 };
+    if (type === "special") return { dmg: 12, kb: 240, dur: 260, range: 120, height: 34 };
+    return { dmg: 0, kb: 0, dur: 0, range: 0, height: 0 };
+  }
+
+  function heroAttack(type) {
+    const t = now();
+    if (t < hero.atkUntil) return;
+    const spec = attackSpec(type);
+    hero.atkType = type;
+    hero.atkUntil = t + spec.dur;
+  }
+
+  function rectsOverlap(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function spawnHitSpark(x,y) {
+    for (let i=0;i<10;i++) {
+      particles.push({ x, y, vx: rnd(-220,220), vy: rnd(-340,-80), life: rnd(180,320), born: now() });
+    }
+  }
+
+  function applyHeroHit(dmg, kb, fromX) {
+    const t = now();
+    if (t < hero.invulnUntil) return;
+    hero.hp = clamp(hero.hp - dmg, 0, 100);
+    hero.invulnUntil = t + 450;
+    hero.vx += (hero.x < fromX ? -1 : 1) * kb * 0.35;
+    hero.vy = -520;
+    spawnHitSpark(hero.x + hero.w/2, hero.y + hero.h/2);
+    if (hero.hp <= 0) state.mode = GameMode.GAMEOVER;
+  }
+
+  // ---------- Physics ----------
+  function stepEntity(e, dt) {
+    e.vy += GRAV * dt;
+    e.x += e.vx * dt;
+    e.y += e.vy * dt;
+
+    if (e.y + e.h >= GROUND_Y) {
+      e.y = GROUND_Y - e.h;
+      e.vy = 0;
+      e.onGround = true;
+    } else {
+      e.onGround = false;
+    }
+  }
+
+  // ---------- Rendering ----------
+  function drawTextCentered(text, y, size=32, alpha=1) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = `700 ${size}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.fillStyle = "#e9eefc";
+    ctx.textAlign = "center";
+    ctx.fillText(text, W/2, y);
+    ctx.restore();
+  }
+
+  function drawUI() {
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    ctx.fillRect(22, 22, 240, 18);
+    ctx.fillStyle = "rgba(80,220,120,0.90)";
+    ctx.fillRect(22, 22, 240*(hero.hp/100), 18);
+    ctx.strokeStyle = "rgba(255,255,255,0.20)";
+    ctx.strokeRect(22, 22, 240, 18);
+
+    ctx.fillStyle = "rgba(233,238,252,0.9)";
+    ctx.font = "600 16px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillText(`Score: ${state.score}`, 22, 64);
+    ctx.restore();
+  }
+
+  function drawGround() {
+    ctx.save();
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    ctx.fillRect(0, GROUND_Y, W, H-GROUND_Y);
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    for (let x=0;x<W;x+=32) ctx.fillRect(x, GROUND_Y, 16, 4);
+    ctx.restore();
+  }
+
+  function drawFallbackChar(x,y,w,h,label,face) {
+    ctx.save();
+    ctx.fillStyle = "rgba(255,255,255,0.14)";
+    ctx.fillRect(x,y,w,h);
+    ctx.fillStyle = "rgba(255,255,255,0.30)";
+    ctx.fillRect(x + (face>0? w-10 : 0), y+8, 10, 10);
+    ctx.fillStyle = "rgba(233,238,252,0.9)";
+    ctx.font = "700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillText(label, x, y-6);
+    ctx.restore();
+  }
+
+  function drawHero(dt) {
+    const sheet = state.heroSheets[state.selected];
+
+    // Using CC0 top-down sheet as a placeholder:
+    // - row 1 (down-facing) looks okay in a side view.
+    // Sheet: 4 cols × 3 rows, frame 40×64
+    hero.animT += dt;
+    let col = 0;
+    const moving = Math.abs(hero.vx) > 30 && hero.onGround;
+    const attacking = now() < hero.atkUntil;
+
+    if (attacking) col = 3;
+    else if (!hero.onGround) col = 2;
+    else if (moving) col = 1 + (Math.floor(hero.animT*10) % 3); // 1..3
+
+    const row = 1; // pick "down" row for readability
+    const frame = row * 4 + (col % 4);
+
+    let drew = false;
+    if (sheet && sheet.img) {
+      drew = sheet.drawFrame(ctx, frame, Math.floor(hero.x), Math.floor(hero.y), hero.face < 0, 2.5);
+    }
+    if (!drew) drawFallbackChar(hero.x, hero.y, hero.w, hero.h, state.heroName[state.selected], hero.face);
+
+    if (attacking) {
+      const spec = attackSpec(hero.atkType);
+      const hx = hero.face > 0 ? hero.x + hero.w : hero.x - spec.range;
+      const hy = hero.y + (hero.h - spec.height) * 0.5;
+      ctx.save();
+      ctx.globalAlpha = 0.10;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(hx, hy, spec.range, spec.height);
+      ctx.restore();
+    }
+  }
+
+  function drawEnemies(dt) {
+    const sheet = state.slimeSheet;
+    // Slime sheet: 10 cols × 20 rows, frame 32×32.
+    // We'll use the green "walk" row (often row 2). If your sheet differs, change BASE_ROW.
+    const COLS = 10;
+    const BASE_ROW = 2; // "walk" for first color set in Calciumtrice sheet
+    for (const e of enemies) {
+      e.animT += dt;
+      const col = (Math.floor(e.animT*12) % COLS);
+      const frame = BASE_ROW * COLS + col;
+      let drew = false;
+      if (sheet && sheet.img) {
+        drew = sheet.drawFrame(ctx, frame, Math.floor(e.x), Math.floor(e.y), e.vx < 0, 2.0);
+      }
+      if (!drew) {
+        ctx.save();
+        ctx.fillStyle = "rgba(255,120,140,0.22)";
+        ctx.fillRect(e.x, e.y, e.w, e.h);
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = "rgba(255,255,255,0.10)";
+      ctx.fillRect(e.x, e.y-10, e.w, 4);
+      ctx.fillStyle = "rgba(255,120,140,0.75)";
+      ctx.fillRect(e.x, e.y-10, e.w*(e.hp/40), 4);
+      ctx.restore();
+    }
+  }
+
+  function drawParticles() {
+    const t = now();
+    ctx.save();
+    for (const p of particles) {
+      const age = t - p.born;
+      const a = 1 - clamp(age / p.life, 0, 1);
+      if (a <= 0) continue;
+      ctx.globalAlpha = a * 0.9;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(p.x, p.y, 2, 2);
+    }
+    ctx.restore();
+  }
+
+  // ---------- Loop ----------
+  let lastT = now();
+
+  function update(dt) {
+    if (state.mode === GameMode.TITLE) {
+      if (consumeEdge(" ")) state.mode = GameMode.SELECT;
+      return;
+    }
+
+    if (state.mode === GameMode.SELECT) {
+      if (consumeEdge("ArrowLeft")) state.selected = (state.selected + 2) % 3;
+      if (consumeEdge("ArrowRight")) state.selected = (state.selected + 1) % 3;
+      if (consumeEdge(" ")) {
+        resetRun();
+        state.mode = GameMode.PLAY;
+      }
+      return;
+    }
+
+    if (state.mode === GameMode.GAMEOVER) {
+      if (consumeEdge(" ")) state.mode = GameMode.SELECT;
+      return;
+    }
+
+    if (state.mode !== GameMode.PLAY) return;
+
+    // Movement: U/H/Y + X backjump
+    const t = now();
+    const speed = 360;
+
+    let ax = 0;
+    if (pressed("u")) ax -= 1;
+    if (pressed("h")) ax += 1;
+
+    hero.vx = ax * speed;
+    if (ax !== 0) hero.face = ax > 0 ? 1 : -1;
+
+    if (consumeEdge("y") && hero.onGround) hero.vy = -820;
+
+    if (consumeEdge("x") && hero.onGround) {
+      hero.vy = -800;
+      hero.vx = -hero.face * (speed * 0.95);
+    }
+
+    if (consumeEdge("o")) heroAttack("light");
+    if (consumeEdge("p")) heroAttack("heavy");
+    if (consumeEdge("l")) heroAttack("special");
+
+    stepEntity(hero, dt);
+    hero.x = clamp(hero.x, 20, W-20-hero.w);
+
+    if (t - state.lastSpawn > 900) {
+      enemies.push(makeEnemy());
+      state.lastSpawn = t;
+    }
+
+    for (const e of enemies) {
+      const dir = hero.x - e.x;
+      e.vx += clamp(dir, -1, 1) * 18;
+      e.vx = clamp(e.vx, -170, 170);
+      stepEntity(e, dt);
+    }
+
+    // Hero attack collision
+    const attacking = t < hero.atkUntil;
+    if (attacking) {
+      const spec = attackSpec(hero.atkType);
+      const hitbox = {
+        x: hero.face > 0 ? hero.x + hero.w : hero.x - spec.range,
+        y: hero.y + (hero.h - spec.height) * 0.5,
+        w: spec.range,
+        h: spec.height
+      };
+
+      for (const e of enemies) {
+        if (t < e.hitUntil) continue;
+        if (rectsOverlap(hitbox, e)) {
+          e.hp -= spec.dmg;
+          e.hitUntil = t + 180;
+          e.vx += hero.face * spec.kb;
+          e.vy = -380;
+          spawnHitSpark(e.x + e.w/2, e.y + e.h/2);
+          if (e.hp <= 0) state.score += 10;
+        }
+      }
+    }
+
+    // Enemy touch damage
+    for (const e of enemies) {
+      if (rectsOverlap(hero, e)) applyHeroHit(8, 420, e.x);
+    }
+
+    for (let i=enemies.length-1;i>=0;i--) {
+      const e = enemies[i];
+      if (e.hp <= 0 || e.x < -120 || e.x > W+120) enemies.splice(i,1);
+    }
+
+    for (const p of particles) {
+      p.vy += 2200 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
+    const tt = now();
+    for (let i=particles.length-1;i>=0;i--) {
+      const p = particles[i];
+      if (tt - p.born > p.life) particles.splice(i,1);
+    }
+  }
+
+  function render(dt) {
+    ctx.clearRect(0,0,W,H);
+    drawGround();
+
+    if (state.mode === GameMode.TITLE) {
+      drawTextCentered("PJ‑Style Sprite Fighter", 190, 46);
+      drawTextCentered("Press SPACE to start", 250, 22, 0.9);
+      drawTextCentered("Then choose a hero with ← →", 285, 18, 0.8);
+      return;
+    }
+
+    if (state.mode === GameMode.SELECT) {
+      drawTextCentered("Choose your hero", 120, 36);
+      drawTextCentered("← / → to select, SPACE to confirm", 160, 18, 0.85);
+
+      for (let i=0;i<3;i++) {
+        const cx = 240 + i*240;
+        const cy = 260;
+
+        ctx.save();
+        const selected = i === state.selected;
+        ctx.globalAlpha = selected ? 1 : 0.65;
+        ctx.fillStyle = selected ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.08)";
+        ctx.fillRect(cx-90, cy-120, 180, 240);
+        ctx.strokeStyle = selected ? "rgba(255,255,255,0.38)" : "rgba(255,255,255,0.16)";
+        ctx.strokeRect(cx-90, cy-120, 180, 240);
+
+        const sheet = state.heroSheets[i];
+        let drew = false;
+        if (sheet && sheet.img) drew = sheet.drawFrame(ctx, 1*4 + 0, cx-34, cy-56, false, 3.0);
+        if (!drew) drawFallbackChar(cx-22, cy-32, 44, 64, state.heroName[i], 1);
+
+        ctx.fillStyle = "rgba(233,238,252,0.95)";
+        ctx.font = "700 18px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(state.heroName[i], cx, cy+92);
+        ctx.restore();
+      }
+      return;
+    }
+
+    if (state.mode === GameMode.PLAY) {
+      drawEnemies(dt);
+      drawHero(dt);
+      drawParticles();
+      drawUI();
+      return;
+    }
+
+    if (state.mode === GameMode.GAMEOVER) {
+      drawEnemies(dt);
+      drawHero(dt);
+      drawParticles();
+      drawUI();
+      drawTextCentered("Game Over", 220, 52);
+      drawTextCentered("Press SPACE to go back to Select", 280, 20, 0.9);
+      return;
+    }
+  }
+
+  async function initAssets() {
+    const heroLoads = await Promise.all(ASSET.heroes.map(loadImage));
+    const slimeLoad = await loadImage(ASSET.slime);
+
+    // Hero placeholder sheet (from OpenGameArt): 4 cols × 3 rows, 40×64 frames
+    for (let i=0;i<3;i++) {
+      if (heroLoads[i].ok) {
+        const img = heroLoads[i].img;
+        state.heroSheets[i] = new SpriteSheet(img, 40, 64, 3, 4);
+      } else {
+        state.heroSheets[i] = null;
+      }
+    }
+
+    // Slime sheet (Calciumtrice): 10 cols × 20 rows, 32×32 frames
+    if (slimeLoad.ok) {
+      state.slimeSheet = new SpriteSheet(slimeLoad.img, 32, 32, 20, 10);
+    } else {
+      state.slimeSheet = null;
+    }
+
+    state.mode = GameMode.TITLE;
+  }
+
+  function tick() {
+    const t = now();
+    const dt = clamp((t - lastT) / 1000, 0, 0.033);
+    lastT = t;
+    update(dt);
+    render(dt);
+    requestAnimationFrame(tick);
+  }
+
+  initAssets().then(() => tick());
+})();
+</script>
+</body>
+</html>
