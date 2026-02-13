@@ -18,7 +18,18 @@
             height: 100vh;
         }
 
-        /* ── shadcn-inspired HUD ── */
+        
+        #confettiCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 150; /* above 3D, below win/lose modal */
+        }
+
+/* ── shadcn-inspired HUD ── */
         #hud {
             position: absolute;
             top: 16px;
@@ -433,6 +444,7 @@
     </div>
 
     <canvas id="gameCanvas"></canvas>
+    <canvas id="confettiCanvas"></canvas>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -440,9 +452,93 @@
     //  GAME SETUP
     // ══════════════════════════════════════════
     const canvas = document.getElementById('gameCanvas');
+    const confettiCanvas = document.getElementById('confettiCanvas');
+    const confettiCtx = confettiCanvas.getContext('2d', { alpha: true });
+
+    function resizeConfettiCanvas() {
+        confettiCanvas.width = innerWidth;
+        confettiCanvas.height = innerHeight;
+    }
+    resizeConfettiCanvas();
+
+    let confettiActive = false;
+    let confettiPieces = [];
+
+    function resetConfetti() {
+        confettiActive = false;
+        confettiPieces = [];
+        confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    }
+
+    function startConfetti() {
+        resizeConfettiCanvas();
+        confettiActive = true;
+        confettiPieces = [];
+        const W = confettiCanvas.width;
+        const H = confettiCanvas.height;
+
+        const palette = ['#f97316', '#facc15', '#4ade80', '#38bdf8', '#a78bfa', '#fb7185', '#ffffff'];
+        const count = 240;
+
+        for (let i = 0; i < count; i++) {
+            confettiPieces.push({
+                x: Math.random() * W,
+                y: -Math.random() * H * 0.6,
+                vx: (Math.random() - 0.5) * 1.8,
+                vy: 2.2 + Math.random() * 3.2,
+                w: 6 + Math.random() * 10,
+                h: 4 + Math.random() * 8,
+                rot: Math.random() * Math.PI * 2,
+                vrot: (Math.random() - 0.5) * 0.25,
+                color: palette[Math.floor(Math.random() * palette.length)],
+                life: 0
+            });
+        }
+    }
+
+    function updateConfetti() {
+        if (!confettiActive) return;
+        const ctx = confettiCtx;
+        const W = confettiCanvas.width;
+        const H = confettiCanvas.height;
+
+        ctx.clearRect(0, 0, W, H);
+
+        for (let p of confettiPieces) {
+            p.life += 1;
+            p.vy += 0.02; // gentle gravity
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rot += p.vrot;
+
+            // subtle air drag
+            p.vx *= 0.998;
+
+            // wrap around sides
+            if (p.x < -30) p.x = W + 30;
+            if (p.x > W + 30) p.x = -30;
+
+            // recycle from top when it falls out
+            if (p.y > H + 40) {
+                p.y = -20 - Math.random() * 120;
+                p.vy = 2.2 + Math.random() * 3.2;
+                p.vx = (Math.random() - 0.5) * 1.8;
+            }
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = 0.92;
+            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+            ctx.restore();
+        }
+    }
+
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB);
-    scene.fog = new THREE.Fog(0x87CEEB, 40, 70);
+    scene.fog = new THREE.Fog(0x87CEEB, 45, 95);
 
     const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
@@ -474,7 +570,7 @@
                 b.position.set((Math.random()-.5)*4, Math.random()*.5, (Math.random()-.5)*4);
                 g.add(b);
             }
-            g.position.set((Math.random()-.5)*80, 25+Math.random()*10, (Math.random()-.5)*80);
+            g.position.set((Math.random()-.5)*140, 26+Math.random()*14, (Math.random()-.5)*140);
             scene.add(g);
         }
     })();
@@ -488,7 +584,7 @@
     let gameEnded = false;
     const totalBalloons = 8;
     const blockSize = 2;
-    const worldSize = 30;
+    const worldSize = 42;
 
     // Playable bounds stay inside the last terrain ring (prevents edge weirdness)
     const PLAY_BOUNDS = worldSize - blockSize;
@@ -500,12 +596,116 @@
     const PLAYER_COLLISION_RADIUS = 0.8; // keeps shoulders inside walls/edges
     const ROBOT_COLLISION_RADIUS = 0.75;
 
+    // Performance helpers
+    const terrainBlocks = [];
+    const staticDecor = [];
+    const TERRAIN_CULL_RADIUS = 34;
+    const STATIC_CULL_RADIUS = 40;
+    const DYNAMIC_CULL_RADIUS = 44;
+    const CULL_UPDATE_INTERVAL = 4; // frames
+    let cullFrameCounter = 0;
+
+    function freezeStaticMesh(mesh) {
+        if (!mesh) return;
+        mesh.matrixAutoUpdate = false;
+        mesh.updateMatrix();
+        mesh.frustumCulled = true;
+    }
+
+    function updateStaticCulling() {
+        if (!gameStarted) return;
+        cullFrameCounter++;
+        if (cullFrameCounter % CULL_UPDATE_INTERVAL !== 0) return;
+
+        const px = player.position.x;
+        const pz = player.position.z;
+        const terrainMaxSq = TERRAIN_CULL_RADIUS * TERRAIN_CULL_RADIUS;
+        const staticMaxSq = STATIC_CULL_RADIUS * STATIC_CULL_RADIUS;
+        const dynamicMaxSq = DYNAMIC_CULL_RADIUS * DYNAMIC_CULL_RADIUS;
+
+        for (const b of terrainBlocks) {
+            const dx = b.position.x - px;
+            const dz = b.position.z - pz;
+            b.visible = (dx * dx + dz * dz) <= terrainMaxSq;
+        }
+        for (const s of staticDecor) {
+            const dx = s.position.x - px;
+            const dz = s.position.z - pz;
+            s.visible = (dx * dx + dz * dz) <= staticMaxSq;
+        }
+        for (const r of robots) {
+            const dx = r.position.x - px;
+            const dz = r.position.z - pz;
+            r.visible = (dx * dx + dz * dz) <= dynamicMaxSq;
+        }
+        for (const a of animals) {
+            const dx = a.position.x - px;
+            const dz = a.position.z - pz;
+            a.visible = (dx * dx + dz * dz) <= dynamicMaxSq;
+        }
+        for (const b of balloons) {
+            const dx = b.position.x - px;
+            const dz = b.position.z - pz;
+            b.visible = (dx * dx + dz * dz) <= dynamicMaxSq;
+        }
+    }
+
 
     // Balloon pickup tuning (magnet feel)
     const BALLOON_MAGNET_RADIUS = 5.0;
     const BALLOON_MAGNET_STRENGTH = 0.12; // higher = stronger suction
     const BALLOON_PICKUP_RADIUS = 3.0;
     const BALLOON_PICKUP_Y_TOL = 3.5;
+
+    // Balloon placement (avoid stacking)
+    const BALLOON_MIN_DIST = 7.0;
+    
+    // ══════════════════════════════════════════
+    //  WATER
+    // ══════════════════════════════════════════
+    const waterRects = [];
+    const WATER_EDGE_MARGIN = 10;
+    const WATER_TILE_THICKNESS = 0.25;
+    const WATER_SURFACE_OFFSET = 0.02;
+    const WATER_WALK_SPEED_MULT = 0.2; // 5x slower when walking in water
+
+    const waterGroup = new THREE.Group();
+    scene.add(waterGroup);
+    const waterTileSet = new Set();
+    const waterTileMeshes = [];
+
+    function snapToBlock(v) { return Math.floor((v + blockSize / 2) / blockSize) * blockSize; }
+    function waterTileKey(x, z) { return `${snapToBlock(x)},${snapToBlock(z)}`; }
+
+    function addWaterTile(tile) {
+        const key = waterTileKey(tile.position.x, tile.position.z);
+        tile.userData.waterKey = key;
+        freezeStaticMesh(tile);
+        waterTileSet.add(key);
+        waterTileMeshes.push(tile);
+        staticDecor.push(tile);
+    }
+
+    function removeWaterTile(tile) {
+        const key = tile && tile.userData ? tile.userData.waterKey : null;
+        if (key) waterTileSet.delete(key);
+        const idx = waterTileMeshes.indexOf(tile);
+        if (idx !== -1) waterTileMeshes.splice(idx, 1);
+        const sidx = staticDecor.indexOf(tile);
+        if (sidx !== -1) staticDecor.splice(sidx, 1);
+        if (tile && tile.parent === waterGroup) waterGroup.remove(tile);
+    }
+
+    function isInWater(x, z) {
+        if (waterTileSet.has(waterTileKey(x, z))) return 0;
+        return -1;
+    }
+
+    // Tree anchors are declared early so water generation can avoid them.
+    const TREE_BASE_POSITIONS = [
+        [12, 12], [-12, 12], [12, -12], [-12, -12],
+        [18, 0], [-18, 0], [0, 18], [0, -18]
+    ];
 
     // ══════════════════════════════════════════
     //  LEGO TEXTURE HELPERS (raised look)
@@ -577,6 +777,36 @@
         return tex;
     }
 
+    function makeInsetWaterTexture(size) {
+        const c = document.createElement('canvas');
+        c.width = c.height = size || 64;
+        const ctx = c.getContext('2d');
+        const s = c.width;
+
+        const grad = ctx.createLinearGradient(0, 0, 0, s);
+        grad.addColorStop(0, '#4FA7FF');
+        grad.addColorStop(0.5, '#237FDB');
+        grad.addColorStop(1, '#1C66BA');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, s, s);
+
+        // Darkened rim + subtle center highlight creates an inset "pool" feel.
+        ctx.strokeStyle = 'rgba(8, 34, 70, 0.55)';
+        ctx.lineWidth = 5;
+        ctx.strokeRect(2, 2, s - 4, s - 4);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.14)';
+        for (let i = 0; i < 4; i++) {
+            const y = s * (0.18 + i * 0.2) + (Math.random() - 0.5) * 2;
+            ctx.fillRect(8, y, s - 16, 2);
+        }
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.magFilter = THREE.LinearFilter;
+        tex.minFilter = THREE.LinearFilter;
+        return tex;
+    }
+
     // ══════════════════════════════════════════
     //  TERRAIN
     // ══════════════════════════════════════════
@@ -627,6 +857,8 @@
                     block.position.set(x, y * blockSize, z);
                     block.castShadow = true;
                     block.receiveShadow = true;
+                    freezeStaticMesh(block);
+                    terrainBlocks.push(block);
                     scene.add(block);
                 }
             }
@@ -634,12 +866,110 @@
     })();
 
     // ══════════════════════════════════════════
+    //  WATER TILES (inset)
+    // ══════════════════════════════════════════
+    (function createWaterObstacles() {
+        const waterTex = makeInsetWaterTexture(64);
+        const waterMat = new THREE.MeshPhongMaterial({
+            map: waterTex,
+            transparent: true,
+            opacity: 0.86,
+            shininess: 130,
+            specular: 0x88cfff,
+            flatShading: false,
+            depthWrite: false,
+            polygonOffset: true,
+            polygonOffsetFactor: -1,
+            polygonOffsetUnits: -2
+        });
+        const geom = new THREE.BoxGeometry(blockSize * 0.96, WATER_TILE_THICKNESS, blockSize * 0.96);
+
+        const riverCount = 3;
+        const attemptsMax = 140;
+
+        function rectCenter(r){ return {x:(r.x1+r.x2)/2, z:(r.z1+r.z2)/2}; }
+
+        for (let i = 0; i < riverCount; i++) {
+            let placed = false;
+            for (let a = 0; a < attemptsMax && !placed; a++) {
+                const vertical = Math.random() < 0.5;
+
+                const length = 18 + Math.random() * 14;
+                const width = 4 + Math.random() * 2;
+                const halfL = snapToBlock(length / 2);
+                const halfW = snapToBlock(width / 2);
+
+                let cx = (Math.random() - 0.5) * (PLAY_BOUNDS * 2 - WATER_EDGE_MARGIN * 2);
+                let cz = (Math.random() - 0.5) * (PLAY_BOUNDS * 2 - WATER_EDGE_MARGIN * 2);
+                cx = Math.max(-PLAY_BOUNDS + WATER_EDGE_MARGIN, Math.min(PLAY_BOUNDS - WATER_EDGE_MARGIN, cx));
+                cz = Math.max(-PLAY_BOUNDS + WATER_EDGE_MARGIN, Math.min(PLAY_BOUNDS - WATER_EDGE_MARGIN, cz));
+
+                // Keep the start area clear
+                if (Math.hypot(cx, cz) < 8) continue;
+
+                let x1, x2, z1, z2;
+                if (vertical) {
+                    x1 = snapToBlock(cx - halfW);
+                    x2 = snapToBlock(cx + halfW);
+                    z1 = snapToBlock(cz - halfL);
+                    z2 = snapToBlock(cz + halfL);
+                } else {
+                    x1 = snapToBlock(cx - halfL);
+                    x2 = snapToBlock(cx + halfL);
+                    z1 = snapToBlock(cz - halfW);
+                    z2 = snapToBlock(cz + halfW);
+                }
+
+                x1 = Math.max(-PLAY_BOUNDS + WATER_EDGE_MARGIN, x1);
+                x2 = Math.min(PLAY_BOUNDS - WATER_EDGE_MARGIN, x2);
+                z1 = Math.max(-PLAY_BOUNDS + WATER_EDGE_MARGIN, z1);
+                z2 = Math.min(PLAY_BOUNDS - WATER_EDGE_MARGIN, z2);
+
+                if (x2 - x1 < blockSize * 2 || z2 - z1 < blockSize * 2) continue;
+
+                const r = { x1, x2, z1, z2 };
+
+                // Avoid overlapping/nearby water strips
+                let ok = true;
+                const c1 = rectCenter(r);
+                for (const rr of waterRects) {
+                    const c2 = rectCenter(rr);
+                    if (Math.hypot(c1.x - c2.x, c1.z - c2.z) < 16) { ok = false; break; }
+                }
+                if (!ok) continue;
+
+                // Avoid tree trunk zones.
+                for (const tp of TREE_BASE_POSITIONS) {
+                    const d = Math.hypot(c1.x - tp[0], c1.z - tp[1]);
+                    if (d < 6) { ok = false; break; }
+                }
+                if (!ok) continue;
+
+                waterRects.push(r);
+
+                // Render water just above terrain so it stays visible at close range.
+                for (let x = x1; x <= x2; x += blockSize) {
+                    for (let z = z1; z <= z2; z += blockSize) {
+                        const topY = getTerrainTopY(x, z);
+                        const tile = new THREE.Mesh(geom, waterMat);
+                        tile.position.set(x, topY + WATER_TILE_THICKNESS / 2 + WATER_SURFACE_OFFSET, z);
+                        tile.renderOrder = 2;
+                        tile.receiveShadow = true;
+                        waterGroup.add(tile);
+                        addWaterTile(tile);
+                    }
+                }
+
+                placed = true;
+            }
+        }
+    })();
+
+
+    // ══════════════════════════════════════════
     //  LEGO TREES (placed ON terrain)
     // ══════════════════════════════════════════
-    window.treePositions = [
-        [12, 12], [-12, 12], [12, -12], [-12, -12],
-        [18, 0], [-18, 0], [0, 18], [0, -18]
-    ];
+    window.treePositions = TREE_BASE_POSITIONS.slice();
 
     // Keep trees away from edges (especially the south/bottom edge) to avoid wedge-traps.
     window.treePositions = window.treePositions.map(([x, z]) => {
@@ -665,6 +995,7 @@
             const trunk = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), trunkMat);
             trunk.position.y = topY + 1 + i * 2; // starts right on terrain surface
             trunk.castShadow = true;
+            freezeStaticMesh(trunk);
             g.add(trunk);
         }
 
@@ -682,35 +1013,73 @@
             leaf.position.set(p[0], leafBaseY + p[1], p[2]);
             leaf.castShadow = true;
             leaf.receiveShadow = true;
+            freezeStaticMesh(leaf);
             g.add(leaf);
         });
 
         g.position.set(tx, 0, tz);
+        g.matrixAutoUpdate = false;
+        g.updateMatrix();
+        staticDecor.push(g);
         scene.add(g);
     }
     window.treePositions.forEach(p => createTree(p[0], p[1]));
+
+    // Clear any water tiles too close to tree trunks (prevents wedge-stuck cases)
+    (function pruneWaterNearTrees() {
+        const safe = TREE_COLLISION_RADIUS + 1.2;
+        if (!waterGroup || !waterGroup.children || waterGroup.children.length === 0) return;
+
+        const toRemove = [];
+        for (const tile of waterGroup.children) {
+            for (const tp of window.treePositions) {
+                if (Math.hypot(tile.position.x - tp[0], tile.position.z - tp[1]) < safe) {
+                    toRemove.push(tile);
+                    break;
+                }
+            }
+        }
+        for (const tile of toRemove) removeWaterTile(tile);
+    })();
 
     // ══════════════════════════════════════════
     //  FLOWERS
     // ══════════════════════════════════════════
     (function createFlowers() {
-        for (let i = 0; i < 15; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const radius = 6 + Math.random() * 20;
-            const x = Math.cos(angle) * radius;
-            const z = Math.sin(angle) * radius;
-            const topY = getTerrainTopY(x, z);
-            const colors = [0xFF69B4, 0xFFFF00, 0xFF4500, 0x9370DB, 0xFFFFFF];
+        const flowerCount = 15;
+        for (let i = 0; i < flowerCount; i++) {
+            let placed = false;
+            for (let attempts = 0; attempts < 180 && !placed; attempts++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 6 + Math.random() * 20;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                if (isInWater(x, z) !== -1) continue;
 
-            const fg = new THREE.Group();
-            const stem = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.1), new THREE.MeshPhongMaterial({ color: 0x228B22 }));
-            stem.position.y = topY + 0.25;
-            const flower = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshPhongMaterial({ color: colors[Math.floor(Math.random()*colors.length)] }));
-            flower.position.y = topY + 0.7;
-            flower.rotation.y = Math.random() * Math.PI;
-            fg.add(stem, flower);
-            fg.position.set(x, 0, z);
-            scene.add(fg);
+                let nearTree = false;
+                for (const tp of window.treePositions) {
+                    if (Math.hypot(x - tp[0], z - tp[1]) < 2.2) { nearTree = true; break; }
+                }
+                if (nearTree) continue;
+
+                const topY = getTerrainTopY(x, z);
+                const colors = [0xFF69B4, 0xFFFF00, 0xFF4500, 0x9370DB, 0xFFFFFF];
+                const fg = new THREE.Group();
+                const stem = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.1), new THREE.MeshPhongMaterial({ color: 0x228B22 }));
+                stem.position.y = topY + 0.25;
+                freezeStaticMesh(stem);
+                const flower = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshPhongMaterial({ color: colors[Math.floor(Math.random() * colors.length)] }));
+                flower.position.y = topY + 0.7;
+                flower.rotation.y = Math.random() * Math.PI;
+                freezeStaticMesh(flower);
+                fg.add(stem, flower);
+                fg.position.set(x, 0, z);
+                fg.matrixAutoUpdate = false;
+                fg.updateMatrix();
+                staticDecor.push(fg);
+                scene.add(fg);
+                placed = true;
+            }
         }
     })();
 
@@ -756,19 +1125,44 @@
         balloons.push(g);
     }
 
+    
     for (let i = 0; i < totalBalloons; i++) {
         let placed = false, attempts = 0;
-        while (!placed && attempts < 50) {
-            const angle = (i / totalBalloons) * Math.PI * 2 + Math.random() * 0.5;
-            const radius = 8 + Math.random() * 18;
-            const x = Math.cos(angle) * radius + (Math.random() - 0.5) * 5;
-            const z = Math.sin(angle) * radius + (Math.random() - 0.5) * 5;
+        while (!placed && attempts < 200) {
+            const angle = (i / totalBalloons) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+            const radius = 14 + Math.random() * 28; // spread wide in the bigger world
+            let x = Math.cos(angle) * radius + (Math.random() - 0.5) * 6;
+            let z = Math.sin(angle) * radius + (Math.random() - 0.5) * 6;
+
+            // Keep balloons comfortably inside bounds
+            x = Math.max(-PLAY_BOUNDS + 4, Math.min(PLAY_BOUNDS - 4, x));
+            z = Math.max(-PLAY_BOUNDS + 6, Math.min(PLAY_BOUNDS - 4, z));
+
             let tooClose = false;
+
+            // Not in water
+            if (isInWater(x, z) !== -1) tooClose = true;
+
+            // Not too close to trees
             window.treePositions.forEach(tp => {
-                if (Math.sqrt((x-tp[0])**2 + (z-tp[1])**2) < 3) tooClose = true;
+                if (Math.hypot(x - tp[0], z - tp[1]) < 3.2) tooClose = true;
             });
+
+            // Not too close to other balloons
+            for (let b of balloons) {
+                const bx = b.userData.baseX;
+                const bz = b.userData.baseZ;
+                if (Math.hypot(x - bx, z - bz) < BALLOON_MIN_DIST) { tooClose = true; break; }
+            }
+
             if (!tooClose) { createBalloon(x, z); placed = true; }
             attempts++;
+        }
+        // If we somehow fail to place after lots of attempts, relax spacing slightly and try once more.
+        if (!placed) {
+            const x = (Math.random() - 0.5) * (PLAY_BOUNDS - 8);
+            const z = (Math.random() - 0.5) * (PLAY_BOUNDS - 8);
+            createBalloon(x, z);
         }
     }
 
@@ -838,19 +1232,19 @@
     // Legs
     const legGeo = new THREE.BoxGeometry(0.3, 0.5, 0.3);
     const leftLeg = new THREE.Mesh(legGeo, pantsMat);
-    leftLeg.position.set(-0.18, 0.45, 0);
+    leftLeg.position.set(-0.22, 0.45, 0);
     leftLeg.castShadow = true;
     const rightLeg = new THREE.Mesh(legGeo, pantsMat);
-    rightLeg.position.set(0.18, 0.45, 0);
+    rightLeg.position.set(0.22, 0.45, 0);
     rightLeg.castShadow = true;
 
     // FEET (new! flat LEGO shoes)
     const footGeo = new THREE.BoxGeometry(0.35, 0.15, 0.45);
     const leftFoot = new THREE.Mesh(footGeo, blackMat);
-    leftFoot.position.set(-0.18, 0.12, 0.05);
+    leftFoot.position.set(-0.22, 0.12, 0.05);
     leftFoot.castShadow = true;
     const rightFoot = new THREE.Mesh(footGeo, blackMat);
-    rightFoot.position.set(0.18, 0.12, 0.05);
+    rightFoot.position.set(0.22, 0.12, 0.05);
     rightFoot.castShadow = true;
 
     player.add(head, stud, leftEye, rightEye, smile, body, leftArm, rightArm, leftHand, rightHand, hip, leftLeg, rightLeg, leftFoot, rightFoot);
@@ -874,6 +1268,9 @@
     player.userData.walk.lastX = player.position.x;
     player.userData.walk.lastZ = player.position.z;
     scene.add(player);
+
+    let wasPlayerInWater = false;
+    let waterStepSfxCooldown = 0;
 
     // ══════════════════════════════════════════
     //  MARIO-STYLE JUMP PHYSICS
@@ -935,6 +1332,8 @@
     window.startGame = function(level) {
         applyDifficulty(level);
         gameStarted = true;
+        try { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); } catch (e) {}
+        try { startMusic(); } catch (e) {}
         const screen = document.getElementById('difficulty-screen');
         screen.style.transition = 'opacity .4s ease-out';
         screen.style.opacity = '0';
@@ -957,7 +1356,7 @@
         keys[k] = true;
         const ac = window.__audioCtx;
         if (ac && ac.state === 'suspended') { ac.resume(); }
-        if (k === 'r' && gameEnded) { location.reload(); return; }
+        if (k === 'r' && gameEnded) { resetConfetti(); location.reload(); return; }
         if (e.key === ' ') { jumpHeld = true; e.preventDefault(); }
     });
     window.addEventListener('keyup', (e) => {
@@ -1040,19 +1439,19 @@
         // Legs
         const rLegGeo = new THREE.BoxGeometry(0.28, 0.5, 0.28);
         const rLeftLeg = new THREE.Mesh(rLegGeo, darkRedMat);
-        rLeftLeg.position.set(-0.17, 0.45, 0);
+        rLeftLeg.position.set(-0.22, 0.45, 0);
         rLeftLeg.castShadow = true;
         const rRightLeg = new THREE.Mesh(rLegGeo, darkRedMat);
-        rRightLeg.position.set(0.17, 0.45, 0);
+        rRightLeg.position.set(0.22, 0.45, 0);
         rRightLeg.castShadow = true;
 
         // Feet
         const rFootGeo = new THREE.BoxGeometry(0.32, 0.14, 0.42);
         const rLeftFoot = new THREE.Mesh(rFootGeo, grayMat);
-        rLeftFoot.position.set(-0.17, 0.13, 0.04);
+        rLeftFoot.position.set(-0.22, 0.13, 0.04);
         rLeftFoot.castShadow = true;
         const rRightFoot = new THREE.Mesh(rFootGeo, grayMat);
-        rRightFoot.position.set(0.17, 0.13, 0.04);
+        rRightFoot.position.set(0.22, 0.13, 0.04);
         rRightFoot.castShadow = true;
 
         g.add(rHead, rStud, rLeftEye, rRightEye, lBrow, rBrow, antenna, antennaTip,
@@ -1077,6 +1476,8 @@
             walkPhase: 0,
             lastX: rx,
             lastZ: rz,
+            prevX: rx,
+            prevZ: rz,
             leftLeg: rLeftLeg,
             rightLeg: rRightLeg,
             leftFoot: rLeftFoot,
@@ -1087,11 +1488,518 @@
         robots.push(g);
     }
 
-    for (let i = 0; i < 5; i++) {
-        const angle = (i / 5) * Math.PI * 2 + Math.PI / 5;
-        const radius = 12 + Math.random() * 10;
-        createRobot(Math.cos(angle) * radius, Math.sin(angle) * radius);
+    function findRobotSpot(index, total) {
+        const baseAngle = (index / total) * Math.PI * 2 + Math.PI / total;
+
+        for (let attempts = 0; attempts < 260; attempts++) {
+            const angle = baseAngle + (Math.random() - 0.5) * 0.95;
+            const radius = 18 + Math.random() * 18;
+            let x = Math.cos(angle) * radius;
+            let z = Math.sin(angle) * radius;
+            x = Math.max(-PLAY_BOUNDS + 6, Math.min(PLAY_BOUNDS - 6, x));
+            z = Math.max(-PLAY_BOUNDS + 6, Math.min(PLAY_BOUNDS - 6, z));
+
+            if (isInWater(x, z) !== -1) continue;
+
+            let blocked = false;
+            for (const tp of window.treePositions) {
+                if (Math.hypot(x - tp[0], z - tp[1]) < TREE_COLLISION_RADIUS + ROBOT_COLLISION_RADIUS + 0.75) {
+                    blocked = true;
+                    break;
+                }
+            }
+            if (blocked) continue;
+
+            for (const r of robots) {
+                if (Math.hypot(x - r.position.x, z - r.position.z) < ROBOT_COLLISION_RADIUS * 2.5) {
+                    blocked = true;
+                    break;
+                }
+            }
+            if (blocked) continue;
+
+            return { x, z };
+        }
+
+        for (let i = 0; i < 36; i++) {
+            const angle = baseAngle + (i / 36) * Math.PI * 2;
+            const radius = 22;
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            if (isInWater(x, z) === -1) return { x, z };
+        }
+        return { x: 0, z: 0 };
     }
+
+    const ROBOT_COUNT = 10;
+    for (let i = 0; i < ROBOT_COUNT; i++) {
+        const spot = findRobotSpot(i, ROBOT_COUNT);
+        createRobot(spot.x, spot.z);
+    }
+
+    // ══════════════════════════════════════════
+    //  ANIMALS (duck, sheep, cow) — friendly obstacles
+    // ══════════════════════════════════════════
+    const animals = [];
+
+    function makeAnimalMat(color) {
+        return new THREE.MeshPhongMaterial({ color, flatShading: true, shininess: 60 });
+    }
+
+    function createDuck(x, z) {
+        const g = new THREE.Group();
+        const yellow = makeAnimalMat(0xFFD93D);
+        const orange = makeAnimalMat(0xFF8C1A);
+        const black = makeAnimalMat(0x222222);
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.6), yellow);
+        body.position.y = 0.6;
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.7), yellow);
+        head.position.set(0, 1.1, 0.65);
+
+        const beak = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.35), orange);
+        beak.position.set(0, 1.0, 1.05);
+
+        const eyeGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+        const eyeL = new THREE.Mesh(eyeGeo, black);
+        eyeL.position.set(-0.18, 1.18, 0.95);
+        const eyeR = new THREE.Mesh(eyeGeo, black);
+        eyeR.position.set(0.18, 1.18, 0.95);
+
+        const legGeo = new THREE.BoxGeometry(0.18, 0.35, 0.18);
+        const footGeo = new THREE.BoxGeometry(0.45, 0.12, 0.55);
+        const leftLeg = new THREE.Mesh(legGeo, orange);
+        const rightLeg = new THREE.Mesh(legGeo, orange);
+        const leftFoot = new THREE.Mesh(footGeo, orange);
+        const rightFoot = new THREE.Mesh(footGeo, orange);
+        leftLeg.position.set(-0.28, 0.18, -0.25);
+        rightLeg.position.set(0.28, 0.18, -0.25);
+        leftFoot.position.set(-0.28, 0.06, -0.05);
+        rightFoot.position.set(0.28, 0.06, -0.05);
+
+        g.add(body, head, beak, eyeL, eyeR, leftLeg, rightLeg, leftFoot, rightFoot);
+        const duckY = (isInWater(x, z) !== -1)
+            ? (getTerrainTopY(x, z) + WATER_SURFACE_OFFSET + 0.02)
+            : (getTerrainTopY(x, z) + 0.05);
+        g.position.set(x, duckY, z);
+
+        g.userData = {
+            type: 'duck',
+            radius: 1.05,
+            speed: 0.07,
+            vx: (Math.random() - 0.5) * 0.08,
+            vz: (Math.random() - 0.5) * 0.08,
+            timer: 60 + Math.random() * 120,
+            phase: Math.random() * Math.PI * 2,
+            leftLeg, rightLeg, leftFoot, rightFoot
+        };
+
+        scene.add(g);
+        animals.push(g);
+        return g;
+    }
+
+    function createSheep(x, z) {
+        const g = new THREE.Group();
+        const white = makeAnimalMat(0xF4F4F4);
+        const gray = makeAnimalMat(0x444444);
+        const pink = makeAnimalMat(0xF2B6C9);
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.1, 1.4), white);
+        body.position.y = 0.9;
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.8), gray);
+        head.position.set(0, 1.05, 1.05);
+
+        const nose = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.25, 0.25), pink);
+        nose.position.set(0, 0.95, 1.42);
+
+        const legGeo = new THREE.BoxGeometry(0.25, 0.55, 0.25);
+        const footGeo = new THREE.BoxGeometry(0.35, 0.12, 0.35);
+        const legs = [];
+        const feet = [];
+        const lx = [-0.6, 0.6];
+        const lz = [-0.45, 0.25];
+        for (let ix = 0; ix < 2; ix++) for (let iz = 0; iz < 2; iz++) {
+            const leg = new THREE.Mesh(legGeo, gray);
+            leg.position.set(lx[ix], 0.28, lz[iz]);
+            const foot = new THREE.Mesh(footGeo, gray);
+            foot.position.set(lx[ix], 0.06, lz[iz] + 0.05);
+            legs.push(leg); feet.push(foot);
+            g.add(leg, foot);
+        }
+
+        g.add(body, head, nose);
+        g.position.set(x, getTerrainTopY(x, z) + 0.05, z);
+
+        g.userData = {
+            type: 'sheep',
+            radius: 1.25,
+            speed: 0.06,
+            vx: (Math.random() - 0.5) * 0.07,
+            vz: (Math.random() - 0.5) * 0.07,
+            timer: 80 + Math.random() * 140,
+            phase: Math.random() * Math.PI * 2,
+            legs, feet
+        };
+
+        scene.add(g);
+        animals.push(g);
+        return g;
+    }
+
+    function createCow(x, z) {
+        const g = new THREE.Group();
+        const white = makeAnimalMat(0xF8F8F8);
+        const black = makeAnimalMat(0x1C1C1C);
+        const pink = makeAnimalMat(0xF4A6B6);
+        const tan = makeAnimalMat(0xC2A77A);
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.3, 1.6), white);
+        body.position.y = 1.0;
+
+        // Spots
+        const spot1 = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.2), black);
+        spot1.position.set(-0.55, 1.05, 0.75);
+        const spot2 = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.2), black);
+        spot2.position.set(0.65, 0.95, -0.65);
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.85, 0.9), white);
+        head.position.set(0, 1.15, 1.25);
+
+        const snout = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.35, 0.35), pink);
+        snout.position.set(0, 0.95, 1.7);
+
+        const hornGeo = new THREE.BoxGeometry(0.2, 0.25, 0.2);
+        const hornL = new THREE.Mesh(hornGeo, tan);
+        const hornR = new THREE.Mesh(hornGeo, tan);
+        hornL.position.set(-0.45, 1.55, 1.45);
+        hornR.position.set(0.45, 1.55, 1.45);
+
+        const legGeo = new THREE.BoxGeometry(0.3, 0.7, 0.3);
+        const footGeo = new THREE.BoxGeometry(0.42, 0.12, 0.42);
+        const legs = [];
+        const feet = [];
+        const lx = [-0.75, 0.75];
+        const lz = [-0.5, 0.35];
+        for (let ix = 0; ix < 2; ix++) for (let iz = 0; iz < 2; iz++) {
+            const leg = new THREE.Mesh(legGeo, black);
+            leg.position.set(lx[ix], 0.35, lz[iz]);
+            const foot = new THREE.Mesh(footGeo, black);
+            foot.position.set(lx[ix], 0.06, lz[iz] + 0.05);
+            legs.push(leg); feet.push(foot);
+            g.add(leg, foot);
+        }
+
+        g.add(body, spot1, spot2, head, snout, hornL, hornR);
+        g.position.set(x, getTerrainTopY(x, z) + 0.05, z);
+
+        g.userData = {
+            type: 'cow',
+            radius: 1.45,
+            speed: 0.055,
+            vx: (Math.random() - 0.5) * 0.065,
+            vz: (Math.random() - 0.5) * 0.065,
+            timer: 90 + Math.random() * 160,
+            phase: Math.random() * Math.PI * 2,
+            legs, feet
+        };
+
+        scene.add(g);
+        animals.push(g);
+        return g;
+    }
+
+    function findAnimalSpot(options = {}) {
+        const minFromCenter = options.minFromCenter || 7;
+        const mustBeWater = !!options.mustBeWater;
+        const radius = options.radius || 1.0;
+        const edgePad = options.edgePad || 6;
+
+        for (let attempts = 0; attempts < 280; attempts++) {
+            let x = (Math.random() - 0.5) * (PLAY_BOUNDS * 2 - 12);
+            let z = (Math.random() - 0.5) * (PLAY_BOUNDS * 2 - 12);
+            x = Math.max(-PLAY_BOUNDS + edgePad, Math.min(PLAY_BOUNDS - edgePad, x));
+            z = Math.max(-PLAY_BOUNDS + edgePad, Math.min(PLAY_BOUNDS - edgePad, z));
+            if (Math.hypot(x, z) < minFromCenter) continue;
+
+            const inWater = isInWater(x, z) !== -1;
+            if (mustBeWater !== inWater) continue;
+
+            let blocked = false;
+            if (!mustBeWater) {
+                for (const tp of window.treePositions || []) {
+                    if (Math.hypot(x - tp[0], z - tp[1]) < TREE_COLLISION_RADIUS + radius + 0.6) { blocked = true; break; }
+                }
+            }
+            if (blocked) continue;
+
+            for (const a of animals) {
+                const ar = a.userData.radius || 1.0;
+                if (Math.hypot(x - a.position.x, z - a.position.z) < radius + ar + 1.0) { blocked = true; break; }
+            }
+            if (blocked) continue;
+
+            return { x, z };
+        }
+
+        if (mustBeWater && waterTileMeshes.length > 0) {
+            for (let i = 0; i < waterTileMeshes.length; i++) {
+                const tile = waterTileMeshes[Math.floor(Math.random() * waterTileMeshes.length)];
+                let blocked = false;
+                for (const a of animals) {
+                    const ar = a.userData.radius || 1.0;
+                    if (Math.hypot(tile.position.x - a.position.x, tile.position.z - a.position.z) < radius + ar + 0.8) {
+                        blocked = true;
+                        break;
+                    }
+                }
+                if (!blocked) return { x: tile.position.x, z: tile.position.z };
+            }
+        }
+
+        return { x: 10, z: 10 };
+    }
+
+    function applyAnimalVerticalPosition(a) {
+        const ud = a.userData || {};
+        const topY = getTerrainTopY(a.position.x, a.position.z);
+        if (ud.type === 'duck' && isInWater(a.position.x, a.position.z) !== -1) {
+            a.position.y = topY + WATER_SURFACE_OFFSET + 0.02;
+        } else {
+            a.position.y = topY + 0.05;
+        }
+    }
+
+    function enforceAnimalWaterRule(a) {
+        const ud = a.userData || {};
+        const shouldBeWater = ud.type === 'duck';
+        const currentlyInWater = isInWater(a.position.x, a.position.z) !== -1;
+        if (currentlyInWater === shouldBeWater) return;
+
+        if (typeof ud.prevX === 'number' && typeof ud.prevZ === 'number') {
+            a.position.x = ud.prevX;
+            a.position.z = ud.prevZ;
+            if ((isInWater(a.position.x, a.position.z) !== -1) === shouldBeWater) return;
+        }
+
+        const r = ud.radius || 1.0;
+        let found = null;
+        for (let dist = 0; dist <= 22 && !found; dist += blockSize) {
+            const samples = dist === 0 ? 1 : 18;
+            for (let i = 0; i < samples; i++) {
+                const ang = (i / samples) * Math.PI * 2;
+                const x = Math.max(-PLAY_BOUNDS + r, Math.min(PLAY_BOUNDS - r, a.position.x + Math.cos(ang) * dist));
+                const z = Math.max(-PLAY_BOUNDS + r, Math.min(PLAY_BOUNDS - r, a.position.z + Math.sin(ang) * dist));
+                const inWater = isInWater(x, z) !== -1;
+                if (inWater !== shouldBeWater) continue;
+
+                let blocked = false;
+                if (!shouldBeWater) {
+                    for (const tp of window.treePositions) {
+                        if (Math.hypot(x - tp[0], z - tp[1]) < TREE_COLLISION_RADIUS + r + 0.25) { blocked = true; break; }
+                    }
+                    if (blocked) continue;
+                }
+
+                for (const other of animals) {
+                    if (other === a) continue;
+                    const or = other.userData.radius || 1.0;
+                    if (Math.hypot(x - other.position.x, z - other.position.z) < r + or + 0.15) { blocked = true; break; }
+                }
+                if (blocked) continue;
+
+                found = { x, z };
+                break;
+            }
+        }
+
+        if (found) {
+            a.position.x = found.x;
+            a.position.z = found.z;
+        }
+    }
+
+    // Spawn 3 ducks (water only), 3 sheep (land only), 3 cows (land only)
+    (function spawnAnimals() {
+        const each = 3;
+        for (let i = 0; i < each; i++) {
+            const p = findAnimalSpot({ minFromCenter: 8 + i * 0.2, mustBeWater: true, radius: 1.05, edgePad: 4 });
+            createDuck(p.x, p.z);
+        }
+        for (let i = 0; i < each; i++) {
+            const p = findAnimalSpot({ minFromCenter: 9 + i * 0.4, mustBeWater: false, radius: 1.25 });
+            createSheep(p.x, p.z);
+        }
+        for (let i = 0; i < each; i++) {
+            const p = findAnimalSpot({ minFromCenter: 10 + i * 0.4, mustBeWater: false, radius: 1.45 });
+            createCow(p.x, p.z);
+        }
+    })();
+
+    function updateAnimals(dt60) {
+        for (const a of animals) {
+            const ud = a.userData;
+            ud.prevX = a.position.x;
+            ud.prevZ = a.position.z;
+            ud.timer -= 1 * GLOBAL_SPEED_MULT;
+            if (ud.timer <= 0) {
+                const ang = Math.random() * Math.PI * 2;
+                ud.vx = Math.cos(ang) * (0.7 + Math.random() * 0.6) * ud.speed;
+                ud.vz = Math.sin(ang) * (0.7 + Math.random() * 0.6) * ud.speed;
+                ud.timer = 80 + Math.random() * 160;
+            }
+
+            // Proposed move
+            let nx = a.position.x + ud.vx * dt60;
+            let nz = a.position.z + ud.vz * dt60;
+            const r = ud.radius || 1.0;
+
+            // Bounds bounce
+            if (nx < -PLAY_BOUNDS + r || nx > PLAY_BOUNDS - r) { ud.vx *= -1; nx = a.position.x + ud.vx * dt60; }
+            if (nz < -PLAY_BOUNDS + r || nz > PLAY_BOUNDS - r) { ud.vz *= -1; nz = a.position.z + ud.vz * dt60; }
+
+            // Species water rules: ducks stay in water, sheep/cows stay out.
+            const shouldBeWater = ud.type === 'duck';
+            if ((isInWater(nx, nz) !== -1) !== shouldBeWater) {
+                ud.vx *= -1;
+                ud.vz *= -1;
+                nx = a.position.x + ud.vx * dt60;
+                nz = a.position.z + ud.vz * dt60;
+            }
+
+            // Don't let animals run into each other.
+            let blockedByAnimal = false;
+            for (const other of animals) {
+                if (other === a) continue;
+                const or = other.userData.radius || 1.0;
+                const minD = r + or + 0.2;
+                const dx = nx - other.position.x;
+                const dz = nz - other.position.z;
+                const dist = Math.hypot(dx, dz);
+                if (dist < minD) {
+                    blockedByAnimal = true;
+                    if (dist > 1e-6) {
+                        ud.vx += (dx / dist) * 0.02;
+                        ud.vz += (dz / dist) * 0.02;
+                    }
+                    break;
+                }
+            }
+            if (blockedByAnimal) {
+                ud.vx *= -0.7;
+                ud.vz *= -0.7;
+                nx = a.position.x;
+                nz = a.position.z;
+            }
+
+            a.position.x = nx;
+            a.position.z = nz;
+
+            if (ud.type !== 'duck') resolveTreeCollisions(a.position, r);
+            enforceAnimalWaterRule(a);
+            applyAnimalVerticalPosition(a);
+
+            // Face direction
+            if (Math.abs(ud.vx) + Math.abs(ud.vz) > 0.0001) {
+                a.rotation.y = Math.atan2(ud.vx, ud.vz);
+            }
+
+            // Simple walk cycle (tiny, cute)
+            const moving = (Math.abs(ud.vx) + Math.abs(ud.vz) > 0.0005);
+            const gait = moving ? 1 : 0;
+            ud.phase += gait * 0.45 * dt60;
+
+            // Duck: waddle legs
+            if (ud.type === 'duck' && ud.leftLeg) {
+                const swing = Math.sin(ud.phase) * 0.5 * gait;
+                ud.leftLeg.rotation.x = swing;
+                ud.rightLeg.rotation.x = -swing;
+                ud.leftFoot.rotation.x = -swing * 0.35;
+                ud.rightFoot.rotation.x = swing * 0.35;
+            }
+
+            // Sheep/Cow: wiggle legs lightly
+            if ((ud.type === 'sheep' || ud.type === 'cow') && ud.legs) {
+                const swing = Math.sin(ud.phase) * 0.35 * gait;
+                for (let i = 0; i < ud.legs.length; i++) {
+                    ud.legs[i].rotation.x = (i % 2 === 0 ? swing : -swing);
+                }
+                if (ud.feet) {
+                    for (let i = 0; i < ud.feet.length; i++) {
+                        ud.feet[i].rotation.x = (i % 2 === 0 ? -swing : swing) * 0.25;
+                    }
+                }
+            }
+        }
+
+        // Keep animals from stacking on each other
+        for (let i = 0; i < animals.length; i++) {
+            for (let j = i + 1; j < animals.length; j++) {
+                const a = animals[i], b = animals[j];
+                const ra = a.userData.radius || 1.0;
+                const rb = b.userData.radius || 1.0;
+                const dx = a.position.x - b.position.x;
+                const dz = a.position.z - b.position.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                const minD = ra + rb + 0.15;
+                if (dist < minD) {
+                    const nx = dist > 1e-6 ? dx / dist : 1;
+                    const nz = dist > 1e-6 ? dz / dist : 0;
+                    const push = (minD - dist) * 0.5;
+                    a.position.x += nx * push;
+                    a.position.z += nz * push;
+                    b.position.x -= nx * push;
+                    b.position.z -= nz * push;
+                    a.userData.vx += nx * 0.01;
+                    a.userData.vz += nz * 0.01;
+                    b.userData.vx -= nx * 0.01;
+                    b.userData.vz -= nz * 0.01;
+                }
+            }
+        }
+
+        for (const a of animals) {
+            enforceAnimalWaterRule(a);
+            applyAnimalVerticalPosition(a);
+        }
+    }
+
+    function resolveAnimalCollisions(entityPos, entityRadius) {
+        for (const a of animals) {
+            const r = a.userData.radius || 1.0;
+            const dx = entityPos.x - a.position.x;
+            const dz = entityPos.z - a.position.z;
+            const dist = Math.sqrt(dx*dx + dz*dz);
+            const minD = entityRadius + r;
+            if (dist < minD) {
+                const nx = dist > 1e-6 ? dx / dist : 1;
+                const nz = dist > 1e-6 ? dz / dist : 0;
+                const push = (minD - dist) + 0.001;
+
+                // Push entity out
+                entityPos.x += nx * push;
+                entityPos.z += nz * push;
+
+                // Push animal slightly away too (so it doesn't feel like a wall)
+                a.position.x -= nx * push * 0.6;
+                a.position.z -= nz * push * 0.6;
+
+                // Keep animal valid
+                const ar = a.userData.radius || 1.0;
+                a.position.x = Math.max(-PLAY_BOUNDS + ar, Math.min(PLAY_BOUNDS - ar, a.position.x));
+                a.position.z = Math.max(-PLAY_BOUNDS + ar, Math.min(PLAY_BOUNDS - ar, a.position.z));
+                if (a.userData.type !== 'duck') resolveTreeCollisions(a.position, ar);
+                enforceAnimalWaterRule(a);
+                applyAnimalVerticalPosition(a);
+            }
+        }
+        // Clamp entity after pushes
+        entityPos.x = Math.max(-PLAY_BOUNDS + entityRadius, Math.min(PLAY_BOUNDS - entityRadius, entityPos.x));
+        entityPos.z = Math.max(-PLAY_BOUNDS + entityRadius, Math.min(PLAY_BOUNDS - entityRadius, entityPos.z));
+    }
+
 
     // ══════════════════════════════════════════
     //  LEGO BRICK LASER PROJECTILES
@@ -1099,9 +2007,207 @@
     const lasers = [];
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     window.__audioCtx = audioCtx;
-    const BALLOON_SCALE_FREQS = [130.81, 146.83, 164.81, 174.61, 196.00, 220.00, 246.94, 261.63]; // C3..C4 (C major scale)
 
+    // Audio buses: keep SFX crisp and make music sit underneath.
+    const masterGain = audioCtx.createGain();
+    const sfxBus = audioCtx.createGain();
+    const musicBus = audioCtx.createGain();
+    const comp = audioCtx.createDynamicsCompressor();
 
+    comp.threshold.setValueAtTime(-18, audioCtx.currentTime);
+    comp.knee.setValueAtTime(20, audioCtx.currentTime);
+    comp.ratio.setValueAtTime(6, audioCtx.currentTime);
+    comp.attack.setValueAtTime(0.003, audioCtx.currentTime);
+    comp.release.setValueAtTime(0.22, audioCtx.currentTime);
+
+    sfxBus.gain.value = 1.0;
+    musicBus.gain.value = 0.11;
+    masterGain.gain.value = 0.95;
+
+    sfxBus.connect(comp);
+    musicBus.connect(comp);
+    comp.connect(masterGain);
+    masterGain.connect(audioCtx.destination);
+
+    // Balloon notes: C major scale C3 → C4
+    const BALLOON_SCALE_FREQS = [130.81, 146.83, 164.81, 174.61, 196.00, 220.00, 246.94, 261.63]; // C3..C4
+
+    // ──────────────────────────────────────────
+    // Background music (multi-layer arpeggiated)
+    // ──────────────────────────────────────────
+    let musicOn = false;
+    let musicTimer = null;
+    let musicStep = 0;
+    let musicNextTime = 0;
+
+    const MUSIC_BPM = 126;
+    const MUSIC_STEP_SEC = (60 / MUSIC_BPM) / 4; // 16th-note engine
+    const CHORD_STEPS = 16; // one bar per chord
+
+    // Richer progression with extended/borrowed chords.
+    const MUSIC_CHORDS_MIDI = [
+        [60, 64, 67, 71, 74], // Cmaj9
+        [57, 60, 64, 67, 71], // Am9
+        [62, 65, 69, 72, 76], // Dm9
+        [67, 71, 74, 77, 81], // G13
+        [64, 67, 71, 74, 78], // Em9
+        [69, 73, 76, 79, 83], // A13
+        [62, 65, 69, 72, 76], // Dm9
+        [65, 69, 72, 76, 79], // Fmaj9
+        [60, 63, 67, 70, 74], // Cm9 (borrowed)
+        [67, 71, 74, 77, 81], // G13
+        [58, 62, 65, 69, 72], // Bbmaj9 (borrowed)
+        [60, 64, 67, 71, 74], // Cmaj9 resolve
+    ];
+    const arpLeadState = { idx: 0, octave: 0, dir: 1 };
+    const arpCounterState = { idx: 2, octave: 0, dir: -1 };
+
+    function midiToFreq(midi) {
+        return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    function resetArpState(state, chordSize) {
+        state.idx = Math.floor(Math.random() * chordSize);
+        state.octave = 0;
+        state.dir = Math.random() < 0.5 ? 1 : -1;
+    }
+
+    // Randomized up/down movement across a two-octave span (-12..+12 semitones).
+    function nextArpMidi(chord, state) {
+        if (Math.random() < 0.18) state.dir *= -1;
+        const hop = Math.random() < 0.24 ? 2 : 1;
+        state.idx += state.dir * hop;
+
+        while (state.idx < 0) {
+            state.idx += chord.length;
+            state.octave--;
+        }
+        while (state.idx >= chord.length) {
+            state.idx -= chord.length;
+            state.octave++;
+        }
+
+        if (state.octave < -1) { state.octave = -1; state.dir = 1; }
+        if (state.octave > 1) { state.octave = 1; state.dir = -1; }
+
+        if (Math.random() < 0.08) {
+            state.octave += Math.random() < 0.5 ? -1 : 1;
+            state.octave = Math.max(-1, Math.min(1, state.octave));
+        }
+
+        return chord[state.idx] + state.octave * 12;
+    }
+
+    function musicNote(freq, t, dur, gainVal = 0.06, type = 'triangle', filterHz = 1200, attack = 0.01) {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        const f = audioCtx.createBiquadFilter();
+
+        o.type = type;
+        o.frequency.setValueAtTime(freq, t);
+        o.detune.setValueAtTime((Math.random() - 0.5) * 8, t); // tiny analog wobble
+
+        // Gentle low-pass so it stays behind SFX
+        f.type = 'lowpass';
+        f.frequency.setValueAtTime(filterHz, t);
+        f.Q.setValueAtTime(0.7, t);
+
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(gainVal, t + attack);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.05, dur));
+
+        o.connect(f);
+        f.connect(g);
+        g.connect(musicBus);
+
+        o.start(t);
+        o.stop(t + dur + 0.04);
+    }
+
+    function musicHat(t, dur = 0.03, gainVal = 0.018) {
+        // Tiny filtered noise "tick"
+        const bufferSize = Math.floor(audioCtx.sampleRate * dur);
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+
+        const hp = audioCtx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.setValueAtTime(3000, t);
+        hp.Q.setValueAtTime(0.7, t);
+
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(gainVal, t + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+        src.connect(hp);
+        hp.connect(g);
+        g.connect(musicBus);
+
+        src.start(t);
+        src.stop(t + dur);
+    }
+
+    function startMusic() {
+        if (musicOn) return;
+        musicOn = true;
+        musicStep = 0;
+        musicNextTime = audioCtx.currentTime + 0.06;
+        resetArpState(arpLeadState, MUSIC_CHORDS_MIDI[0].length);
+        resetArpState(arpCounterState, MUSIC_CHORDS_MIDI[0].length);
+
+        if (musicTimer) clearInterval(musicTimer);
+        musicTimer = setInterval(() => {
+            if (!musicOn) return;
+            const ahead = 0.35;
+
+            while (musicNextTime < audioCtx.currentTime + ahead) {
+                const chord = MUSIC_CHORDS_MIDI[Math.floor(musicStep / CHORD_STEPS) % MUSIC_CHORDS_MIDI.length];
+                const t = musicNextTime;
+
+                // Primary arp
+                const leadMidi = nextArpMidi(chord, arpLeadState);
+                musicNote(midiToFreq(leadMidi), t, MUSIC_STEP_SEC * 0.9, 0.056, 'triangle', 1900, 0.006);
+
+                // Counter arp (offset and darker)
+                if (musicStep % 2 === 1) {
+                    const counterMidi = nextArpMidi(chord, arpCounterState) - 12;
+                    musicNote(midiToFreq(counterMidi), t + MUSIC_STEP_SEC * 0.12, MUSIC_STEP_SEC * 0.78, 0.03, 'sawtooth', 1500, 0.005);
+                }
+
+                // Bass pulse on beats
+                if (musicStep % 4 === 0) {
+                    const bassMidi = chord[0] - 24 + (musicStep % 16 === 12 ? 2 : 0);
+                    musicNote(midiToFreq(bassMidi), t, MUSIC_STEP_SEC * 3.2, 0.04, 'sine', 460, 0.012);
+                }
+
+                // Chord shimmer accents
+                if (musicStep % 8 === 0) {
+                    musicNote(midiToFreq(chord[1]), t, MUSIC_STEP_SEC * 7.0, 0.018, 'square', 980, 0.01);
+                    musicNote(midiToFreq(chord[3] - 12), t + MUSIC_STEP_SEC * 0.08, MUSIC_STEP_SEC * 6.6, 0.016, 'triangle', 1040, 0.01);
+                }
+
+                // Lightweight percussive motion
+                if (musicStep % 2 === 0 || Math.random() < 0.26) musicHat(t, 0.026, 0.016);
+                if (musicStep % 4 === 2 && Math.random() < 0.55) {
+                    musicHat(t + MUSIC_STEP_SEC * 0.25, 0.018, 0.01);
+                }
+
+                musicNextTime += MUSIC_STEP_SEC;
+                musicStep++;
+            }
+        }, 80);
+    }
+
+    function stopMusic() {
+        musicOn = false;
+        if (musicTimer) clearInterval(musicTimer);
+        musicTimer = null;
+    }
 
 // Robot "taunt" voice lines (random every 6–10s)
 const ROBOT_TAUNTS = [
@@ -1110,13 +2216,11 @@ const ROBOT_TAUNTS = [
     "Initiating hug protocol. Warning: hugs are aggressive.",
     "I have calculated your exact wiggle path. It is... wiggly.",
     "Stop right there, birthday human!",
-    "Resistance is adorable.",
     "My boots are squeaking at maximum intensity.",
     "I am 73% LEGO, 27% pure mischief.",
     "You cannot outrun my tiny robot knees!",
     "I brought lasers to a balloon party. Classic me.",
     "Please stand still for scanning. Scanning... scan complete: you are fast.",
-    "I would like to speak to your balloon manager.",
     "Error 404: your safety not found.",
     "I'm not chasing you. I'm just... aggressively following.",
     "Behold! My advanced strategy: walk toward you.",
@@ -1125,7 +2229,26 @@ const ROBOT_TAUNTS = [
     "I have upgraded to Turbo Mode. Just kidding. I'm still slow.",
     "Surrender the balloons and nobody gets mildly bonked.",
     "This is a very serious robot mission. Very serious. Beep.",
-    "I have a doctorate in chasing. It's called a CHASE-D.",
+    "My laser is set to: PEW PEW.",
+    "Recalculating… recalculating… ok yep, still chasing.",
+    "I will now do a dramatic villain laugh: ha… ha… ha… buffering…",
+    "I am not slow. I am energy efficient.",
+    "My knees are small but my determination is large.",
+    "I demand a balloon… for… uh… science.",
+    "I have a message for you: GIVE BALLOON. End of message.",
+    "My plan is flawless: Step 1: Walk. Step 2: Also walk.",
+    "I am scanning for balloons… detected: yours.",
+    "I am the birthday party security. Hand over the fun.",
+    "Error: I accidentally set my brain to SILLY again.",
+    "I am trained in advanced tactics like… turning left.",
+    "I can’t believe you’re making me use… SECOND GEAR.",
+    "I heard you like balloons. I also like balloons. We are now rivals.",
+    "I will trade you: one robot joke for one balloon.",
+    "I am activating Maximum Dramatic Music. Bum bum BUUUM.",
+    "I have locked onto your location: somewhere near me.",
+    "I’m not yelling. This is my indoors robot voice: BEEP!",
+    "I have come for the balloons… and also compliments.",
+    "Oh no. You used my weakness: moving away.",
 ];
 
 let robotVoice = null;
@@ -1163,6 +2286,22 @@ function robotSay(text) {
 
 function randRange(min, max) { return min + Math.random() * (max - min); }
 let nextRobotTauntTime = Date.now() + randRange(6000, 10000);
+let tauntBag = [];
+
+function refillTauntBag() {
+    tauntBag = ROBOT_TAUNTS.map((_, i) => i);
+    for (let i = tauntBag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = tauntBag[i];
+        tauntBag[i] = tauntBag[j];
+        tauntBag[j] = tmp;
+    }
+}
+
+function nextRobotTauntLine() {
+    if (tauntBag.length === 0) refillTauntBag();
+    return ROBOT_TAUNTS[tauntBag.pop()];
+}
 
 function maybeRobotTaunt() {
     if (gameEnded || !gameStarted) return;
@@ -1179,7 +2318,7 @@ function maybeRobotTaunt() {
     }
 
     if (nearest && best < 26) {
-        const line = ROBOT_TAUNTS[Math.floor(Math.random() * ROBOT_TAUNTS.length)];
+        const line = nextRobotTauntLine();
         robotSay(line);
     }
 
@@ -1191,7 +2330,7 @@ function maybeRobotTaunt() {
     function playLaserSound() {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.connect(gain); gain.connect(sfxBus);
         osc.frequency.setValueAtTime(800, audioCtx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.3);
         gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
@@ -1202,7 +2341,7 @@ function maybeRobotTaunt() {
     function playHitSound() {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.connect(gain); gain.connect(sfxBus);
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(100, audioCtx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.2);
@@ -1212,12 +2351,91 @@ function maybeRobotTaunt() {
         setTimeout(() => {
             const o2 = audioCtx.createOscillator();
             const g2 = audioCtx.createGain();
-            o2.connect(g2); g2.connect(audioCtx.destination);
+            o2.connect(g2); g2.connect(sfxBus);
             o2.frequency.value = 400;
             g2.gain.setValueAtTime(0.2, audioCtx.currentTime);
             g2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
             o2.start(); o2.stop(audioCtx.currentTime + 0.1);
         }, 100);
+    }
+
+    function playSplashSound() {
+        const now = audioCtx.currentTime;
+
+        // Soft "splash" noise
+        const bufferSize = Math.floor(audioCtx.sampleRate * 0.22);
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            const t = i / bufferSize;
+            data[i] = (Math.random() * 2 - 1) * (1 - t) * 0.85;
+        }
+
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+
+        const lp = audioCtx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(1000, now);
+        lp.frequency.exponentialRampToValueAtTime(260, now + 0.18);
+
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(0.36, now + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+        src.connect(lp);
+        lp.connect(g);
+        g.connect(sfxBus);
+
+        src.start(now);
+        src.stop(now + 0.24);
+
+        // Little "blup" tone
+        const o = audioCtx.createOscillator();
+        const g2 = audioCtx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(220, now);
+        o.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+        g2.gain.setValueAtTime(0.0001, now);
+        g2.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+        g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+        o.connect(g2);
+        g2.connect(sfxBus);
+        o.start(now);
+        o.stop(now + 0.16);
+    }
+
+    function playWaterStepSplashSound() {
+        const now = audioCtx.currentTime;
+
+        const bufferSize = Math.floor(audioCtx.sampleRate * 0.1);
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            const t = i / bufferSize;
+            data[i] = (Math.random() * 2 - 1) * (1 - t) * 0.35;
+        }
+
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+
+        const bp = audioCtx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.setValueAtTime(780, now);
+        bp.Q.setValueAtTime(0.7, now);
+
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(0.14, now + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+
+        src.connect(bp);
+        bp.connect(g);
+        g.connect(sfxBus);
+
+        src.start(now);
+        src.stop(now + 0.1);
     }
 
 
@@ -1237,7 +2455,7 @@ function playRobotBumpSound() {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
 
     osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(sfxBus);
 
     osc.start(now);
     osc.stop(now + 0.18);
@@ -1265,11 +2483,68 @@ function playRobotBumpSound() {
 
     noise.connect(bp);
     bp.connect(nGain);
-    nGain.connect(audioCtx.destination);
+    nGain.connect(sfxBus);
 
     noise.start(now);
     noise.stop(now + 0.12);
 }
+
+    let winFanfarePlayed = false;
+    function playWinFanfare() {
+        if (winFanfarePlayed) return;
+        winFanfarePlayed = true;
+
+        try {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        } catch (e) {}
+
+        const now = audioCtx.currentTime + 0.02;
+
+        function tone(freq, t, dur, gainVal = 0.16, type = 'triangle') {
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            const f = audioCtx.createBiquadFilter();
+
+            o.type = type;
+            o.frequency.setValueAtTime(freq, t);
+            o.detune.setValueAtTime((Math.random() - 0.5) * 4, t);
+
+            f.type = 'lowpass';
+            f.frequency.setValueAtTime(2600, t);
+            f.Q.setValueAtTime(0.7, t);
+
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(gainVal, t + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+            o.connect(f);
+            f.connect(g);
+            g.connect(sfxBus);
+
+            o.start(t);
+            o.stop(t + dur + 0.04);
+        }
+
+        // Bright ascending celebration phrase.
+        const lead = [
+            [523.25, 0.00, 0.15], // C5
+            [659.25, 0.14, 0.15], // E5
+            [783.99, 0.28, 0.17], // G5
+            [1046.50, 0.45, 0.24], // C6
+            [1318.51, 0.68, 0.30], // E6
+        ];
+        for (const n of lead) {
+            tone(n[0], now + n[1], n[2], 0.16, 'triangle');
+            tone(n[0] / 2, now + n[1], n[2] * 0.95, 0.07, 'sine');
+        }
+
+        // Final big chord stab.
+        const finalChord = [523.25, 659.25, 783.99, 1046.50];
+        for (let i = 0; i < finalChord.length; i++) {
+            const type = i % 2 === 0 ? 'square' : 'triangle';
+            tone(finalChord[i], now + 1.00, 0.58, 0.11, type);
+        }
+    }
 
     function playBalloonSound(noteIndex) {
         const idx = Math.max(0, Math.min(BALLOON_SCALE_FREQS.length - 1, (noteIndex | 0)));
@@ -1280,7 +2555,7 @@ function playRobotBumpSound() {
         const now = audioCtx.currentTime;
 
         osc.connect(gain); 
-        gain.connect(audioCtx.destination);
+        gain.connect(sfxBus);
 
         osc.type = 'sine';
         osc.frequency.setValueAtTime(base, now);
@@ -1288,7 +2563,7 @@ function playRobotBumpSound() {
         osc.frequency.exponentialRampToValueAtTime(base * 1.06, now + 0.08);
 
         gain.gain.setValueAtTime(0.001, now);
-        gain.gain.exponentialRampToValueAtTime(0.38, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.62, now + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
 
         osc.start(now); 
@@ -1363,7 +2638,7 @@ function playRobotBumpSound() {
             }
 
             // Out of bounds / too old
-            if (Math.abs(laser.position.x) > 35 || Math.abs(laser.position.z) > 35 || laser.userData.lifetime > 200) {
+            if (Math.abs(laser.position.x) > PLAY_BOUNDS + 14 || Math.abs(laser.position.z) > PLAY_BOUNDS + 14 || laser.userData.lifetime > 200) {
                 scene.remove(laser);
                 lasers.splice(i, 1);
                 continue;
@@ -1509,11 +2784,72 @@ function playRobotBumpSound() {
         pos.z = Math.max(-PLAY_BOUNDS + radius, Math.min(PLAY_BOUNDS - radius, pos.z));
     }
 
+    function resolveRobotRobotCollisions() {
+        const minD = ROBOT_COLLISION_RADIUS * 2 + 0.14;
+
+        for (let i = 0; i < robots.length; i++) {
+            for (let j = i + 1; j < robots.length; j++) {
+                const a = robots[i];
+                const b = robots[j];
+                const dx = a.position.x - b.position.x;
+                const dz = a.position.z - b.position.z;
+                const dist = Math.hypot(dx, dz);
+                if (dist < minD) {
+                    const nx = dist > 1e-6 ? dx / dist : 1;
+                    const nz = dist > 1e-6 ? dz / dist : 0;
+                    const push = (minD - dist) * 0.5;
+                    a.position.x += nx * push;
+                    a.position.z += nz * push;
+                    b.position.x -= nx * push;
+                    b.position.z -= nz * push;
+                }
+            }
+        }
+
+        for (const robot of robots) {
+            const ud = robot.userData || {};
+            robot.position.x = Math.max(-PLAY_BOUNDS + ROBOT_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - ROBOT_COLLISION_RADIUS, robot.position.x));
+            robot.position.z = Math.max(-PLAY_BOUNDS + ROBOT_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - ROBOT_COLLISION_RADIUS, robot.position.z));
+            resolveTreeCollisions(robot.position, ROBOT_COLLISION_RADIUS);
+
+            if (isInWater(robot.position.x, robot.position.z) !== -1) {
+                if (typeof ud.prevX === 'number' && typeof ud.prevZ === 'number') {
+                    robot.position.x = ud.prevX;
+                    robot.position.z = ud.prevZ;
+                }
+
+                if (isInWater(robot.position.x, robot.position.z) !== -1) {
+                    let moved = false;
+                    for (let dist = blockSize; dist <= 18 && !moved; dist += blockSize) {
+                        for (let k = 0; k < 16; k++) {
+                            const ang = (k / 16) * Math.PI * 2;
+                            const x = Math.max(-PLAY_BOUNDS + ROBOT_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - ROBOT_COLLISION_RADIUS, robot.position.x + Math.cos(ang) * dist));
+                            const z = Math.max(-PLAY_BOUNDS + ROBOT_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - ROBOT_COLLISION_RADIUS, robot.position.z + Math.sin(ang) * dist));
+                            if (isInWater(x, z) === -1) {
+                                robot.position.x = x;
+                                robot.position.z = z;
+                                moved = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // ══════════════════════════════════════════
     //  MAIN GAME LOOP
     // ══════════════════════════════════════════
     function animate() {
         requestAnimationFrame(animate);
+
+        // Animation delta (used only for limb smoothing; gameplay physics remain frame-based)
+        const now = performance.now();
+        const last = animate.__lastT || now;
+        const dt = Math.min(0.05, (now - last) / 1000);
+        animate.__lastT = now;
+        const dt60 = dt * 60;
 
         // Don't run game logic until difficulty is chosen
         if (!gameStarted) {
@@ -1524,6 +2860,7 @@ function playRobotBumpSound() {
         // Freeze game logic when finished
         if (gameEnded) {
             renderer.render(scene, camera);
+            updateConfetti();
             return;
         }
 
@@ -1565,7 +2902,19 @@ function playRobotBumpSound() {
         if (turnDirection !== 0) player.rotation.y += turnDirection * 0.05 * GLOBAL_SPEED_MULT;
 
         if (moveDir.length() > 0) {
-            moveDir.normalize().multiplyScalar(gamePlayerSpeed);
+            const moveUnit = moveDir.clone().normalize();
+            let moveSpeed = gamePlayerSpeed;
+
+            // Water rule: 5x slower only while grounded (jumping keeps normal horizontal speed).
+            if (isGrounded) {
+                const probeX = player.position.x + moveUnit.x * gamePlayerSpeed;
+                const probeZ = player.position.z + moveUnit.z * gamePlayerSpeed;
+                const inWaterNow = isInWater(player.position.x, player.position.z) !== -1;
+                const inWaterAhead = isInWater(probeX, probeZ) !== -1;
+                if (inWaterNow || inWaterAhead) moveSpeed *= WATER_WALK_SPEED_MULT;
+            }
+
+            moveDir.copy(moveUnit.multiplyScalar(moveSpeed));
 
             const newX = player.position.x + moveDir.x;
             const newZ = player.position.z + moveDir.z;
@@ -1594,6 +2943,8 @@ function playRobotBumpSound() {
             player.position.x = Math.max(-PLAY_BOUNDS + PLAYER_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - PLAYER_COLLISION_RADIUS, player.position.x));
             player.position.z = Math.max(-PLAY_BOUNDS + PLAYER_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - PLAYER_COLLISION_RADIUS, player.position.z));
             resolveTreeCollisions(player.position, PLAYER_COLLISION_RADIUS);
+            resolveAnimalCollisions(player.position, PLAYER_COLLISION_RADIUS);
+            resolveTreeCollisions(player.position, PLAYER_COLLISION_RADIUS);
 
             if (keys['w'] || keys['s'] || keys['a'] || keys['d']) {
                 player.rotation.y = Math.atan2(moveDir.x, moveDir.z);
@@ -1601,6 +2952,8 @@ function playRobotBumpSound() {
         }
 
         // Always resolve any slight overlaps with trees (prevents rare stuck/jitter cases)
+        resolveTreeCollisions(player.position, PLAYER_COLLISION_RADIUS);
+        resolveAnimalCollisions(player.position, PLAYER_COLLISION_RADIUS);
         resolveTreeCollisions(player.position, PLAYER_COLLISION_RADIUS);
 
         // ── Gravity (Mario-style: faster fall) ──
@@ -1619,28 +2972,48 @@ function playRobotBumpSound() {
             isGrounded = false;
         }
 
+        const inWaterNow = isInWater(player.position.x, player.position.z) !== -1;
+        if (inWaterNow && !wasPlayerInWater && isGrounded) {
+            playSplashSound();
+            waterStepSfxCooldown = 10;
+        }
+
+        const wantsWalkSplash = inWaterNow && isGrounded && moveDir.lengthSq() > 1e-6;
+        if (wantsWalkSplash) {
+            waterStepSfxCooldown -= dt60;
+            if (waterStepSfxCooldown <= 0) {
+                playWaterStepSplashSound();
+                waterStepSfxCooldown = 12;
+            }
+        } else if (!inWaterNow) {
+            waterStepSfxCooldown = 0;
+        }
+        wasPlayerInWater = inWaterNow;
+
+
         // ── Walk animation (player legs) ──
         const pw = player.userData.walk;
         if (pw) {
-            const dxw = player.position.x - pw.lastX;
-            const dzw = player.position.z - pw.lastZ;
-            const dist = Math.sqrt(dxw*dxw + dzw*dzw);
-            pw.lastX = player.position.x;
-            pw.lastZ = player.position.z;
+            // Drive gait from intent (prevents jitter/flicker when movement is blocked by walls/trees)
+            const wantsMove = (moveDir.lengthSq() > 1e-6);
+            if (pw.gait === undefined) pw.gait = 0;
 
-            if (isGrounded && dist > 0.0003) {
-                pw.phase += dist * 18;
-                const swing = Math.sin(pw.phase) * 0.9;
-                pw.leftLeg.rotation.x = swing * 0.9;
-                pw.rightLeg.rotation.x = -swing * 0.9;
-                pw.leftFoot.rotation.x = swing * 0.35;
-                pw.rightFoot.rotation.x = -swing * 0.35;
-            } else {
-                pw.leftLeg.rotation.x *= 0.75;
-                pw.rightLeg.rotation.x *= 0.75;
-                pw.leftFoot.rotation.x *= 0.75;
-                pw.rightFoot.rotation.x *= 0.75;
-            }
+            const targetGait = (isGrounded && wantsMove) ? 1 : 0;
+            pw.gait += (targetGait - pw.gait) * (0.18 * dt60);
+
+            // Slower, smoother cadence; scales a bit with speed
+            const cadence = 0.55 * (gamePlayerSpeed / BASE_PLAYER_SPEED);
+            pw.phase += pw.gait * cadence * dt60;
+
+            const swing = Math.sin(pw.phase) * 0.75 * pw.gait;
+            const footSwing = Math.sin(pw.phase + Math.PI / 8) * 0.35 * pw.gait;
+
+            // Smooth toward targets (no snap)
+            const lerpAmt = Math.min(1, 0.45 * dt60);
+            pw.leftLeg.rotation.x += (swing * 0.95 - pw.leftLeg.rotation.x) * lerpAmt;
+            pw.rightLeg.rotation.x += (-swing * 0.95 - pw.rightLeg.rotation.x) * lerpAmt;
+            pw.leftFoot.rotation.x += (footSwing - pw.leftFoot.rotation.x) * lerpAmt;
+            pw.rightFoot.rotation.x += (-footSwing - pw.rightFoot.rotation.x) * lerpAmt;
         }
 
 
@@ -1700,14 +3073,25 @@ function playRobotBumpSound() {
                 score++;
                 updateHUD();
                 playBalloonSound(score - 1);
-                if (score >= totalBalloons) { gameEnded = true; showMessage('🎉 YOU WIN!', 'Happy Birthday Bray! Press R to play again!'); }
+                if (score >= totalBalloons) {
+                    gameEnded = true;
+                    startConfetti();
+                    updateConfetti();
+                    playWinFanfare();
+                    showMessage('🎉 YOU WIN!', 'Happy Birthday Bray! Press R to play again!');
+                }
             }
 }
+
+        // ── Animals ──
+        updateAnimals(dt60);
 
         // ── Robot AI with jump physics ──
         robots.forEach(robot => {
             const ud = robot.userData;
             const distToPlayer = robot.position.distanceTo(player.position);
+            ud.prevX = robot.position.x;
+            ud.prevZ = robot.position.z;
 
             // Physics first
             updateRobotPhysics(robot);
@@ -1736,6 +3120,9 @@ function playRobotBumpSound() {
                 // Block if too steep AND grounded
                 if (nextTop - currentTop > MAX_STEP_HEIGHT && ud.isGrounded) canMove = false;
                 if (!ud.isGrounded && nextTop + PLAYER_FOOT_OFFSET > robot.position.y + 0.2) canMove = false;
+
+                // Robots are never allowed in water.
+                if (canMove && isInWater(newX, newZ) !== -1) canMove = false;
 
                 const wouldBeDist = Math.sqrt((newX-player.position.x)**2 + (newZ-player.position.z)**2);
                 if (canMove && wouldBeDist > 2.5) {
@@ -1768,6 +3155,9 @@ function playRobotBumpSound() {
                 let canMove = true;
                 if (nextTop - currentTop > MAX_STEP_HEIGHT && ud.isGrounded) canMove = false;
 
+                // Robots are never allowed in water.
+                if (canMove && isInWater(newX, newZ) !== -1) canMove = false;
+
                 if (canMove) {
                     robot.position.x = newX;
                     robot.position.z = newZ;
@@ -1777,28 +3167,34 @@ function playRobotBumpSound() {
             robot.position.x = Math.max(-PLAY_BOUNDS + ROBOT_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - ROBOT_COLLISION_RADIUS, robot.position.x));
             robot.position.z = Math.max(-PLAY_BOUNDS + ROBOT_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - ROBOT_COLLISION_RADIUS, robot.position.z));
             resolveTreeCollisions(robot.position, ROBOT_COLLISION_RADIUS);
+            resolveAnimalCollisions(robot.position, ROBOT_COLLISION_RADIUS);
+            resolveTreeCollisions(robot.position, ROBOT_COLLISION_RADIUS);
+            if (isInWater(robot.position.x, robot.position.z) !== -1) {
+                robot.position.x = ud.prevX;
+                robot.position.z = ud.prevZ;
+            }
+
 
             // ── Walk animation (robot legs) ──
             if (ud.leftLeg) {
-                const rdx = robot.position.x - (ud.lastX ?? robot.position.x);
-                const rdz = robot.position.z - (ud.lastZ ?? robot.position.z);
-                const moved = Math.sqrt(rdx*rdx + rdz*rdz);
-                ud.lastX = robot.position.x;
-                ud.lastZ = robot.position.z;
+                // Drive gait from intent rather than tiny per-frame movement (prevents flicker near obstacles)
+                const wantsMove = ud.chasing || (ud.velocity && (Math.abs(ud.velocity.x) + Math.abs(ud.velocity.z) > 0.00005));
+                if (ud.gait === undefined) ud.gait = 0;
 
-                if (ud.isGrounded && moved > 0.0002) {
-                    ud.walkPhase += moved * 16;
-                    const swing = Math.sin(ud.walkPhase) * 0.9;
-                    ud.leftLeg.rotation.x = swing * 0.9;
-                    ud.rightLeg.rotation.x = -swing * 0.9;
-                    ud.leftFoot.rotation.x = swing * 0.3;
-                    ud.rightFoot.rotation.x = -swing * 0.3;
-                } else {
-                    ud.leftLeg.rotation.x *= 0.78;
-                    ud.rightLeg.rotation.x *= 0.78;
-                    ud.leftFoot.rotation.x *= 0.78;
-                    ud.rightFoot.rotation.x *= 0.78;
-                }
+                const targetGait = (ud.isGrounded && wantsMove) ? 1 : 0;
+                ud.gait += (targetGait - ud.gait) * (0.18 * dt60);
+
+                const cadence = 0.6 * (gameRobotSpeed / BASE_ROBOT_SPEED);
+                ud.walkPhase += ud.gait * cadence * dt60;
+
+                const swing = Math.sin(ud.walkPhase) * 0.75 * ud.gait;
+                const footSwing = Math.sin(ud.walkPhase + Math.PI / 10) * 0.32 * ud.gait;
+
+                const lerpAmt = Math.min(1, 0.45 * dt60);
+                ud.leftLeg.rotation.x += (swing * 0.95 - ud.leftLeg.rotation.x) * lerpAmt;
+                ud.rightLeg.rotation.x += (-swing * 0.95 - ud.rightLeg.rotation.x) * lerpAmt;
+                ud.leftFoot.rotation.x += (footSwing - ud.leftFoot.rotation.x) * lerpAmt;
+                ud.rightFoot.rotation.x += (-footSwing - ud.rightFoot.rotation.x) * lerpAmt;
             }
 
             // Contact damage
@@ -1808,13 +3204,17 @@ function playRobotBumpSound() {
             }
         });
 
+        resolveRobotRobotCollisions();
+
         // ── Robot voice taunts ──
         maybeRobotTaunt();
 
         // ── Lasers ──
         updateLasers();
 
+        updateStaticCulling();
         renderer.render(scene, camera);
+        updateConfetti();
     }
 
     // ══════════════════════════════════════════
@@ -1824,6 +3224,8 @@ function playRobotBumpSound() {
         camera.aspect = innerWidth / innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(innerWidth, innerHeight);
+        resizeConfettiCanvas();
+        if (!confettiActive) confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
     });
 
     updateHUD();
