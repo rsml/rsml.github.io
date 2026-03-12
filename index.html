@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+
+    <title>Ross Miller</title>
+    <meta
+      name="description"
+      content="Frontend engineering, product UX, and creative coding experiments."
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="scene" aria-hidden="true">
+      <canvas id="bg" class="bg-canvas"></canvas>
+    </div>
+
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Back to top">
+        <span class="brand-mark" aria-hidden="true">RM</span>
+      </a>
+      <nav class="topnav" aria-label="Primary">
+        <a href="#vivy">Work</a>
+        <a href="./games/">Games</a>
+      </nav>
+
+      <div class="controls">
+        <button class="control" type="button" id="toggleMotion" aria-pressed="false">
+          Pause motion
+        </button>
+        <button
+          class="control"
+          type="button"
+          id="toggleReduceMotion"
+          aria-pressed="false"
+        >
+          Reduce motion
+        </button>
+      </div>
+    </header>
+
+    <nav class="chapters" aria-label="Chapters">
+      <a class="chapter is-active" href="#top" data-chapter-link="top"
+        ><span class="chapter-label">Intro</span></a
+      >
+      <a class="chapter" href="#vivy" data-chapter-link="vivy"
+        ><span class="chapter-label">Vivy</span></a
+      >
+      <a class="chapter" href="#chord-colors" data-chapter-link="chord-colors"
+        ><span class="chapter-label">Chord Colors</span></a
+      >
+      <a class="chapter" href="#tutor" data-chapter-link="tutor"
+        ><span class="chapter-label">Tutor</span></a
+      >
+      <a class="chapter" href="#text2order" data-chapter-link="text2order"
+        ><span class="chapter-label">Text2Order</span></a
+      >
+      <a class="chapter" href="#symphony-pro" data-chapter-link="symphony-pro"
+        ><span class="chapter-label">Symphony Pro</span></a
+      >
+    </nav>
+
+    <main class="page" id="top">
+      <section
+        class="paper hero"
+        id="intro"
+        data-chapter="top"
+        data-vortex-palette="intro"
+      >
+        <p class="eyebrow">Engineer, Designer, Entrepreneur</p>
+        <h1 class="headline">
+          Ross Miller
+          <span class="headline-sub">Working on important problems.</span>
+        </h1>
+        <p class="lede">
+          This is a prototype shell: replace the copy, links, and projects later.
+          The point is the interaction: a normal-scrolling document with a
+          scroll-reactive Albers-inspired vortex behind it.
+        </p>
+        <div class="pill-row">
+          <span class="pill">UX-first</span>
+          <span class="pill">WebGL background</span>
+          <span class="pill">Native scroll</span>
+        </div>
+      </section>
+
+      <section class="gap" aria-hidden="true">
+        <div class="gap-caption">Scroll to stir the paper.</div>
+      </section>
+
+      <section
+        class="paper"
+        id="vivy"
+        data-chapter="vivy"
+        data-vortex-palette="vivy"
+      >
+        <p class="eyebrow">Vivy · Founder</p>
+        <h2 class="title">#1 Doctor-led GLP-1 Companion App</h2>
+        <p class="body">
+          Replace this with a crisp outcome statement, a one-sentence constraint,
+          and a short list of decisions.
+        </p>
+        <div class="meta">
+          <span class="meta-chip">Case study</span>
+          <span class="meta-chip">Product</span>
+          <span class="meta-chip">iOS</span>
+        </div>
+      </section>
+
+      <section class="gap" aria-hidden="true"></section>
+
+      <section
+        class="paper"
+        id="chord-colors"
+        data-chapter="chord-colors"
+        data-vortex-palette="chord"
+      >
+        <p class="eyebrow">Chord Colors · Creator</p>
+        <h2 class="title">Interactive music theory exploration</h2>
+        <p class="body">
+          Replace this with your favorite “design decision” story and one high
+          signal demo.
+        </p>
+        <div class="meta">
+          <span class="meta-chip">Web</span>
+          <span class="meta-chip">iOS</span>
+          <span class="meta-chip">Audio</span>
+        </div>
+      </section>
+
+      <section class="gap" aria-hidden="true"></section>
+
+      <section
+        class="paper"
+        id="tutor"
+        data-chapter="tutor"
+        data-vortex-palette="tutor"
+      >
+        <p class="eyebrow">Tutor · Creator</p>
+        <h2 class="title">Learning, reimagined</h2>
+        <p class="body">
+          Replace this with: what’s novel, what’s hard, and what you learned
+          about attention and comprehension.
+        </p>
+        <div class="meta">
+          <span class="meta-chip">Reading</span>
+          <span class="meta-chip">AI</span>
+          <span class="meta-chip">Quizzes</span>
+        </div>
+      </section>
+
+      <section class="gap" aria-hidden="true"></section>
+
+      <section
+        class="paper"
+        id="text2order"
+        data-chapter="text2order"
+        data-vortex-palette="text2order"
+      >
+        <p class="eyebrow">Text2Order · Founder</p>
+        <h2 class="title">Order at large venues by text</h2>
+        <p class="body">
+          Replace this with: operational constraints, failure modes, and how you
+          designed for noisy environments.
+        </p>
+        <div class="meta">
+          <span class="meta-chip">Messaging</span>
+          <span class="meta-chip">Payments</span>
+          <span class="meta-chip">Scale</span>
+        </div>
+      </section>
+
+      <section class="gap" aria-hidden="true"></section>
+
+      <section
+        class="paper"
+        id="symphony-pro"
+        data-chapter="symphony-pro"
+        data-vortex-palette="symphony"
+      >
+        <p class="eyebrow">Symphony Pro · Founder</p>
+        <h2 class="title">iPad sheet music notation</h2>
+        <p class="body">
+          Replace this with: interaction model, latency constraints, and what
+          you did to make precision input feel human.
+        </p>
+        <div class="meta">
+          <span class="meta-chip">iPad</span>
+          <span class="meta-chip">Notation</span>
+          <span class="meta-chip">Touch</span>
+        </div>
+      </section>
+
+      <section class="gap gap-end" aria-hidden="true">
+        <div class="gap-caption">End of prototype.</div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p class="footer-note">
+        Prototype: native scroll + fixed WebGL background. Content intentionally
+        placeholder.
+      </p>
+    </footer>
+
+    <div class="scroll-hint" id="scrollHint" aria-hidden="true">
+      <span class="scroll-hint-text">Scroll</span>
+      <span class="scroll-hint-arrow" aria-hidden="true"></span>
+    </div>
+
+    <noscript>
+      <div class="noscript">
+        This page uses JavaScript for the background animation. The content still
+        works without it.
+      </div>
+    </noscript>
+
+    <div class="file-warning" id="fileWarning" hidden>
+      <p class="file-warning-title">Local preview needs a web server</p>
+      <p class="file-warning-body">
+        This page uses ES modules, which browsers block on <code>file://</code>.
+        Run <code>python3 -m http.server 8000</code> from this folder and open
+        <code>http://localhost:8000/</code>.
+      </p>
+    </div>
+
+    <div class="file-warning" id="webglWarning" hidden>
+      <p class="file-warning-title">WebGL background disabled</p>
+      <p class="file-warning-body">
+        Your browser blocked or failed to create a WebGL context. Check browser
+        settings for hardware acceleration or WebGL, then reload.
+      </p>
+    </div>
+
+    <div class="file-warning" id="moduleWarning" hidden>
+      <p class="file-warning-title">Background script failed to load</p>
+      <p class="file-warning-body">
+        The module <code>main.js</code> didn’t load. This can happen if your
+        local server sets the wrong JavaScript MIME type. Open DevTools console
+        for details, then reload.
+      </p>
+    </div>
+
+    <script>
+      (() => {
+        const isFile = window.location.protocol === "file:";
+        const fileWarning = document.getElementById("fileWarning");
+        const moduleWarning = document.getElementById("moduleWarning");
+
+        if (isFile) {
+          document.body.classList.add("no-webgl");
+          if (fileWarning) fileWarning.hidden = false;
+          return;
+        }
+
+        const script = document.createElement("script");
+        script.type = "module";
+        script.src = "./main.js";
+        script.onerror = () => {
+          document.body.classList.add("no-webgl");
+          if (moduleWarning) moduleWarning.hidden = false;
+        };
+        document.body.appendChild(script);
+      })();
+    </script>
+  </body>
+</html>
