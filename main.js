@@ -55,13 +55,115 @@ function createNoiseTexture(size = 64) {
   return texture;
 }
 
-function hexToColor(value) {
-  return new THREE.Color(value);
-}
-
 function smoothstep(edge0, edge1, x) {
   const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
   return t * t * (3 - 2 * t);
+}
+
+function srgbFromLinear(value) {
+  if (value <= 0.0031308) return 12.92 * value;
+  return 1.055 * Math.pow(value, 1 / 2.4) - 0.055;
+}
+
+function oklabToLinearSrgb({ L, a, b }) {
+  // https://bottosson.github.io/posts/oklab/
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.291485548 * b;
+
+  const l = l_ * l_ * l_;
+  const m = m_ * m_ * m_;
+  const s = s_ * s_ * s_;
+
+  return {
+    r: +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    g: -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    b: -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  };
+}
+
+function oklchToSrgb({ L, C, h }) {
+  const hr = (h * Math.PI) / 180;
+  const a = C * Math.cos(hr);
+  const b = C * Math.sin(hr);
+  const lin = oklabToLinearSrgb({ L, a, b });
+  return {
+    r: srgbFromLinear(lin.r),
+    g: srgbFromLinear(lin.g),
+    b: srgbFromLinear(lin.b),
+    inGamut: lin.r >= 0 && lin.r <= 1 && lin.g >= 0 && lin.g <= 1 && lin.b >= 0 && lin.b <= 1,
+  };
+}
+
+function fitOklchToGamut({ L, C, h }, minC = 0.06) {
+  let chroma = C;
+  for (let i = 0; i < 24; i += 1) {
+    const rgb = oklchToSrgb({ L, C: chroma, h });
+    if (rgb.inGamut) return { ...rgb, L, C: chroma, h };
+    chroma *= 0.92;
+    if (chroma < minC) break;
+  }
+  const rgb = oklchToSrgb({ L, C: chroma, h });
+  return { ...rgb, L, C: chroma, h };
+}
+
+function hueDistance(aDeg, bDeg) {
+  const diff = Math.abs(aDeg - bDeg) % 360;
+  return Math.min(diff, 360 - diff);
+}
+
+function orderSwatchesForSeparation(swatches) {
+  if (swatches.length <= 2) return swatches.slice();
+  const remaining = swatches.slice();
+  const ordered = [];
+
+  ordered.push(remaining.shift());
+  while (remaining.length) {
+    const last = ordered[ordered.length - 1];
+    let bestIndex = 0;
+    let bestScore = -Infinity;
+    for (let i = 0; i < remaining.length; i += 1) {
+      const candidate = remaining[i];
+      const hueScore = hueDistance(last.h, candidate.h);
+      const lightScore = Math.abs(last.L - candidate.L) * 120;
+      const score = hueScore + lightScore;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = i;
+      }
+    }
+    ordered.push(remaining.splice(bestIndex, 1)[0]);
+  }
+
+  return ordered;
+}
+
+function generateOklchSwatches({ count, hueOffset = 0, seed = 0 }) {
+  // Golden-angle hue sampling avoids clusters without needing randomness.
+  const golden = 137.50776405003785;
+  const swatches = [];
+  for (let i = 0; i < count; i += 1) {
+    const h = (hueOffset + i * golden) % 360;
+
+    // L/C ranges chosen to stay vivid without hitting white/black/gray.
+    const L = 0.74 + 0.06 * Math.sin((i + seed) * 0.9);
+    const C = 0.19 + 0.045 * Math.cos((i + seed) * 1.13);
+
+    const fitted = fitOklchToGamut({ L, C, h }, 0.09);
+    swatches.push({
+      L: fitted.L,
+      C: fitted.C,
+      h: fitted.h,
+      r: clamp(fitted.r, 0, 1),
+      g: clamp(fitted.g, 0, 1),
+      b: clamp(fitted.b, 0, 1),
+    });
+  }
+  return orderSwatchesForSeparation(swatches);
+}
+
+function swatchesToThreeColors(swatches) {
+  return swatches.map((s) => new THREE.Color().setRGB(s.r, s.g, s.b, THREE.SRGBColorSpace));
 }
 
 class VortexBackground {
@@ -70,20 +172,27 @@ class VortexBackground {
     this.enabled = false;
 
     this.params = {
-      planeCount: 46,
-      baseTurns: 2.35,
+      planeCount: 52,
+      // About 1/3 of the previous rotation speed (scroll-linked).
+      baseTurns: 0.82,
       axisX: 1.75,
       axisZ: 0.0,
       minY: -6.2,
       maxY: 6.2,
-      gravity: 2.35,
-      drag: 1.55,
-      angularDrag: 1.75,
-      updraftAccel: 9.5,
-      spinAccel: 7.5,
-      baseSpin: 0.15,
-      flutter: 0.65,
+      // Keep idle motion nearly still; add energy during scroll.
+      gravity: 0.0,
+      drag: 3.2,
+      angularDrag: 3.4,
+      updraftAccel: 4.2,
+      spinAccel: 2.6,
+      baseSpin: 0.012,
+      flutter: 0.18,
       opacityBase: 0.18,
+      // Wider vortex.
+      radiusMin: 2.05,
+      radiusMax: 5.15,
+      // How quickly planes return to their "home" height when not scrolling.
+      ySpring: 1.25,
     };
 
     this.scroll = {
@@ -97,17 +206,15 @@ class VortexBackground {
       strengthSmoothed: 0,
     };
 
+    const swatchCount = 30;
     this.palettes = {
-      intro: ["#F4EFE6", "#2D6B9A", "#D04A2B", "#E9B949", "#1F2A33"],
-      vivy: ["#F4EFE6", "#2C8C7A", "#E55D3C", "#E7C24F", "#1B3A3D"],
-      chord: ["#F4EFE6", "#2866B0", "#F07D5B", "#E5B93F", "#1C2541"],
-      tutor: ["#F4EFE6", "#3A86A8", "#F06B3E", "#F1D06B", "#1F2F2E"],
-      text2order: ["#F4EFE6", "#B2342E", "#2A7A9E", "#F0B44E", "#1E2124"],
-      symphony: ["#F4EFE6", "#4C76A8", "#D05745", "#E9C46A", "#222A35"],
+      intro: swatchesToThreeColors(generateOklchSwatches({ count: swatchCount, hueOffset: 0, seed: 1 })),
+      vivy: swatchesToThreeColors(generateOklchSwatches({ count: swatchCount, hueOffset: 22, seed: 2 })),
+      chord: swatchesToThreeColors(generateOklchSwatches({ count: swatchCount, hueOffset: 74, seed: 3 })),
+      tutor: swatchesToThreeColors(generateOklchSwatches({ count: swatchCount, hueOffset: 132, seed: 4 })),
+      text2order: swatchesToThreeColors(generateOklchSwatches({ count: swatchCount, hueOffset: 188, seed: 5 })),
+      symphony: swatchesToThreeColors(generateOklchSwatches({ count: swatchCount, hueOffset: 248, seed: 6 })),
     };
-    this.paletteColors = Object.fromEntries(
-      Object.entries(this.palettes).map(([name, colors]) => [name, colors.map(hexToColor)]),
-    );
 
     this.activePaletteName = "intro";
     this.targetPaletteName = "intro";
@@ -132,7 +239,7 @@ class VortexBackground {
     const scene = new THREE.Scene();
 
     const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 100);
-    camera.position.set(0.35, 0.1, 6.25);
+    camera.position.set(0.35, 0.1, 7.35);
 
     const group = new THREE.Group();
     scene.add(group);
@@ -161,12 +268,12 @@ class VortexBackground {
 
         vec3 pos = position;
 
-        // A small, continuous bend reads like tissue paper without looking rubbery.
-        float t = uTime * 0.55;
-        float fx = sin((uv.y * 6.28318) + (t + uSeed) * 1.7);
-        float fy = sin((uv.x * 6.28318) + (t + uSeed) * 1.2);
-        float flutter = (fx + fy) * 0.045 * uFlutter;
-        pos.z += flutter;
+	        // A small, continuous bend reads like tissue paper without looking rubbery.
+	        float t = uTime * 0.55;
+	        float fx = sin((uv.y * 6.28318) + (t + uSeed) * 1.7);
+	        float fy = sin((uv.x * 6.28318) + (t + uSeed) * 1.2);
+	        float flutter = (fx + fy) * 0.022 * uFlutter;
+	        pos.z += flutter;
 
         vec4 worldPos = modelMatrix * vec4(pos, 1.0);
         vWorldPos = worldPos.xyz;
@@ -183,33 +290,33 @@ class VortexBackground {
 
       uniform sampler2D uNoise;
       uniform vec3 uColor;
-      uniform float uAlpha;
-      uniform float uSeed;
+	      uniform float uAlpha;
+	      uniform float uSeed;
 
-      float edgeMask(vec2 uv) {
-        float e = 0.08;
-        float m = smoothstep(0.0, e, uv.x) *
-                  smoothstep(0.0, e, uv.y) *
-                  smoothstep(0.0, e, 1.0 - uv.x) *
-                  smoothstep(0.0, e, 1.0 - uv.y);
-        return m;
-      }
+	      float edgeMask(vec2 uv) {
+	        // Crisp edges with a tiny eased inset to avoid harsh aliasing.
+	        float e0 = 0.012;
+	        float e1 = 0.020;
+	        float mx = smoothstep(e0, e1, uv.x) * smoothstep(e0, e1, 1.0 - uv.x);
+	        float my = smoothstep(e0, e1, uv.y) * smoothstep(e0, e1, 1.0 - uv.y);
+	        return mx * my;
+	      }
 
       void main() {
         vec2 nuv = vUv * 2.6 + vec2(uSeed * 0.17, uSeed * 0.11);
         float n = texture2D(uNoise, nuv).r;
 
-        // Subtle fiber: modulate opacity more than color.
-        float fiber = smoothstep(0.25, 0.85, n);
-        float edges = edgeMask(vUv);
+	        // Subtle fiber: modulate opacity more than color.
+	        float fiber = smoothstep(0.22, 0.88, n);
+	        float edges = edgeMask(vUv);
 
         vec3 viewDir = normalize(cameraPosition - vWorldPos);
         float fresnel = pow(1.0 - clamp(dot(normalize(vWorldNormal), viewDir), 0.0, 1.0), 2.2);
 
-        float alpha = uAlpha * (0.72 + 0.28 * fiber) * edges;
-        vec3 color = uColor;
-        color += (fiber - 0.5) * 0.06;
-        color += fresnel * 0.12;
+	        float alpha = uAlpha * (0.92 + 0.08 * fiber) * edges;
+	        vec3 color = uColor;
+	        color += (fiber - 0.5) * 0.035;
+	        color += fresnel * 0.07;
 
         // Premultiply alpha to make blending feel like layered paper instead of glass.
         gl_FragColor = vec4(color * alpha, alpha);
@@ -218,12 +325,16 @@ class VortexBackground {
 
     const planeGeometry = new THREE.PlaneGeometry(1, 1, 10, 10);
 
-    this.planes = [];
-    for (let i = 0; i < this.params.planeCount; i += 1) {
-      const seed = Math.random() * 1000;
-      const radius = THREE.MathUtils.lerp(1.25, 3.15, Math.pow(Math.random(), 0.7));
-      const sizeX = THREE.MathUtils.lerp(1.45, 3.85, Math.random());
-      const sizeY = THREE.MathUtils.lerp(0.95, 2.75, Math.random());
+	    this.planes = [];
+	    for (let i = 0; i < this.params.planeCount; i += 1) {
+	      const seed = Math.random() * 1000;
+	      const radius = THREE.MathUtils.lerp(
+	        this.params.radiusMin,
+	        this.params.radiusMax,
+	        Math.pow(Math.random(), 0.7),
+	      );
+	      const sizeX = THREE.MathUtils.lerp(1.45, 3.85, Math.random());
+	      const sizeY = THREE.MathUtils.lerp(0.95, 2.75, Math.random());
 
       const material = new THREE.ShaderMaterial({
         vertexShader,
@@ -231,47 +342,57 @@ class VortexBackground {
         transparent: true,
         depthWrite: false,
         side: THREE.DoubleSide,
-        uniforms: {
-          ...sharedUniforms,
-          uSeed: { value: seed },
-          uFlutter: { value: 1 },
-          uColor: { value: new THREE.Color("#2D6B9A") },
-          uAlpha: { value: this.params.opacityBase },
-        },
-      });
+	        uniforms: {
+	          ...sharedUniforms,
+	          uSeed: { value: seed },
+	          uFlutter: { value: 1 },
+	          uColor: { value: this.palettes.intro[i % this.palettes.intro.length].clone() },
+	          uAlpha: { value: this.params.opacityBase },
+	        },
+	      });
       material.premultipliedAlpha = true;
 
       const mesh = new THREE.Mesh(planeGeometry, material);
       mesh.scale.set(sizeX, sizeY, 1);
 
-      const y = THREE.MathUtils.lerp(this.params.minY, this.params.maxY, Math.random());
-      const theta0 = Math.random() * Math.PI * 2;
-      mesh.userData = {
-        index: i,
-        seed,
-        y,
-        vy: THREE.MathUtils.lerp(-0.2, 0.2, Math.random()),
-        theta: 0,
-        omega: THREE.MathUtils.lerp(-0.15, 0.15, Math.random()),
-        thetaOffset: theta0,
-        radius,
-        tiltX: THREE.MathUtils.lerp(-0.55, 0.55, Math.random()),
-        tiltZ: THREE.MathUtils.lerp(-0.8, 0.8, Math.random()),
-        colorIndex: i % this.palettes.intro.length,
-        baseAlpha: THREE.MathUtils.lerp(0.18, 0.36, Math.random()),
-        lift: THREE.MathUtils.lerp(0.65, 1.45, Math.pow(Math.random(), 0.6)),
-        spin: THREE.MathUtils.lerp(0.7, 1.35, Math.pow(Math.random(), 0.7)),
-        flutter: THREE.MathUtils.lerp(0.6, 1.4, Math.pow(Math.random(), 0.6)),
-      };
+	      const y = THREE.MathUtils.lerp(this.params.minY, this.params.maxY, Math.random());
+	      const theta0 = Math.random() * Math.PI * 2;
+	      mesh.userData = {
+	        index: i,
+	        seed,
+	        homeY: y,
+	        y,
+	        vy: THREE.MathUtils.lerp(-0.2, 0.2, Math.random()),
+	        theta: 0,
+	        omega: THREE.MathUtils.lerp(-0.15, 0.15, Math.random()),
+	        thetaOffset: theta0,
+	        radius,
+	        tiltX: THREE.MathUtils.lerp(-0.55, 0.55, Math.random()),
+	        tiltZ: THREE.MathUtils.lerp(-0.8, 0.8, Math.random()),
+	        colorIndex: 0,
+	        baseAlpha: THREE.MathUtils.lerp(0.24, 0.44, Math.random()),
+	        lift: THREE.MathUtils.lerp(0.65, 1.45, Math.pow(Math.random(), 0.6)),
+	        spin: THREE.MathUtils.lerp(0.7, 1.35, Math.pow(Math.random(), 0.7)),
+	        flutter: THREE.MathUtils.lerp(0.6, 1.4, Math.pow(Math.random(), 0.6)),
+	      };
 
-      group.add(mesh);
-      this.planes.push(mesh);
-    }
+	      group.add(mesh);
+	      this.planes.push(mesh);
+	    }
 
-    this.renderer = renderer;
-    this.scene = scene;
-    this.camera = camera;
-    this.group = group;
+	    // Assign colors in angular order so neighbors around the vortex differ.
+	    const paletteLen = this.palettes.intro.length;
+	    const orderedByAngle = this.planes
+	      .slice()
+	      .sort((a, b) => a.userData.thetaOffset - b.userData.thetaOffset);
+	    for (let i = 0; i < orderedByAngle.length; i += 1) {
+	      orderedByAngle[i].userData.colorIndex = i % paletteLen;
+	    }
+
+	    this.renderer = renderer;
+	    this.scene = scene;
+	    this.camera = camera;
+	    this.group = group;
 
     this._setPalette("intro", true);
     this.enabled = true;
@@ -311,8 +432,9 @@ class VortexBackground {
 
   setScroll({ progress, velocity, dt }) {
     this.scroll.progress = clamp(progress, 0, 1);
-    this.scroll.velocity = velocity;
-    this.scroll.velocitySmoothed = damp(this.scroll.velocitySmoothed, velocity, 8, dt);
+    const v = Math.abs(velocity) < 40 ? 0 : velocity;
+    this.scroll.velocity = v;
+    this.scroll.velocitySmoothed = damp(this.scroll.velocitySmoothed, v, 14, dt);
   }
 
   setRevealStrength(strength) {
@@ -339,29 +461,34 @@ class VortexBackground {
   update(dt, _timeSec, { paused, reduceMotion }) {
     if (!this.enabled) return;
 
-    // Freeze time-based motion when paused, but keep scroll->rotation and palette changes.
-    const timeStep = reduceMotion ? dt * 0.25 : dt;
-    if (!paused) this.time += timeStep;
-    const time = this.time;
-    const simDt = paused ? 0 : timeStep;
-
     this.group.position.set(this.params.axisX, 0, this.params.axisZ);
 
     // "Reveal bays" (the whitespace gaps) get more intensity.
     this.reveal.strengthSmoothed = damp(this.reveal.strengthSmoothed, this.reveal.strength, 5, dt);
     const reveal = smoothstep(0.08, 0.72, this.reveal.strengthSmoothed);
 
-    const baseTurns = this.params.baseTurns + reveal * 0.35;
-    const baseAngle = this.scroll.progress * baseTurns * Math.PI * 2;
-
     const vNorm = clamp(this.scroll.velocitySmoothed / 3000, -1, 1);
     const energy = clamp(Math.abs(vNorm), 0, 1);
 
+    // Slow idle motion, ~1/3 speed during active scrolling.
+    const activity = reduceMotion ? energy * 0.35 : energy;
+    const timeScale = reduceMotion ? 0.08 : 0.03 + 0.30 * activity;
+    const simScale = paused ? 0 : reduceMotion ? 0.08 : 0.05 + 0.30 * activity;
+
+    // Freeze time-based motion when paused, but keep scroll->rotation and palette changes.
+    if (!paused) this.time += dt * timeScale;
+    const time = this.time;
+    const simDt = dt * simScale;
+
+    const baseTurns = this.params.baseTurns + reveal * 0.12;
+    const baseAngle = this.scroll.progress * baseTurns * Math.PI * 2;
+
     // Even with motion toggled off, keep deterministic scroll->rotation so it never feels broken.
-    const impulse = paused || reduceMotion ? 0 : energy;
     const spinDir = paused || reduceMotion ? 0 : vNorm;
 
-    const updraftAccel = this.params.updraftAccel * impulse * (0.35 + 0.65 * reveal);
+    // Scroll direction should feel like it carries paper with it:
+    // scrolling up (negative v) moves planes up; scrolling down moves them down.
+    const updraftAccel = -this.params.updraftAccel * spinDir * (0.35 + 0.65 * reveal);
     const spinAccel = this.params.spinAccel * spinDir * (0.45 + 0.55 * reveal);
 
     // Palette crossfade, section-driven (not scroll-driven) for stability.
@@ -374,16 +501,16 @@ class VortexBackground {
       this.paletteBlend = 1;
     }
 
-    const paletteA = this.paletteColors[this.activePaletteName];
-    const paletteB = this.paletteColors[this.targetPaletteName];
+    const paletteA = this.palettes[this.activePaletteName];
+    const paletteB = this.palettes[this.targetPaletteName];
 
     this.camera.position.x = damp(
       this.camera.position.x,
-      0.2 + Math.sin(time * 0.12) * 0.06 + reveal * 0.08,
+      0.2 + Math.sin(time * 0.08) * 0.045 + reveal * 0.08,
       3,
       dt,
     );
-    this.camera.position.y = damp(this.camera.position.y, 0.08 + reveal * 0.12, 3, dt);
+    this.camera.position.y = damp(this.camera.position.y, 0.06 + reveal * 0.09, 3, dt);
     this.camera.lookAt(this.params.axisX, 0.15, 0);
 
     const yRange = this.params.maxY - this.params.minY;
@@ -391,19 +518,18 @@ class VortexBackground {
       if (!plane.visible) continue;
       const { userData } = plane;
 
-      // Vertical "feather" motion.
+      // Vertical motion: scroll provides impulse, then the plane settles back to its home.
       userData.vy += updraftAccel * userData.lift * simDt;
-      userData.vy -= this.params.gravity * (0.8 + reveal * 0.4) * simDt;
+      userData.vy += (userData.homeY - userData.y) * this.params.ySpring * simDt;
       userData.vy *= Math.exp(-this.params.drag * simDt);
       userData.y += userData.vy * simDt;
 
-      // Wrap to keep the field alive without visible seams.
-      if (userData.y > this.params.maxY) {
-        userData.y = this.params.minY + (userData.y - this.params.maxY);
-        userData.vy *= 0.25;
-      } else if (userData.y < this.params.minY) {
-        userData.y = this.params.maxY - (this.params.minY - userData.y);
-        userData.vy *= 0.25;
+      if (userData.y < this.params.minY) {
+        userData.y = this.params.minY;
+        userData.vy *= -0.35;
+      } else if (userData.y > this.params.maxY) {
+        userData.y = this.params.maxY;
+        userData.vy *= -0.35;
       }
 
       // Swirl, with a small baseline spin even when idle.
@@ -418,13 +544,15 @@ class VortexBackground {
 
       plane.position.set(x, userData.y, z);
 
+      const flutterActivity = reduceMotion || paused ? 0 : 0.03 + 0.97 * activity;
       const flutter =
         reduceMotion || paused
           ? 0
           : (Math.sin(time * 1.6 + userData.seed) * 0.22 +
               Math.cos(time * 1.1 + userData.seed * 0.7) * 0.18) *
             this.params.flutter *
-            userData.flutter;
+            userData.flutter *
+            flutterActivity;
 
       plane.rotation.set(
         userData.tiltX + flutter * 0.25,
@@ -435,7 +563,7 @@ class VortexBackground {
       const yNorm = (userData.y - this.params.minY) / yRange;
       const fadeY = smoothstep(0.06, 0.22, yNorm) * smoothstep(0.06, 0.22, 1 - yNorm);
       const fadeZ = smoothstep(0.35, 1, (z + userData.radius) / (2 * userData.radius));
-      const alpha = userData.baseAlpha * fadeY * (0.7 + 0.3 * fadeZ) * (0.95 + 0.85 * reveal);
+      const alpha = userData.baseAlpha * fadeY * (0.75 + 0.25 * fadeZ) * (0.9 + 0.9 * reveal);
 
       const idx = userData.colorIndex;
       const colorA = paletteA[idx % paletteA.length];

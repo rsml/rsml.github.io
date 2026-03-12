@@ -3,6 +3,7 @@
   --muted: oklch(43% 0.02 265);
   --paper: oklch(97.6% 0.012 90);
   --paper-strong: oklch(98.5% 0.01 90);
+  --panel-accent: oklch(78% 0.18 145);
   --stroke: oklch(32% 0.02 265 / 0.12);
   --shadow: 0 18px 48px oklch(0% 0 0 / 0.14);
   --radius: 22px;
@@ -235,8 +236,8 @@ body.no-webgl #scene {
   position: relative;
   padding: clamp(22px, 3.2vw, 46px);
   border-radius: var(--radius);
-  background: color-mix(in oklab, var(--paper-strong) 92%, transparent);
-  border: 1px solid color-mix(in oklab, var(--stroke) 70%, transparent);
+  background: color-mix(in oklab, var(--paper-strong) 86%, var(--panel-accent) 14%);
+  border: 1px solid color-mix(in oklab, var(--panel-accent) 22%, var(--stroke));
   box-shadow: var(--shadow);
   overflow: hidden;
   scroll-margin-top: 96px;
@@ -247,12 +248,40 @@ body.no-webgl #scene {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 18% 12%, oklch(99% 0.02 95 / 0.8), transparent 48%),
-    radial-gradient(circle at 80% 30%, oklch(96% 0.02 80 / 0.55), transparent 44%),
-    linear-gradient(135deg, oklch(100% 0 0 / 0.2), transparent 60%);
+    radial-gradient(
+      circle at 18% 12%,
+      color-mix(in oklab, var(--panel-accent) 34%, transparent),
+      transparent 54%
+    ),
+    radial-gradient(circle at 82% 28%, oklch(100% 0 0 / 0.22), transparent 48%),
+    linear-gradient(135deg, oklch(100% 0 0 / 0.18), transparent 62%);
   mix-blend-mode: multiply;
-  opacity: 0.35;
+  opacity: 0.32;
   pointer-events: none;
+}
+
+.paper[data-vortex-palette="intro"] {
+  --panel-accent: oklch(78% 0.19 25);
+}
+
+.paper[data-vortex-palette="vivy"] {
+  --panel-accent: oklch(79% 0.19 150);
+}
+
+.paper[data-vortex-palette="chord"] {
+  --panel-accent: oklch(78% 0.18 230);
+}
+
+.paper[data-vortex-palette="tutor"] {
+  --panel-accent: oklch(77% 0.2 310);
+}
+
+.paper[data-vortex-palette="text2order"] {
+  --panel-accent: oklch(79% 0.18 80);
+}
+
+.paper[data-vortex-palette="symphony"] {
+  --panel-accent: oklch(77% 0.18 265);
 }
 
 .paper > * {
