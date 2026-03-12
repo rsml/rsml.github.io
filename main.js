@@ -731,6 +731,53 @@ class VortexBackground {
     }
   }
 
+  randomizeTuning() {
+    const randMid = () => (Math.random() + Math.random() + Math.random()) / 3;
+    const between = (min, max) => min + (max - min) * randMid();
+    const intBetween = (min, max) => Math.round(between(min, max));
+    const sometimesNegative = (value, chance = 0.18) => (Math.random() < chance ? -value : value);
+
+    const radiusMin = between(1.1, 3.0);
+    const radiusMax = clamp(radiusMin + between(2.2, 5.2), radiusMin + 0.25, 8.5);
+
+    this.setTuning({
+      planeCount: intBetween(28, 120),
+      height: between(9.0, 16.0),
+      radiusMin,
+      radiusMax,
+      sizeMean: between(1.2, 3.8),
+      sizeVariance: between(0.1, 2.2),
+      aspectVariance: between(0.1, 0.85),
+      tiltAmount: between(0.35, 1.25),
+      regularity: between(0.07, 0.6),
+
+      motionSpeed: between(0.2, 0.95),
+      scrollResponse: sometimesNegative(between(0.1, 0.7), 0.22),
+      baseTurns: sometimesNegative(between(0.35, 1.15), 0.15),
+      spinAccel: between(0.8, 4.5),
+      updraftAccel: between(0.8, 6.2),
+      baseSpin: between(0.0, 0.018),
+      drag: between(1.5, 6.0),
+      angularDrag: between(1.5, 6.0),
+      ySpring: between(0.35, 2.4),
+      flutter: between(0.0, 0.35),
+      motionVariance: between(0.35, 1.0),
+      scrollSmoothing: between(10, 22),
+      scrollDeadzone: intBetween(0, 80),
+      alphaScale: between(0.55, 1.2),
+
+      swatchCount: intBetween(20, 44),
+      hueShift: intBetween(0, 360),
+      LBase: between(0.68, 0.82),
+      LAmp: between(0.02, 0.12),
+      CBase: between(0.16, 0.27),
+      CAmp: between(0.01, 0.12),
+      minChroma: between(0.085, 0.115),
+
+      edgeSoftness: between(0.0, 0.35),
+    });
+  }
+
   resize() {
     if (!this.enabled) return;
     const width = window.innerWidth;
@@ -964,6 +1011,7 @@ function main() {
   const controlsButton = document.getElementById("toggleControls");
   const controlsPanel = document.getElementById("controlsPanel");
   const resetButton = document.getElementById("resetTuning");
+  const randomizeButton = document.getElementById("randomizeTuning");
   const topbar = document.querySelector(".topbar");
 
   function syncTopbarOffset() {
@@ -1142,6 +1190,14 @@ function main() {
     });
   }
 
+  if (randomizeButton instanceof HTMLButtonElement) {
+    randomizeButton.addEventListener("click", () => {
+      vortex.randomizeTuning();
+      syncTuningControls();
+      persistSettings();
+    });
+  }
+
   syncTuningControls();
 
   const hint = document.getElementById("scrollHint");
@@ -1150,35 +1206,16 @@ function main() {
     hint.classList.toggle("is-hidden", hidden);
   }
 
-  const chapterLinks = new Map();
-  for (const link of document.querySelectorAll("[data-chapter-link]")) {
-    if (!(link instanceof HTMLAnchorElement)) continue;
-    const key = link.dataset.chapterLink;
-    if (key) chapterLinks.set(key, link);
-  }
-
-  let activeChapter = "top";
-  function setActiveChapter(key) {
-    if (!key || key === activeChapter) return;
-    chapterLinks.get(activeChapter)?.classList.remove("is-active");
-    chapterLinks.get(key)?.classList.add("is-active");
-    activeChapter = key;
-  }
-
-  const chapterSections = Array.from(document.querySelectorAll("[data-chapter]"));
-  const chapterObserver = new IntersectionObserver(
+  const paletteSections = Array.from(document.querySelectorAll("[data-vortex-palette]"));
+  const paletteObserver = new IntersectionObserver(
     (entries) => {
       const best = pickBestIntersecting(entries);
-      const key = best?.target?.dataset?.chapter;
-      if (!key) return;
-      setActiveChapter(key);
-
-      const palette = best.target.dataset.vortexPalette;
+      const palette = best?.target?.dataset?.vortexPalette;
       if (palette) vortex.setPalette(palette);
     },
     { root: null, threshold: [0.55], rootMargin: "-42% 0px -42% 0px" },
   );
-  for (const section of chapterSections) chapterObserver.observe(section);
+  for (const section of paletteSections) paletteObserver.observe(section);
 
   const gapSections = Array.from(document.querySelectorAll(".gap"));
   const gapRatios = new Map(gapSections.map((gap) => [gap, 0]));
