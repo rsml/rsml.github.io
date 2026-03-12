@@ -390,46 +390,48 @@ class VortexBackground {
   }
 
   _applyDerivedBounds() {
-    this.params.planeCount = clamp(Math.round(this.params.planeCount), 8, 220);
-    this.params.swatchCount = clamp(Math.round(this.params.swatchCount), 6, 120);
+    // Keep these only "safety bounded" (avoid runaway allocations); UI sliders define the normal range.
+    this.params.planeCount = clamp(Math.round(this.params.planeCount), 0, 1400);
+    this.params.swatchCount = clamp(Math.round(this.params.swatchCount), 1, 256);
     this.params.hueShift = ((this.params.hueShift % 360) + 360) % 360;
 
-    this.params.motionSpeed = clamp(this.params.motionSpeed, 0, 2.5);
-    this.params.scrollResponse = clamp(this.params.scrollResponse, -3, 3);
-    this.params.scrollSmoothing = clamp(this.params.scrollSmoothing, 1, 40);
-    this.params.scrollDeadzone = clamp(Math.round(this.params.scrollDeadzone), 0, 500);
+    this.params.motionSpeed = clamp(this.params.motionSpeed, 0, 10);
+    this.params.scrollResponse = clamp(this.params.scrollResponse, -20, 20);
+    this.params.scrollSmoothing = clamp(this.params.scrollSmoothing, 0, 200);
+    this.params.scrollDeadzone = clamp(Math.round(this.params.scrollDeadzone), 0, 4000);
 
-    this.params.height = clamp(this.params.height, 6, 30);
+    this.params.height = clamp(this.params.height, 0, 240);
     const half = this.params.height / 2;
     this.params.minY = -half;
     this.params.maxY = half;
 
-    this.params.radiusMin = clamp(this.params.radiusMin, 0.3, 30);
-    this.params.radiusMax = clamp(this.params.radiusMax, this.params.radiusMin + 0.2, 30);
+    this.params.radiusMin = clamp(this.params.radiusMin, 0, 240);
+    this.params.radiusMax = clamp(this.params.radiusMax, 0, 240);
+    if (this.params.radiusMax < this.params.radiusMin) this.params.radiusMax = this.params.radiusMin;
 
-    this.params.sizeMean = clamp(this.params.sizeMean, 0.2, 12);
-    this.params.sizeVariance = clamp(this.params.sizeVariance, 0, 12);
-    this.params.aspectVariance = clamp(this.params.aspectVariance, 0, 1);
-    this.params.tiltAmount = clamp(this.params.tiltAmount, 0, 2);
+    this.params.sizeMean = clamp(this.params.sizeMean, 0, 120);
+    this.params.sizeVariance = clamp(this.params.sizeVariance, 0, 120);
+    this.params.aspectVariance = clamp(this.params.aspectVariance, 0, 4);
+    this.params.tiltAmount = clamp(this.params.tiltAmount, 0, 10);
     this.params.regularity = clamp(this.params.regularity, 0, 1);
 
-    this.params.drag = clamp(this.params.drag, 0.05, 12);
-    this.params.angularDrag = clamp(this.params.angularDrag, 0.05, 12);
-    this.params.updraftAccel = clamp(this.params.updraftAccel, 0, 18);
-    this.params.spinAccel = clamp(this.params.spinAccel, 0, 18);
-    this.params.baseSpin = clamp(this.params.baseSpin, 0, 0.2);
-    this.params.ySpring = clamp(this.params.ySpring, 0, 8);
-    this.params.flutter = clamp(this.params.flutter, 0, 1.6);
+    this.params.drag = clamp(this.params.drag, 0, 80);
+    this.params.angularDrag = clamp(this.params.angularDrag, 0, 80);
+    this.params.updraftAccel = clamp(this.params.updraftAccel, 0, 120);
+    this.params.spinAccel = clamp(this.params.spinAccel, 0, 120);
+    this.params.baseSpin = clamp(this.params.baseSpin, -2, 2);
+    this.params.ySpring = clamp(this.params.ySpring, 0, 120);
+    this.params.flutter = clamp(this.params.flutter, 0, 10);
     this.params.motionVariance = clamp(this.params.motionVariance, 0, 1);
 
     this.params.edgeSoftness = clamp(this.params.edgeSoftness, 0, 1);
-    this.params.alphaScale = clamp(this.params.alphaScale, 0, 3);
+    this.params.alphaScale = clamp(this.params.alphaScale, 0, 12);
 
-    this.params.LBase = clamp(this.params.LBase, 0.35, 0.95);
-    this.params.LAmp = clamp(this.params.LAmp, 0, 0.3);
-    this.params.CBase = clamp(this.params.CBase, 0, 0.45);
-    this.params.CAmp = clamp(this.params.CAmp, 0, 0.3);
-    this.params.minChroma = clamp(this.params.minChroma, 0.01, 0.25);
+    this.params.LBase = clamp(this.params.LBase, 0, 1);
+    this.params.LAmp = clamp(this.params.LAmp, 0, 1);
+    this.params.CBase = clamp(this.params.CBase, 0, 1);
+    this.params.CAmp = clamp(this.params.CAmp, 0, 1);
+    this.params.minChroma = clamp(this.params.minChroma, 0, 1);
   }
 
   _regeneratePalettes() {
@@ -521,7 +523,7 @@ class VortexBackground {
 
   _syncPlaneCount(targetCount, { resetMotion = false } = {}) {
     if (!this.group) return;
-    const count = clamp(Math.round(targetCount), 8, 220);
+    const count = clamp(Math.round(targetCount), 0, 1400);
     this.params.planeCount = count;
 
     while (this.planes.length > count) {
@@ -738,15 +740,15 @@ class VortexBackground {
     const sometimesNegative = (value, chance = 0.18) => (Math.random() < chance ? -value : value);
 
     const radiusMin = between(1.1, 3.0);
-    const radiusMax = clamp(radiusMin + between(2.2, 5.2), radiusMin + 0.25, 8.5);
+    const radiusMax = Math.max(radiusMin, radiusMin + between(1.2, 7.8));
 
     this.setTuning({
-      planeCount: intBetween(28, 120),
-      height: between(9.0, 16.0),
+      planeCount: intBetween(0, 220),
+      height: between(0.0, 24.0),
       radiusMin,
       radiusMax,
-      sizeMean: between(1.2, 3.8),
-      sizeVariance: between(0.1, 2.2),
+      sizeMean: between(0.4, 5.2),
+      sizeVariance: between(0.0, 3.2),
       aspectVariance: between(0.1, 0.85),
       tiltAmount: between(0.35, 1.25),
       regularity: between(0.07, 0.6),
@@ -897,7 +899,7 @@ class VortexBackground {
     this.camera.lookAt(this.params.axisX, 0.15, 0);
 
     const alphaScale = this.params.alphaScale ?? 1;
-    const yRange = this.params.maxY - this.params.minY;
+    const yRange = Math.max(1e-4, this.params.maxY - this.params.minY);
     for (const plane of this.planes) {
       if (!plane.visible) continue;
       const { userData } = plane;
@@ -946,7 +948,8 @@ class VortexBackground {
 
       const yNorm = (userData.y - this.params.minY) / yRange;
       const fadeY = smoothstep(0.06, 0.22, yNorm) * smoothstep(0.06, 0.22, 1 - yNorm);
-      const fadeZ = smoothstep(0.35, 1, (z + userData.radius) / (2 * userData.radius));
+      const radiusSafe = Math.max(1e-4, userData.radius);
+      const fadeZ = smoothstep(0.35, 1, (z + radiusSafe) / (2 * radiusSafe));
       const alpha =
         userData.baseAlpha * fadeY * (0.75 + 0.25 * fadeZ) * (0.9 + 0.9 * reveal) * alphaScale;
 
