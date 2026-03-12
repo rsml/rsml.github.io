@@ -46,6 +46,412 @@
         >
           Reduce motion
         </button>
+        <button
+          class="control"
+          type="button"
+          id="toggleControls"
+          aria-expanded="false"
+          aria-controls="controlsPanel"
+        >
+          Show controls
+        </button>
+      </div>
+
+      <div class="controls-panel" id="controlsPanel" role="region" aria-label="Background controls">
+        <div class="controls-panel-inner">
+          <div class="tune-top">
+            <p class="tune-note">
+              Tune the WebGL background live. Changes persist in this browser.
+            </p>
+            <button class="control control-reset" type="button" id="resetTuning">
+              Reset
+            </button>
+          </div>
+
+          <div class="tune-groups">
+            <section class="tune-group" aria-label="Geometry controls">
+              <p class="tune-title">Geometry</p>
+              <div class="tune-grid">
+                <label for="ctl-planeCount">Squares</label>
+                <input
+                  id="ctl-planeCount"
+                  type="range"
+                  min="18"
+                  max="160"
+                  step="1"
+                  data-tune="planeCount"
+                  data-type="int"
+                  data-live="false"
+                />
+                <output class="tune-value" for="ctl-planeCount"></output>
+
+                <label for="ctl-sizeMean">Size</label>
+                <input
+                  id="ctl-sizeMean"
+                  type="range"
+                  min="0.8"
+                  max="4.8"
+                  step="0.05"
+                  data-tune="sizeMean"
+                />
+                <output class="tune-value" for="ctl-sizeMean"></output>
+
+                <label for="ctl-sizeVariance">Size variance</label>
+                <input
+                  id="ctl-sizeVariance"
+                  type="range"
+                  min="0"
+                  max="3"
+                  step="0.05"
+                  data-tune="sizeVariance"
+                />
+                <output class="tune-value" for="ctl-sizeVariance"></output>
+
+                <label for="ctl-radiusMin">Vortex inner</label>
+                <input
+                  id="ctl-radiusMin"
+                  type="range"
+                  min="0.8"
+                  max="4.2"
+                  step="0.05"
+                  data-tune="radiusMin"
+                />
+                <output class="tune-value" for="ctl-radiusMin"></output>
+
+                <label for="ctl-radiusMax">Vortex outer</label>
+                <input
+                  id="ctl-radiusMax"
+                  type="range"
+                  min="2"
+                  max="8.5"
+                  step="0.05"
+                  data-tune="radiusMax"
+                />
+                <output class="tune-value" for="ctl-radiusMax"></output>
+
+                <label for="ctl-height">Height</label>
+                <input
+                  id="ctl-height"
+                  type="range"
+                  min="8"
+                  max="18"
+                  step="0.1"
+                  data-tune="height"
+                />
+                <output class="tune-value" for="ctl-height"></output>
+
+                <label for="ctl-regularity">Regularity</label>
+                <input
+                  id="ctl-regularity"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  data-tune="regularity"
+                />
+                <output class="tune-value" for="ctl-regularity"></output>
+              </div>
+
+              <details class="tune-details">
+                <summary>Advanced geometry</summary>
+                <div class="tune-grid">
+                  <label for="ctl-aspectVariance">Shape variance</label>
+                  <input
+                    id="ctl-aspectVariance"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    data-tune="aspectVariance"
+                  />
+                  <output class="tune-value" for="ctl-aspectVariance"></output>
+
+                  <label for="ctl-tiltAmount">Tilt</label>
+                  <input
+                    id="ctl-tiltAmount"
+                    type="range"
+                    min="0"
+                    max="1.6"
+                    step="0.01"
+                    data-tune="tiltAmount"
+                  />
+                  <output class="tune-value" for="ctl-tiltAmount"></output>
+                </div>
+              </details>
+            </section>
+
+            <section class="tune-group" aria-label="Motion controls">
+              <p class="tune-title">Motion</p>
+              <div class="tune-grid">
+                <label for="ctl-motionSpeed">Motion speed</label>
+                <input
+                  id="ctl-motionSpeed"
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.01"
+                  data-tune="motionSpeed"
+                />
+                <output class="tune-value" for="ctl-motionSpeed"></output>
+
+                <label for="ctl-scrollResponse">Scroll response</label>
+                <input
+                  id="ctl-scrollResponse"
+                  type="range"
+                  min="-2"
+                  max="2"
+                  step="0.01"
+                  data-tune="scrollResponse"
+                />
+                <output class="tune-value" for="ctl-scrollResponse"></output>
+
+                <label for="ctl-baseTurns">Scroll rotation</label>
+                <input
+                  id="ctl-baseTurns"
+                  type="range"
+                  min="-2"
+                  max="2"
+                  step="0.01"
+                  data-tune="baseTurns"
+                />
+                <output class="tune-value" for="ctl-baseTurns"></output>
+
+                <label for="ctl-spinAccel">Scroll swirl</label>
+                <input
+                  id="ctl-spinAccel"
+                  type="range"
+                  min="0"
+                  max="8"
+                  step="0.05"
+                  data-tune="spinAccel"
+                />
+                <output class="tune-value" for="ctl-spinAccel"></output>
+
+                <label for="ctl-updraftAccel">Scroll lift</label>
+                <input
+                  id="ctl-updraftAccel"
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="0.05"
+                  data-tune="updraftAccel"
+                />
+                <output class="tune-value" for="ctl-updraftAccel"></output>
+
+                <label for="ctl-baseSpin">Idle swirl</label>
+                <input
+                  id="ctl-baseSpin"
+                  type="range"
+                  min="0"
+                  max="0.05"
+                  step="0.001"
+                  data-tune="baseSpin"
+                />
+                <output class="tune-value" for="ctl-baseSpin"></output>
+
+                <label for="ctl-alphaScale">Opacity</label>
+                <input
+                  id="ctl-alphaScale"
+                  type="range"
+                  min="0.2"
+                  max="1.6"
+                  step="0.01"
+                  data-tune="alphaScale"
+                />
+                <output class="tune-value" for="ctl-alphaScale"></output>
+              </div>
+
+              <details class="tune-details">
+                <summary>Advanced motion</summary>
+                <div class="tune-grid">
+                  <label for="ctl-drag">Damping</label>
+                  <input
+                    id="ctl-drag"
+                    type="range"
+                    min="0.5"
+                    max="8"
+                    step="0.05"
+                    data-tune="drag"
+                  />
+                  <output class="tune-value" for="ctl-drag"></output>
+
+                  <label for="ctl-angularDrag">Angular damping</label>
+                  <input
+                    id="ctl-angularDrag"
+                    type="range"
+                    min="0.5"
+                    max="8"
+                    step="0.05"
+                    data-tune="angularDrag"
+                  />
+                  <output class="tune-value" for="ctl-angularDrag"></output>
+
+                  <label for="ctl-ySpring">Return force</label>
+                  <input
+                    id="ctl-ySpring"
+                    type="range"
+                    min="0"
+                    max="4"
+                    step="0.05"
+                    data-tune="ySpring"
+                  />
+                  <output class="tune-value" for="ctl-ySpring"></output>
+
+                  <label for="ctl-flutter">Flutter</label>
+                  <input
+                    id="ctl-flutter"
+                    type="range"
+                    min="0"
+                    max="0.8"
+                    step="0.01"
+                    data-tune="flutter"
+                  />
+                  <output class="tune-value" for="ctl-flutter"></output>
+
+                  <label for="ctl-motionVariance">Variance</label>
+                  <input
+                    id="ctl-motionVariance"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    data-tune="motionVariance"
+                  />
+                  <output class="tune-value" for="ctl-motionVariance"></output>
+
+                  <label for="ctl-scrollSmoothing">Follow speed</label>
+                  <input
+                    id="ctl-scrollSmoothing"
+                    type="range"
+                    min="4"
+                    max="30"
+                    step="0.5"
+                    data-tune="scrollSmoothing"
+                  />
+                  <output class="tune-value" for="ctl-scrollSmoothing"></output>
+
+                  <label for="ctl-scrollDeadzone">Deadzone</label>
+                  <input
+                    id="ctl-scrollDeadzone"
+                    type="range"
+                    min="0"
+                    max="200"
+                    step="1"
+                    data-tune="scrollDeadzone"
+                    data-type="int"
+                  />
+                  <output class="tune-value" for="ctl-scrollDeadzone"></output>
+                </div>
+              </details>
+            </section>
+
+            <section class="tune-group" aria-label="Color controls">
+              <p class="tune-title">Color (OKLCH)</p>
+              <div class="tune-grid">
+                <label for="ctl-swatchCount">Colors</label>
+                <input
+                  id="ctl-swatchCount"
+                  type="range"
+                  min="12"
+                  max="60"
+                  step="1"
+                  data-tune="swatchCount"
+                  data-type="int"
+                  data-live="false"
+                />
+                <output class="tune-value" for="ctl-swatchCount"></output>
+
+                <label for="ctl-hueShift">Hue shift</label>
+                <input
+                  id="ctl-hueShift"
+                  type="range"
+                  min="0"
+                  max="360"
+                  step="1"
+                  data-tune="hueShift"
+                  data-type="int"
+                />
+                <output class="tune-value" for="ctl-hueShift"></output>
+
+                <label for="ctl-LBase">Lightness</label>
+                <input
+                  id="ctl-LBase"
+                  type="range"
+                  min="0.55"
+                  max="0.88"
+                  step="0.005"
+                  data-tune="LBase"
+                />
+                <output class="tune-value" for="ctl-LBase"></output>
+
+                <label for="ctl-CBase">Chroma</label>
+                <input
+                  id="ctl-CBase"
+                  type="range"
+                  min="0.1"
+                  max="0.3"
+                  step="0.005"
+                  data-tune="CBase"
+                />
+                <output class="tune-value" for="ctl-CBase"></output>
+
+                <label for="ctl-minChroma">Min chroma</label>
+                <input
+                  id="ctl-minChroma"
+                  type="range"
+                  min="0.04"
+                  max="0.14"
+                  step="0.002"
+                  data-tune="minChroma"
+                />
+                <output class="tune-value" for="ctl-minChroma"></output>
+              </div>
+
+              <details class="tune-details">
+                <summary>Advanced color</summary>
+                <div class="tune-grid">
+                  <label for="ctl-LAmp">Light variance</label>
+                  <input
+                    id="ctl-LAmp"
+                    type="range"
+                    min="0"
+                    max="0.18"
+                    step="0.005"
+                    data-tune="LAmp"
+                  />
+                  <output class="tune-value" for="ctl-LAmp"></output>
+
+                  <label for="ctl-CAmp">Chroma variance</label>
+                  <input
+                    id="ctl-CAmp"
+                    type="range"
+                    min="0"
+                    max="0.15"
+                    step="0.005"
+                    data-tune="CAmp"
+                  />
+                  <output class="tune-value" for="ctl-CAmp"></output>
+                </div>
+              </details>
+            </section>
+
+            <section class="tune-group" aria-label="Rendering controls">
+              <p class="tune-title">Rendering</p>
+              <div class="tune-grid">
+                <label for="ctl-edgeSoftness">Edge softness</label>
+                <input
+                  id="ctl-edgeSoftness"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  data-tune="edgeSoftness"
+                />
+                <output class="tune-value" for="ctl-edgeSoftness"></output>
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
     </header>
 

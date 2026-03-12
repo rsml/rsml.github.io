@@ -9,6 +9,7 @@
   --radius: 22px;
   --page-pad: clamp(18px, 4vw, 46px);
   --measure: 72ch;
+  --topbar-offset: 96px;
 }
 
 *,
@@ -74,8 +75,10 @@ body.no-webgl #scene {
   position: sticky;
   top: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  column-gap: 1rem;
+  row-gap: 0;
   padding: 0.8rem var(--page-pad);
   backdrop-filter: blur(10px);
   background: color-mix(in oklab, var(--paper) 68%, transparent);
@@ -152,7 +155,8 @@ body.no-webgl #scene {
   border-color: color-mix(in oklab, var(--stroke) 95%, transparent);
 }
 
-.control[aria-pressed="true"] {
+.control[aria-pressed="true"],
+.control[aria-expanded="true"] {
   color: var(--ink);
   background: color-mix(in oklab, oklch(91% 0.05 130) 68%, var(--paper-strong));
   border-color: color-mix(in oklab, oklch(72% 0.12 130) 80%, var(--stroke));
@@ -161,6 +165,203 @@ body.no-webgl #scene {
 .control:focus-visible {
   outline: 2px solid oklch(58% 0.2 140);
   outline-offset: 3px;
+}
+
+.controls-panel {
+  flex-basis: 100%;
+  width: 100%;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: max-height 280ms ease, opacity 160ms ease, transform 280ms ease;
+}
+
+.topbar.is-expanded .controls-panel {
+  max-height: 1600px;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.controls-panel-inner {
+  margin-top: 0.8rem;
+  padding: 1rem;
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--paper) 76%, transparent);
+  border: 1px solid color-mix(in oklab, var(--stroke) 72%, transparent);
+  box-shadow: 0 14px 40px oklch(0% 0 0 / 0.12);
+  backdrop-filter: blur(12px);
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+}
+
+.tune-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.95rem;
+}
+
+.tune-note {
+  margin: 0;
+  font-weight: 650;
+  font-size: 0.92rem;
+  color: color-mix(in oklab, var(--ink) 72%, var(--muted));
+  max-width: 68ch;
+}
+
+.control-reset {
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.tune-groups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.tune-group {
+  margin: 0;
+  padding: 0.9rem 0.9rem 1rem;
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--paper-strong) 84%, transparent);
+  border: 1px solid color-mix(in oklab, var(--stroke) 66%, transparent);
+}
+
+.tune-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 780;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: color-mix(in oklab, var(--ink) 68%, var(--muted));
+}
+
+.tune-details {
+  margin-top: 0.9rem;
+}
+
+.tune-details summary {
+  cursor: pointer;
+  font-weight: 750;
+  font-size: 0.9rem;
+  color: color-mix(in oklab, var(--ink) 78%, var(--muted));
+  list-style: none;
+}
+
+.tune-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.tune-details summary::after {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid color-mix(in oklab, var(--ink) 46%, transparent);
+  border-bottom: 2px solid color-mix(in oklab, var(--ink) 46%, transparent);
+  transform: rotate(45deg);
+  margin-left: 0.5rem;
+  margin-top: -1px;
+  transition: transform 160ms ease;
+}
+
+.tune-details[open] summary::after {
+  transform: rotate(225deg);
+}
+
+.tune-details .tune-grid {
+  margin-top: 0.75rem;
+}
+
+.tune-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 180px) minmax(0, 1fr) minmax(56px, 84px);
+  align-items: center;
+  gap: 0.55rem 0.75rem;
+}
+
+.tune-grid label {
+  font-size: 0.86rem;
+  font-weight: 650;
+  color: color-mix(in oklab, var(--ink) 74%, var(--muted));
+}
+
+.tune-grid input[type="range"] {
+  --track-h: 7px;
+  --thumb-s: 18px;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 34px;
+  background: transparent;
+  cursor: pointer;
+  accent-color: oklch(58% 0.2 140);
+}
+
+.tune-grid input[type="range"]::-webkit-slider-runnable-track {
+  height: var(--track-h);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--stroke) 92%, transparent);
+  border: 1px solid color-mix(in oklab, var(--stroke) 76%, transparent);
+}
+
+.tune-grid input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: var(--thumb-s);
+  height: var(--thumb-s);
+  border-radius: 999px;
+  background: oklch(58% 0.2 140);
+  border: 2px solid var(--paper-strong);
+  box-shadow:
+    0 1px 0 oklch(0% 0 0 / 0.22),
+    0 10px 22px oklch(0% 0 0 / 0.12);
+  margin-top: calc((var(--track-h) - var(--thumb-s)) / 2);
+}
+
+.tune-grid input[type="range"]::-moz-range-track {
+  height: var(--track-h);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--stroke) 92%, transparent);
+  border: 1px solid color-mix(in oklab, var(--stroke) 76%, transparent);
+}
+
+.tune-grid input[type="range"]::-moz-range-progress {
+  height: var(--track-h);
+  border-radius: 999px;
+  background: oklch(58% 0.2 140 / 0.55);
+}
+
+.tune-grid input[type="range"]::-moz-range-thumb {
+  width: var(--thumb-s);
+  height: var(--thumb-s);
+  border-radius: 999px;
+  background: oklch(58% 0.2 140);
+  border: 2px solid var(--paper-strong);
+  box-shadow:
+    0 1px 0 oklch(0% 0 0 / 0.22),
+    0 10px 22px oklch(0% 0 0 / 0.12);
+}
+
+.tune-grid input[type="range"]:focus-visible {
+  outline: 2px solid oklch(58% 0.2 140);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+.tune-value {
+  text-align: right;
+  font-weight: 740;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklab, var(--ink) 82%, var(--muted));
+  white-space: nowrap;
 }
 
 .chapters {
@@ -240,7 +441,7 @@ body.no-webgl #scene {
   border: 1px solid color-mix(in oklab, var(--panel-accent) 22%, var(--stroke));
   box-shadow: var(--shadow);
   overflow: hidden;
-  scroll-margin-top: 96px;
+  scroll-margin-top: var(--topbar-offset);
 }
 
 .paper::before {
@@ -555,6 +756,23 @@ body.no-webgl #scene {
     padding: 0.5rem 0.65rem;
   }
 
+  .tune-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tune-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .tune-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tune-value {
+    text-align: left;
+  }
+
   .paper {
     padding: 20px;
   }
@@ -567,5 +785,10 @@ body.no-webgl #scene {
 
   .scroll-hint-arrow {
     animation: none;
+  }
+
+  .controls-panel {
+    transition: none;
+    transform: none;
   }
 }
