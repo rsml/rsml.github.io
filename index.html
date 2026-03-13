@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
 
-    <title>Ross Miller · Portfolio (Catalog)</title>
+    <title>Ross Miller · Portfolio</title>
     <meta
       name="description"
       content="A functional portfolio catalog with inline screenshots. Crisp, readable, native scroll, Rams-inspired structure."
@@ -20,11 +20,12 @@
 
     <style>
       :root {
-        --bg: #F3F4F0;
-        --ink: #484439;
-        --muted: oklch(44% 0.012 265);
-        --hair: oklch(16% 0.012 265 / 0.14);
-        --focus: #C1C0C0;
+        /* Rams/Braun-ish: neutral casing, graphite ink, one functional accent. */
+        --bg: oklch(99.58% 0.00259 230.474);
+        --ink: oklch(18% 0.006 95);
+        --muted: oklch(46% 0.006 95);
+        --hair: oklch(18% 0.006 95 / 0.14);
+        --focus: oklch(72.184% 0.04839 250.534);
         --pad: clamp(16px, 3vw, 36px);
         --measure: 72ch;
         --grid: 4px;
@@ -85,7 +86,7 @@
       .hero .name {
         margin: 0;
         font-size: clamp(2.6rem, 5vw, 4.2rem);
-        letter-spacing: -0.06em;
+        letter-spacing: -0.04em;
         line-height: 0.95;
         font-weight: 760;
       }
@@ -122,7 +123,6 @@
       .chip[data-kind="link"] {
         color: var(--ink);
         text-decoration: underline;
-        border-color: color-mix(in oklab, var(--focus) 52%, var(--hair));
       }
 
       .chip[data-kind="link"]::after {
@@ -136,7 +136,6 @@
 
       .proj {
         border-top: 1px solid var(--hair);
-        border-top-color: rgba(0, 0, 0, 0.15);
         padding-top: var(--s-6);
         padding-bottom: var(--s-6);
         scroll-margin-top: var(--s-6);
@@ -333,7 +332,10 @@
       <section class="hero" id="top">
         <h2 class="name">Ross Miller</h2>
         <p class="roles">
-          Software Engineer & Serial Founder: Delivering Scalable, Reliable Tech with Strong Architecture and UX
+          Software Engineer & Serial Founder
+        </p>
+        <p class="roles">
+          Delivering Scalable, Reliable Tech with Strong Architecture and UX
         </p>
         <div class="links" aria-label="Contact links">
           <a class="chip" data-kind="link" href="https://www.linkedin.com/in/rossnmiller/">LinkedIn</a>
