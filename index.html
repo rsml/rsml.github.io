@@ -27,6 +27,15 @@
         --focus: oklch(64% 0.22 145);
         --pad: clamp(16px, 3vw, 36px);
         --measure: 72ch;
+        --grid: 4px;
+        --s-1: var(--grid);
+        --s-2: calc(var(--grid) * 2);
+        --s-3: calc(var(--grid) * 3);
+        --s-4: calc(var(--grid) * 4);
+        --s-5: calc(var(--grid) * 6);
+        --s-6: calc(var(--grid) * 8);
+        --s-7: calc(var(--grid) * 12);
+        --s-8: calc(var(--grid) * 16);
       }
 
       *,
@@ -52,13 +61,13 @@
       a {
         color: inherit;
         text-decoration-thickness: 1px;
-        text-underline-offset: 3px;
+        text-underline-offset: 4px;
       }
 
       a:focus-visible,
       button:focus-visible {
         outline: 2px solid var(--focus);
-        outline-offset: 3px;
+        outline-offset: 4px;
       }
 
       .main {
@@ -68,10 +77,9 @@
       }
 
       .hero {
-        padding-top: 12px;
         display: grid;
-        gap: 10px;
-        padding-bottom: 48px;
+        gap: var(--s-3);
+        padding-bottom: var(--s-6);
       }
 
       .hero .name {
@@ -93,21 +101,20 @@
       .hero .links {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
-        padding-top: 4px;
+        gap: var(--s-2);
       }
 
       .chip {
         font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
           monospace;
         font-size: 0.76rem;
-        padding: 7px 10px;
+        padding: var(--s-2) var(--s-3);
         border: 1px solid var(--hair);
         background: var(--bg);
         color: var(--muted);
         text-decoration: none;
         display: inline-flex;
-        gap: 8px;
+        gap: var(--s-2);
         align-items: center;
         white-space: nowrap;
       }
@@ -129,10 +136,10 @@
 
       .proj {
         border-top: 1px solid var(--hair);
-        border-top-color: rgba(0,0,0,0.15);
-        padding-top: 24px;
-        padding-bottom: 48px;
-        scroll-margin-top: 24px;
+        border-top-color: rgba(0, 0, 0, 0.15);
+        padding-top: var(--s-6);
+        padding-bottom: var(--s-6);
+        scroll-margin-top: var(--s-6);
       }
 
       .proj-grid {
@@ -153,7 +160,7 @@
       .proj-head {
         display: grid;
         grid-template-columns: 1fr auto;
-        gap: 14px;
+        gap: var(--s-4);
         align-items: baseline;
       }
 
@@ -172,7 +179,7 @@
       }
 
       .proj p {
-        margin: 8px 0 0;
+        margin: var(--s-2) 0 0;
         max-width: var(--measure);
         color: var(--muted);
         font-weight: 520;
@@ -180,16 +187,16 @@
       }
 
       .proj-meta {
-        margin-top: 24px;
+        margin-top: var(--s-5);
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--s-2);
       }
 
       .proj-links {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: var(--s-2);
       }
 
       .taglist {
@@ -224,7 +231,7 @@
         width: 100%;
         display: grid;
         grid-template-columns: 1fr minmax(120px, 0.42fr);
-        gap: 12px;
+        gap: var(--s-3);
         align-items: start;
       }
 
@@ -283,7 +290,7 @@
 
       .shotUi {
         position: absolute;
-        inset: 10px;
+        inset: var(--s-3);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -300,7 +307,7 @@
         color: var(--muted);
         background: color-mix(in oklab, var(--bg) 82%, transparent);
         border: 1px solid var(--hair);
-        padding: 6px 8px;
+        padding: var(--s-2) var(--s-2);
       }
 
       .shotNote {
@@ -331,8 +338,8 @@
         <div class="links" aria-label="Contact links">
           <a class="chip" data-kind="link" href="https://www.linkedin.com/in/rossnmiller/">LinkedIn</a>
           <a class="chip" data-kind="link" href="https://github.com/rsml">GitHub</a>
-          <a class="chip" data-kind="link" href="https://x.com/coding_ross" aria-label="X @coding_ross"
-            >X @coding_ross</a
+          <a class="chip" data-kind="link" href="https://x.com/coding_ross" aria-label="X"
+            >X</a
           >
           <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com">Email</a>
         </div>
