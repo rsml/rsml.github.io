@@ -327,16 +327,16 @@ class VortexBackground {
       }
     `;
 
-    const fragmentShader = `
-	      varying vec2 vUv;
-	      varying vec3 vWorldPos;
-	      varying vec3 vWorldNormal;
+	    const fragmentShader = `
+		      varying vec2 vUv;
+		      varying vec3 vWorldPos;
+		      varying vec3 vWorldNormal;
 
-	      uniform sampler2D uNoise;
-	      uniform vec3 uColor;
-	      uniform float uAlpha;
-	      uniform float uSeed;
-	      uniform float uEdgeSoftness;
+		      uniform sampler2D uNoise;
+		      uniform vec3 uColor;
+		      uniform float uAlpha;
+		      uniform float uSeed;
+		      uniform float uEdgeSoftness;
 
 	      float edgeMask(vec2 uv) {
 	        // uEdgeSoftness: 0 => crisp, 1 => soft.
@@ -353,22 +353,17 @@ class VortexBackground {
 	        vec2 nuv = vUv * 2.6 + vec2(uSeed * 0.17, uSeed * 0.11);
 	        float n = texture2D(uNoise, nuv).r;
 
-	        // Subtle fiber: modulate opacity more than color.
-	        float fiber = smoothstep(0.22, 0.88, n);
-	        float edges = edgeMask(vUv);
+		        // Subtle fiber: modulate opacity more than color.
+		        float fiber = smoothstep(0.22, 0.88, n);
+		        float edges = edgeMask(vUv);
 
-        vec3 viewDir = normalize(cameraPosition - vWorldPos);
-        float fresnel = pow(1.0 - clamp(dot(normalize(vWorldNormal), viewDir), 0.0, 1.0), 2.2);
+		        float alpha = uAlpha * (0.92 + 0.08 * fiber) * edges;
+		        vec3 color = uColor;
 
-	        float alpha = uAlpha * (0.92 + 0.08 * fiber) * edges;
-	        vec3 color = uColor;
-	        color += (fiber - 0.5) * 0.035;
-	        color += fresnel * 0.07;
-
-	        // Premultiply alpha to make blending feel like layered paper instead of glass.
-	        gl_FragColor = vec4(color * alpha, alpha);
-	      }
-	    `;
+		        // Premultiply alpha to make blending feel like layered paper instead of glass.
+		        gl_FragColor = vec4(color * alpha, alpha);
+		      }
+		    `;
 
     const planeGeometry = new THREE.PlaneGeometry(1, 1, 10, 10);
 
@@ -971,15 +966,6 @@ class VortexBackground {
   }
 }
 
-function pickBestIntersecting(entries) {
-  let best = null;
-  for (const entry of entries) {
-    if (!entry.isIntersecting) continue;
-    if (!best || entry.intersectionRatio > best.intersectionRatio) best = entry;
-  }
-  return best;
-}
-
 function main() {
   const canvas = document.getElementById("bg");
   if (!(canvas instanceof HTMLCanvasElement)) return;
@@ -1208,17 +1194,6 @@ function main() {
     if (!hint) return;
     hint.classList.toggle("is-hidden", hidden);
   }
-
-  const paletteSections = Array.from(document.querySelectorAll("[data-vortex-palette]"));
-  const paletteObserver = new IntersectionObserver(
-    (entries) => {
-      const best = pickBestIntersecting(entries);
-      const palette = best?.target?.dataset?.vortexPalette;
-      if (palette) vortex.setPalette(palette);
-    },
-    { root: null, threshold: [0.55], rootMargin: "-42% 0px -42% 0px" },
-  );
-  for (const section of paletteSections) paletteObserver.observe(section);
 
   const gapSections = Array.from(document.querySelectorAll(".gap"));
   const gapRatios = new Map(gapSections.map((gap) => [gap, 0]));
