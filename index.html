@@ -99,6 +99,14 @@
         font-size: 1.05rem;
       }
 
+      .roles-subtitle {
+        margin-top: 8;
+        color: var(--muted);
+        font-weight: 400;
+        max-width: var(--measure);
+        font-size: 0.76rem;
+      }
+
       .hero .links {
         display: flex;
         flex-wrap: wrap;
@@ -175,6 +183,7 @@
           monospace;
         font-size: 0.78rem;
         color: var(--muted);
+        text-align: right;
       }
 
       .proj p {
@@ -331,12 +340,15 @@
     <main class="main">
       <section class="hero" id="top">
         <h2 class="name">Ross Miller</h2>
-        <p class="roles">
+        <div class="roles">
           Software Engineer & Serial Founder
-        </p>
-        <p class="roles">
-          Delivering Scalable, Reliable Tech with Strong Architecture and UX
-        </p>
+          <div class="roles-subtitle">
+            Shipping reliable, scalable tech
+          </div>
+          <div class="roles-subtitle">
+            Focused on architecture and UX
+          </div>
+        </div>
         <div class="links" aria-label="Contact links">
           <a class="chip" data-kind="link" href="https://www.linkedin.com/in/rossnmiller/">LinkedIn</a>
           <a class="chip" data-kind="link" href="https://github.com/rsml">GitHub</a>
