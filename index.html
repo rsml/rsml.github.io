@@ -181,8 +181,42 @@
       .proj-meta {
         margin-top: 12px;
         display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .proj-links {
+        display: flex;
         flex-wrap: wrap;
         gap: 8px;
+      }
+
+      .taglist {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 16px;
+      }
+
+      .taglist li {
+        margin: 0;
+        padding: 0;
+      }
+
+      .taglist li:not(:last-child)::after {
+        content: "|";
+        margin-left: 8px;
+        margin-right: 8px;
+        color: color-mix(in oklab, var(--muted) 55%, transparent);
       }
 
       .shots {
@@ -313,16 +347,20 @@
                 <div class="proj-role">Founder</div>
               </div>
               <p>#1 Doctor-led GLP-1 companion app</p>
-              <div class="proj-meta" aria-label="Links and tags">
-                <a
-                  class="chip"
-                  data-kind="link"
-                  href="https://apps.apple.com/us/app/vivy-glp-1-shot-tracker/id6736508784"
-                  >App Store</a
-                >
-                <span class="chip">Mobile</span>
-                <span class="chip">Health</span>
-                <span class="chip">AI</span>
+              <div class="proj-meta" aria-label="Tags and links">
+                <ul class="taglist" aria-label="Tags">
+                  <li>Mobile</li>
+                  <li>Health</li>
+                  <li>AI</li>
+                </ul>
+                <div class="proj-links" aria-label="Links">
+                  <a
+                    class="chip"
+                    data-kind="link"
+                    href="https://apps.apple.com/us/app/vivy-glp-1-shot-tracker/id6736508784"
+                    >App Store</a
+                  >
+                </div>
               </div>
             </div>
 
@@ -355,13 +393,17 @@
                 <div class="proj-role">Creator</div>
               </div>
               <p>Interactive music theory exploration app for iOS and Web.</p>
-              <div class="proj-meta" aria-label="Links and tags">
-                <a class="chip" data-kind="link" href="https://chordcolors.app/">MARKETING</a>
-                <a class="chip" data-kind="link" href="https://apps.apple.com/us/app/id1422598441">iOS</a>
-                <a class="chip" data-kind="link" href="https://chordcolors.com/">Web</a>
-                <span class="chip">Music Theory</span>
-                <span class="chip">UX</span>
-                <span class="chip">Design</span>
+              <div class="proj-meta" aria-label="Tags and links">
+                <ul class="taglist" aria-label="Tags">
+                  <li>Music Theory</li>
+                  <li>UX</li>
+                  <li>Design</li>
+                </ul>
+                <div class="proj-links" aria-label="Links">
+                  <a class="chip" data-kind="link" href="https://chordcolors.app/">MARKETING</a>
+                  <a class="chip" data-kind="link" href="https://apps.apple.com/us/app/id1422598441">iOS</a>
+                  <a class="chip" data-kind="link" href="https://chordcolors.com/">Web</a>
+                </div>
               </div>
             </div>
 
@@ -394,12 +436,16 @@
                 <div class="proj-role">Creator</div>
               </div>
               <p>Learning reimagined. Books written for you. Ask as you read. Test yourself.</p>
-              <div class="proj-meta" aria-label="Links and tags">
-                <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com?subject=Tutor%20demo">GitHub</a>
-                <span class="chip">AI</span>
-                <span class="chip">Education</span>
-                <span class="chip">UX</span>
-                <span class="chip">Open Source</span>
+              <div class="proj-meta" aria-label="Tags and links">
+                <ul class="taglist" aria-label="Tags">
+                  <li>AI</li>
+                  <li>Education</li>
+                  <li>UX</li>
+                  <li>Open Source</li>
+                </ul>
+                <div class="proj-links" aria-label="Links">
+                  <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com?subject=Tutor%20demo">GitHub</a>
+                </div>
               </div>
             </div>
 
@@ -432,10 +478,12 @@
                 <div class="proj-role">Founder</div>
               </div>
               <p>Order food and drink at large venues by text message</p>
-              <div class="proj-meta" aria-label="Links and tags">
-                <span class="chip">SMS</span>
-                <span class="chip">Venues</span>
-                <span class="chip">Ops</span>
+              <div class="proj-meta" aria-label="Tags and links">
+                <ul class="taglist" aria-label="Tags">
+                  <li>SMS</li>
+                  <li>Venues</li>
+                  <li>Ops</li>
+                </ul>
               </div>
             </div>
 
@@ -470,13 +518,17 @@
               <p>
                 Premier access control solution powering millions of door unlocks per day
               </p>
-              <div class="proj-meta" aria-label="Links and tags">
-                <a class="chip" data-kind="link" href="https://www.openpath.com/">Company</a>
-                <span class="chip">React Native</span>
-                <span class="chip">WebRTC</span>
-                <span class="chip">Performance</span>
-                <span class="chip">Scale</span>
-                <span class="chip">Design</span>
+              <div class="proj-meta" aria-label="Tags and links">
+                <ul class="taglist" aria-label="Tags">
+                  <li>React Native</li>
+                  <li>WebRTC</li>
+                  <li>Performance</li>
+                  <li>Scale</li>
+                  <li>Design</li>
+                </ul>
+                <div class="proj-links" aria-label="Links">
+                  <a class="chip" data-kind="link" href="https://www.openpath.com/">Company</a>
+                </div>
               </div>
             </div>
 
@@ -509,17 +561,21 @@
                 <div class="proj-role">Founder</div>
               </div>
               <p>World's first iPad sheet music notation app</p>
-              <div class="proj-meta" aria-label="Links and tags">
-                <a class="chip" data-kind="link" href="https://symphonypro.net/">MARKETING</a>
-                <a
-                  class="chip"
-                  data-kind="link"
-                  href="https://apps.apple.com/us/app/symphony-pro-music-notation/id412380315"
-                  >App</a
-                >
-                <span class="chip">Music</span>
-                <span class="chip">iPad</span>
-                <span class="chip">Design</span>
+              <div class="proj-meta" aria-label="Tags and links">
+                <ul class="taglist" aria-label="Tags">
+                  <li>Music</li>
+                  <li>iPad</li>
+                  <li>Design</li>
+                </ul>
+                <div class="proj-links" aria-label="Links">
+                  <a class="chip" data-kind="link" href="https://symphonypro.net/">MARKETING</a>
+                  <a
+                    class="chip"
+                    data-kind="link"
+                    href="https://apps.apple.com/us/app/symphony-pro-music-notation/id412380315"
+                    >App</a
+                  >
+                </div>
               </div>
             </div>
 
