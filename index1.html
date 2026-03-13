@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+
+    <title>Ross Miller · Portfolio (Rams)</title>
+    <meta
+      name="description"
+      content="A portfolio as a product manual: disciplined typography, honest structure, and scannable work history."
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@300..800&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --paper: oklch(98.2% 0.012 88);
+        --ink: oklch(18% 0.01 265);
+        --muted: oklch(46% 0.01 265);
+        --hair: oklch(18% 0.01 265 / 0.16);
+        --focus: oklch(64% 0.22 145);
+        --pad: clamp(16px, 3vw, 36px);
+        --gutter: clamp(12px, 2vw, 22px);
+        --measure: 72ch;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Sora", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--paper);
+        color: var(--ink);
+        line-height: 1.4;
+      }
+
+      a {
+        color: inherit;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+      }
+
+      .skip {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        padding: 10px 12px;
+        background: var(--paper);
+        border: 1px solid var(--hair);
+        transform: translateY(-140%);
+        transition: transform 140ms ease;
+        z-index: 999;
+      }
+
+      .skip:focus {
+        transform: translateY(0);
+        outline: 2px solid var(--focus);
+        outline-offset: 3px;
+      }
+
+      .hdr {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: var(--paper);
+        border-bottom: 1px solid var(--hair);
+      }
+
+      .hdr-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 14px var(--pad);
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 14px;
+        align-items: end;
+      }
+
+      .brand {
+        display: grid;
+        gap: 2px;
+      }
+
+      .brand-top {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+
+      .mark {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      .label {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: clamp(1.5rem, 2.2vw, 2.05rem);
+        letter-spacing: -0.04em;
+        line-height: 1.05;
+      }
+
+      .nav {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+      }
+
+      .nav a {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.78rem;
+        text-decoration: none;
+        padding: 8px 10px;
+        border: 1px solid transparent;
+        color: var(--muted);
+      }
+
+      .nav a[aria-current="page"] {
+        border-color: var(--hair);
+        color: var(--ink);
+      }
+
+      .nav a:focus-visible,
+      summary:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 3px;
+      }
+
+      .main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--pad);
+      }
+
+      .doc {
+        display: grid;
+        gap: 28px;
+        padding-bottom: 10vh;
+      }
+
+      .note {
+        max-width: var(--measure);
+        color: var(--muted);
+        font-weight: 520;
+        margin: 0;
+      }
+
+      .section {
+        border-top: 1px solid var(--hair);
+        padding-top: 18px;
+      }
+
+      .section h2 {
+        margin: 0;
+        font-size: 1.1rem;
+        letter-spacing: -0.02em;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .secno {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.78rem;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+        user-select: none;
+      }
+
+      details.item {
+        border-top: 1px solid var(--hair);
+        padding: 10px 0 14px;
+      }
+
+      details.item:first-of-type {
+        border-top: none;
+      }
+
+      summary {
+        list-style: none;
+        cursor: pointer;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 14px;
+        align-items: baseline;
+        padding: 8px 0;
+      }
+
+      summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .sum-left {
+        display: grid;
+        gap: 4px;
+      }
+
+      .name {
+        font-weight: 750;
+        letter-spacing: -0.02em;
+      }
+
+      .meta {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+
+      .sum-right {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 10px;
+        color: var(--muted);
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.78rem;
+      }
+
+      .badge {
+        padding: 2px 6px;
+        border: 1px solid var(--hair);
+        color: var(--ink);
+        background: color-mix(in oklab, var(--paper) 82%, white);
+      }
+
+      .item-body {
+        display: grid;
+        gap: 12px;
+        padding: 10px 0 0;
+        max-width: var(--measure);
+      }
+
+      .item-body p {
+        margin: 0;
+        color: var(--muted);
+        font-weight: 520;
+      }
+
+      .spec {
+        margin: 0;
+        color: var(--muted);
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.78rem;
+      }
+
+      .spec strong {
+        color: var(--ink);
+        font-weight: 650;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-top: 6px;
+      }
+
+      .chip {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.75rem;
+        padding: 7px 10px;
+        border: 1px solid var(--hair);
+        background: var(--paper);
+        color: var(--muted);
+        text-decoration: none;
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .chip[data-kind="link"] {
+        color: var(--ink);
+        text-decoration: underline;
+      }
+
+      .chip[data-kind="link"]::after {
+        content: "↗";
+        opacity: 0.75;
+      }
+
+      .item-body ul {
+        margin: 0;
+        padding-left: 1.1em;
+        color: var(--muted);
+        font-weight: 520;
+        display: grid;
+        gap: 8px;
+      }
+
+      .item-body li {
+        margin: 0;
+      }
+
+      .shots {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 12px;
+        align-items: start;
+        padding-top: 10px;
+      }
+
+      .shot {
+        margin: 0;
+        border: 1px solid var(--hair);
+        background: color-mix(in oklab, var(--paper) 86%, white);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .shot-inner {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 10px;
+      }
+
+      .shot-label {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.72rem;
+        color: var(--muted);
+        background: var(--paper);
+        border: 1px solid var(--hair);
+        padding: 7px 10px;
+      }
+
+      .shot--web {
+        aspect-ratio: 16 / 10;
+      }
+
+      .shot--phone {
+        aspect-ratio: 9 / 19.5;
+        width: min(210px, 42vw);
+        justify-self: end;
+      }
+
+      .shot--tablet {
+        aspect-ratio: 4 / 3;
+        width: min(320px, 58vw);
+        justify-self: end;
+      }
+
+      .shot img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        position: relative;
+        z-index: 1;
+      }
+
+      @media (max-width: 720px) {
+        .shots {
+          grid-template-columns: 1fr;
+        }
+
+        .shot--phone {
+          justify-self: start;
+          width: min(240px, 76vw);
+        }
+
+        .shot--tablet {
+          justify-self: start;
+          width: min(360px, 86vw);
+        }
+      }
+
+      .footer {
+        border-top: 1px solid var(--hair);
+        padding: 18px var(--pad);
+        max-width: 1200px;
+        margin: 0 auto;
+        color: var(--muted);
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          monospace;
+        font-size: 0.78rem;
+      }
+
+      @media print {
+        .hdr {
+          position: relative;
+          border-bottom: none;
+        }
+
+        a {
+          text-decoration: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#doc">Skip to content</a>
+
+    <header class="hdr" role="banner">
+      <div class="hdr-inner">
+        <div class="brand">
+          <div class="brand-top">
+            <div class="mark">RM</div>
+            <div class="label">Portfolio</div>
+          </div>
+          <h1>Ross Miller</h1>
+          <div class="label">Staff Software Engineer · 4x Founder · Nashville, TN (Remote)</div>
+        </div>
+        <nav class="nav" aria-label="Links">
+          <a href="#work">Work</a>
+          <a href="https://github.com/rsml">GitHub</a>
+          <a href="https://www.linkedin.com/in/rossnmiller/">LinkedIn</a>
+          <a href="mailto:rossnmiller@gmail.com">Email</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main">
+      <article class="doc" id="doc">
+        <section class="section" id="about">
+          <div class="section-head">
+            <h2>About</h2>
+            <span class="secno" aria-hidden="true">01</span>
+          </div>
+          <p class="note">
+            Staff software engineer and 4x founder. Fullstack + mobile (TypeScript,
+            React/Next.js, React Native/Expo, Node). UX-first shipping at scale: millions
+            of daily events and 13k+ App Store ratings.
+          </p>
+        </section>
+
+        <section class="section" id="work" aria-label="Work">
+          <div class="section-head">
+            <h2>Work</h2>
+            <span class="secno" aria-hidden="true">02</span>
+          </div>
+
+          <details class="item" open>
+            <summary>
+              <span class="sum-left">
+                <span class="name">Vivy</span>
+                <span class="meta">Founder, CTO · Nashville, TN</span>
+              </span>
+              <span class="sum-right">
+                <span>Aug 2024–Dec 2025</span>
+              </span>
+            </summary>
+            <div class="item-body">
+              <p>
+                Built an all-in-one GLP-1 companion app with React Native, with a heavy
+                focus on instrumentation, iteration, and reliability.
+              </p>
+              <ul aria-label="Highlights">
+                <li>
+                  Grew to 10k+ paid users; 4.8 stars (590+ ratings); 8.9% install-to-subscription conversion.
+                </li>
+                <li>Reached 77% monthly cohort retention.</li>
+                <li>Shipped 68 releases in 2025; maintained 99.98% crash-free sessions.</li>
+                <li>Owned E2E: idea, specs, design, implementation, instrumentation, and iteration.</li>
+                <li>Ran weekly paywall experiments and product page tests.</li>
+                <li>Implemented/optimized MarTech and attribution (Meta CAPI, AEM Events, TikTok, AppsFlyer, SKAN 4).</li>
+              </ul>
+              <p class="spec">
+                <strong>Stack:</strong> TypeScript, React Native, Expo, Supabase/Postgres, Node/Express, Vercel,
+                RevenueCat, AppsFlyer, Amplitude, Sentry, Jest.
+              </p>
+              <div class="chips" aria-label="Links">
+                <a
+                  class="chip"
+                  data-kind="link"
+                  href="https://apps.apple.com/us/app/vivy-glp-1-shot-tracker/id6736508784"
+                  >App Store</a
+                >
+                <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com?subject=Vivy%20demo">Email for demo</a>
+              </div>
+              <div class="shots" aria-label="Screenshot placeholders">
+                <figure class="shot shot--web" aria-label="Web screenshot placeholder">
+                  <!-- Replace with: <img src=\"/path/to/vivy-web.png\" alt=\"Vivy web screenshot\"> -->
+                  <div class="shot-inner" aria-hidden="true">
+                    <span class="shot-label">Vivy · Web screenshot</span>
+                  </div>
+                </figure>
+                <figure class="shot shot--phone" aria-label="iPhone screenshot placeholder">
+                  <!-- Replace with: <img src=\"/path/to/vivy-iphone.png\" alt=\"Vivy iPhone screenshot\"> -->
+                  <div class="shot-inner" aria-hidden="true">
+                    <span class="shot-label">Vivy · iPhone screenshot</span>
+                  </div>
+                </figure>
+              </div>
+            </div>
+          </details>
+
+          <details class="item">
+            <summary>
+              <span class="sum-left">
+                <span class="name">Text2Order</span>
+                <span class="meta">Founder, CTO · Nashville, TN</span>
+              </span>
+              <span class="sum-right">
+                <span>Feb 2022–Jun 2024</span>
+              </span>
+            </summary>
+            <div class="item-body">
+              <p>
+                Built a high-volume food and beverage ordering suite for music festivals and
+                large venues, spanning web, SMS, and multiple operational apps.
+              </p>
+              <ul aria-label="Highlights">
+                <li>Built festival ordering (up to 88k attendees) and operated on-site to observe and improve UX.</li>
+                <li>Part-time through Sep 2023, then full-time through Jun 2024.</li>
+                <li>Led and mentored 6 engineers and 2 QA; shipped weekly with release gates and incident response.</li>
+                <li>Delivered 100% uptime at events; implemented redundancy plans.</li>
+                <li>Peak throughput: 139 orders received in one hour; 502 orders in 6.5 hours with 2 bartenders.</li>
+                <li>Architected a suite: customer ordering (SMS + web), KDS app, admin dashboard, support, ops, delivery app.</li>
+              </ul>
+              <p class="spec">
+                <strong>Stack:</strong> TypeScript/JavaScript, React/Next.js, Node/Express, MySQL, AWS (RDS/EC2/S3),
+                Cordova, Sentry, Appium/Jest, Hexnode MDM, CM.com, Java + Star Micronics printers.
+              </p>
+              <div class="chips" aria-label="Links">
+                <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com?subject=Text2Order%20demo">Email for demo</a>
+              </div>
+              <div class="shots" aria-label="Screenshot placeholders">
+                <figure class="shot shot--web" aria-label="Web screenshot placeholder">
+                  <div class="shot-inner" aria-hidden="true">
+                    <span class="shot-label">Text2Order · Ordering web</span>
+                  </div>
+                </figure>
+                <figure class="shot shot--phone" aria-label="iPhone screenshot placeholder">
+                  <div class="shot-inner" aria-hidden="true">
+                    <span class="shot-label">Text2Order · Ops/mobile app</span>
+                  </div>
+                </figure>
+              </div>
+            </div>
+          </details>
+
+          <details class="item">
+            <summary>
+              <span class="sum-left">
+                <span class="name">Openpath Security</span>
+                <span class="meta">Software Engineering Manager, #2 Employee · Los Angeles, CA</span>
+              </span>
+              <span class="sum-right">
+                <span>Aug 2017–Sep 2023</span>
+              </span>
+            </summary>
+            <div class="item-body">
+              <p>
+                Lead/sole React Native engineer (2017–2022), then engineering manager (2022–2023)
+                on a mobile access control platform powering millions of door unlocks per day.
+              </p>
+              <ul aria-label="Highlights">
+                <li>Designed and implemented mobile app and admin dashboard UI and style guides.</li>
+                <li>Managed 1 engineer and mentored 2 (2022–2023); iOS app rated 4.8 stars (13k+ ratings).</li>
+                <li>Built video intercom: WebRTC calling + HLS clip playback.</li>
+                <li>Built admin/provisioning app; partnered with hardware and firmware teams.</li>
+                <li>Reduced battery usage, improved cold-start TTI, eliminated scroll jank, fixed rare crashes.</li>
+              </ul>
+              <p class="spec">
+                <strong>Focus:</strong> React Native performance, reliability, and UI systems at scale.
+              </p>
+              <div class="chips" aria-label="Links">
+                <a class="chip" data-kind="link" href="https://www.openpath.com/">Company site</a>
+                <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com?subject=Openpath%20work">Email for details</a>
+              </div>
+              <div class="shots" aria-label="Screenshot placeholders">
+                <figure class="shot shot--web" aria-label="Web screenshot placeholder">
+                  <div class="shot-inner" aria-hidden="true">
+                    <span class="shot-label">Openpath · Admin dashboard</span>
+                  </div>
+                </figure>
+                <figure class="shot shot--phone" aria-label="iPhone screenshot placeholder">
+                  <div class="shot-inner" aria-hidden="true">
+                    <span class="shot-label">Openpath · Mobile app</span>
+                  </div>
+                </figure>
+              </div>
+            </div>
+          </details>
+
+          <details class="item">
+            <summary>
+              <span class="sum-left">
+                <span class="name">Chord Colors</span>
+                <span class="meta">Solo project · iOS + Web</span>
+              </span>
+              <span class="sum-right">
+                <span>Ongoing</span>
+              </span>
+            </summary>
+            <div class="item-body">
+              <p>
+                Interactive music theory exploration app with an extreme focus on architecture,
+                performance, completeness, and UX.
+              </p>
+              <ul aria-label="Highlights">
+                <li>Designed a custom Turbo Module for low-latency audio.</li>
+                <li>Built for iOS and web with a shared architecture (Solito).</li>
+              </ul>
+              <div class="chips" aria-label="Links">
+                <a class="chip" data-kind="link" href="https://chordcolors.app/">Website</a>
+                <a class="chip" data-kind="link" href="https://apps.apple.com/us/app/id1422598441">App Store</a>
+                <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com?subject=Chord%20Colors">Email</a>
+              </div>
+              <div class="shots" aria-label="Screenshot placeholders">
+                <figure class="shot shot--web" aria-label="Web screenshot placeholder">
+                  <div class="shot-inner" aria-hidden="true">
+                    <span class="shot-label">Chord Colors · Web screenshot</span>
+                  </div>
+                </figure>
+                <figure class="shot shot--phone" aria-label="iPhone screenshot placeholder">
+                  <div class="shot-inner" aria-hidden="true">
+                    <span class="shot-label">Chord Colors · iPhone screenshot</span>
+                  </div>
+                </figure>
+              </div>
+            </div>
+          </details>
+
+          <details class="item">
+            <summary>
+              <span class="sum-left">
+                <span class="name">Grub Runner</span>
+                <span class="meta">Founder, CTO · Tucson, AZ / Los Angeles, CA</span>
+              </span>
+              <span class="sum-right">
+                <span>Nov 2013–Dec 2016</span>
+              </span>
+            </summary>
+            <div class="item-body">
+              <p>Food and beverage ordering for stadium events, iterated hands-on in production.</p>
+              <ul aria-label="Highlights">
+                <li>Operated at University of Arizona football games for 2 years, delivering thousands of orders.</li>
+                <li>Studied UX from every facet: ordering, delivery, staffing, and logistics.</li>
+                <li>Shipped continuously with an on-site feedback loop.</li>
+              </ul>
+              <div class="chips" aria-label="Links">
+                <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com?subject=Grub%20Runner%20demo">Email for demo</a>
+              </div>
+              <div class="shots" aria-label="Screenshot placeholders">
+                <figure class="shot shot--web" aria-label="Web screenshot placeholder">
+                  <div class="shot-inner" aria-hidden="true">
+                    <span class="shot-label">Grub Runner · Ordering web</span>
+                  </div>
+                </figure>
+                <figure class="shot shot--phone" aria-label="iPhone screenshot placeholder">
+                  <div class="shot-inner" aria-hidden="true">
+                    <span class="shot-label">Grub Runner · Ops/mobile</span>
+                  </div>
+                </figure>
+              </div>
+            </div>
+          </details>
+
+          <details class="item">
+            <summary>
+              <span class="sum-left">
+                <span class="name">Symphony Pro</span>
+                <span class="meta">Founder, Developer, Designer · Los Angeles, CA</span>
+              </span>
+              <span class="sum-right">
+                <span>Sep 2009–Sep 2013</span>
+              </span>
+            </summary>
+            <div class="item-body">
+              <p>iPad sheet music composition app, built at the start of the App Store era.</p>
+              <ul aria-label="Highlights">
+                <li>Led a team of 3 to build the world’s first iPad sheet music composition app.</li>
+                <li>Reached #3 highest grossing iPad music app in the U.S. (2010).</li>
+                <li>Spotlighted by Apple on education pages for 11 months.</li>
+              </ul>
+              <div class="chips" aria-label="Links">
+                <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com?subject=Symphony%20Pro">Email for details</a>
+              </div>
+              <div class="shots" aria-label="Screenshot placeholders">
+                <figure class="shot shot--web" aria-label="Web screenshot placeholder">
+                  <div class="shot-inner" aria-hidden="true">
+                    <span class="shot-label">Symphony Pro · Marketing/press</span>
+                  </div>
+                </figure>
+                <figure class="shot shot--tablet" aria-label="iPad screenshot placeholder">
+                  <div class="shot-inner" aria-hidden="true">
+                    <span class="shot-label">Symphony Pro · iPad screenshot</span>
+                  </div>
+                </figure>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <section class="section" id="experience">
+          <div class="section-head">
+            <h2>Additional experience</h2>
+            <span class="secno" aria-hidden="true">03</span>
+          </div>
+
+          <details class="item">
+            <summary>
+              <span class="sum-left">
+                <span class="name">Heal</span>
+                <span class="meta">Senior Software Engineer · Santa Monica, CA</span>
+              </span>
+              <span class="sum-right">
+                <span>Oct 2016–Aug 2017</span>
+              </span>
+            </summary>
+            <div class="item-body">
+              <p>Led a small React Native team to ship a HIPAA-compliant booking app for doctor house calls.</p>
+              <div class="chips" aria-label="Links">
+                <a class="chip" data-kind="link" href="https://heal.com/">Company site</a>
+              </div>
+            </div>
+          </details>
+
+          <details class="item">
+            <summary>
+              <span class="sum-left">
+                <span class="name">Luma Pictures</span>
+                <span class="meta">Senior Software Developer (Contract) · Santa Monica, CA</span>
+              </span>
+              <span class="sum-right">
+                <span>Sep 2015–Aug 2016</span>
+              </span>
+            </summary>
+            <div class="item-body">
+              <p>Sole developer and designer for a custom Adobe Lightroom replacement for a large VFX studio.</p>
+              <div class="chips" aria-label="Links">
+                <a class="chip" data-kind="link" href="https://lumapictures.com/">Company site</a>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <section class="section" id="education">
+          <div class="section-head">
+            <h2>Education</h2>
+            <span class="secno" aria-hidden="true">04</span>
+          </div>
+
+          <details class="item" open>
+            <summary>
+              <span class="sum-left">
+                <span class="name">University of Arizona</span>
+                <span class="meta">B.S. Computer Science + Mathematics (Double Major)</span>
+              </span>
+              <span class="sum-right">
+                <span>May 2012</span>
+              </span>
+            </summary>
+            <div class="item-body">
+              <ul aria-label="Details">
+                <li>3.8 GPA; graduated with honors.</li>
+                <li>Software Engineering Club.</li>
+              </ul>
+            </div>
+          </details>
+        </section>
+
+        <section class="section" id="strengths">
+          <div class="section-head">
+            <h2>Strengths</h2>
+            <span class="secno" aria-hidden="true">05</span>
+          </div>
+
+          <div class="item-body">
+            <ul aria-label="Strengths list">
+              <li><strong>Fullstack:</strong> TypeScript/JavaScript, React, Next.js, Node.js, REST/GraphQL, PostgreSQL.</li>
+              <li><strong>Mobile:</strong> React Native, Expo, Redux, Turbo Modules, Fastlane, BLE, App Store release pain points.</li>
+              <li><strong>Architecture:</strong> Modularization, iterative design, fault tolerance, DX, UML.</li>
+              <li><strong>Leadership:</strong> Founder-level ownership, mentoring, standards, documentation.</li>
+              <li><strong>Reliability:</strong> Crash analytics, monitoring, observability, TDD, tech debt triage.</li>
+              <li><strong>Cloud/DevOps:</strong> AWS, Supabase, Vercel, GitHub Actions.</li>
+              <li><strong>Design:</strong> UI/UX, prototyping, Atomic Design, design tokens.</li>
+              <li><strong>Product/Growth:</strong> User research, Amplitude, SEO/ASO, improving app ratings.</li>
+            </ul>
+          </div>
+        </section>
+      </article>
+    </main>
+
+    <footer class="footer">
+      No frameworks. Normal scroll. Crisp edges. Print-friendly.
+    </footer>
+  </body>
+</html>
