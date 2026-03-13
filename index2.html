@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
 
-    <title>Experiment 2 · Catalog (Rams)</title>
+    <title>Ross Miller · Portfolio (Catalog)</title>
     <meta
       name="description"
-      content="A functional portfolio catalog with inline screenshots. Crisp, readable, native scroll. Dieter Rams-inspired structure."
+      content="A functional portfolio catalog with inline screenshots. Crisp, readable, native scroll, Rams-inspired structure."
     />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -55,67 +55,6 @@
         text-underline-offset: 3px;
       }
 
-      .hdr {
-        position: sticky;
-        top: 0;
-        z-index: 30;
-        background: var(--bg);
-        border-bottom: 1px solid var(--hair);
-      }
-
-      .hdr-inner {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 14px var(--pad);
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 14px;
-        align-items: center;
-      }
-
-      .brand {
-        display: grid;
-        gap: 2px;
-      }
-
-      .kicker {
-        font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-          monospace;
-        font-size: 0.78rem;
-        color: var(--muted);
-      }
-
-      .brand h1 {
-        margin: 0;
-        font-size: clamp(1.35rem, 2.2vw, 2rem);
-        letter-spacing: -0.04em;
-        line-height: 1.05;
-      }
-
-      .nav {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        align-items: center;
-      }
-
-      .nav a {
-        font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-          monospace;
-        font-size: 0.78rem;
-        text-decoration: none;
-        padding: 8px 10px;
-        border: 1px solid transparent;
-        color: var(--muted);
-      }
-
-      .nav a[aria-current="page"] {
-        border-color: var(--hair);
-        color: var(--ink);
-      }
-
-      .nav a:focus-visible,
       a:focus-visible,
       button:focus-visible {
         outline: 2px solid var(--focus);
@@ -129,8 +68,7 @@
       }
 
       .hero {
-        border-top: 1px solid var(--hair);
-        padding-top: 18px;
+        padding-top: 12px;
         display: grid;
         gap: 10px;
       }
@@ -193,7 +131,7 @@
       .proj {
         border-top: 1px solid var(--hair);
         padding-top: 16px;
-        scroll-margin-top: 94px;
+        scroll-margin-top: 24px;
       }
 
       .proj-grid {
@@ -341,16 +279,6 @@
         display: none;
       }
 
-      .foot {
-        border-top: 1px solid var(--hair);
-        margin-top: 26px;
-        padding-top: 14px;
-        color: var(--muted);
-        font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-          monospace;
-        font-size: 0.78rem;
-      }
-
       @media (max-width: 980px) {
         .proj-grid {
           grid-template-columns: 1fr;
@@ -359,32 +287,17 @@
     </style>
   </head>
   <body>
-    <header class="hdr">
-      <div class="hdr-inner">
-        <div class="brand">
-          <div class="kicker">Experiment 2 · Catalog</div>
-          <h1>Rams structure, UX clarity.</h1>
-        </div>
-        <nav class="nav" aria-label="Experiments">
-          <a href="./index1.html">1 Manual</a>
-          <a href="./index2.html" aria-current="page">2 Catalog</a>
-          <a href="./index3.html">3 Deck</a>
-          <a href="./index4.html">4 Wheel</a>
-          <a href="./index5.html">5 Map</a>
-          <a href="./index.html">Baseline</a>
-        </nav>
-      </div>
-    </header>
-
     <main class="main">
       <section class="hero" id="top">
-        <p class="kicker">Portfolio (prototype content)</p>
         <h2 class="name">Ross Miller</h2>
-        <p class="roles">Engineer, Designer, Entrepreneur. Working on important problems.</p>
+        <p class="roles">
+          Staff Software Engineer &amp; 4x founder. Fullstack + mobile (TypeScript, React/Next.js, React
+          Native/Expo, Node). UX-first shipping at scale.
+        </p>
         <div class="links" aria-label="Contact links">
-          <a class="chip" data-kind="link" href="https://example.com/">LinkedIn</a>
-          <a class="chip" data-kind="link" href="https://example.com/">X</a>
-          <a class="chip" data-kind="link" href="mailto:ross@example.com">Email</a>
+          <a class="chip" data-kind="link" href="https://www.linkedin.com/in/rossnmiller/">LinkedIn</a>
+          <a class="chip" data-kind="link" href="https://github.com/rsml">GitHub</a>
+          <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com">Email</a>
         </div>
       </section>
 
@@ -398,7 +311,12 @@
               </div>
               <p>#1 Doctor-led GLP-1 companion app. Replace later with outcomes and impact.</p>
               <div class="proj-meta" aria-label="Links and tags">
-                <a class="chip" data-kind="link" href="https://example.com/">Website</a>
+                <a
+                  class="chip"
+                  data-kind="link"
+                  href="https://apps.apple.com/us/app/vivy-glp-1-shot-tracker/id6736508784"
+                  >App Store</a
+                >
                 <span class="chip">Mobile</span>
                 <span class="chip">Health</span>
                 <span class="chip">AI</span>
@@ -435,8 +353,8 @@
               </div>
               <p>Interactive music theory exploration app for iOS and Web.</p>
               <div class="proj-meta" aria-label="Links and tags">
-                <a class="chip" data-kind="link" href="https://example.com/">Web</a>
-                <a class="chip" data-kind="link" href="https://example.com/">iOS</a>
+                <a class="chip" data-kind="link" href="https://chordcolors.app/">Web</a>
+                <a class="chip" data-kind="link" href="https://apps.apple.com/us/app/id1422598441">iOS</a>
                 <span class="chip">Music</span>
                 <span class="chip">Performance</span>
               </div>
@@ -472,7 +390,7 @@
               </div>
               <p>Learning reimagined. Books written on demand. Ask as you read. Test yourself.</p>
               <div class="proj-meta" aria-label="Links and tags">
-                <a class="chip" data-kind="link" href="https://example.com/">Website</a>
+                <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com?subject=Tutor%20demo">Email for demo</a>
                 <span class="chip">AI</span>
                 <span class="chip">Quizzes</span>
                 <span class="chip">Education</span>
@@ -509,7 +427,7 @@
               </div>
               <p>Order food and drink at large venues by text message.</p>
               <div class="proj-meta" aria-label="Links and tags">
-                <a class="chip" data-kind="link" href="https://example.com/">Website</a>
+                <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com?subject=Text2Order%20demo">Email for demo</a>
                 <span class="chip">SMS</span>
                 <span class="chip">Venues</span>
                 <span class="chip">Ops</span>
@@ -546,7 +464,7 @@
               </div>
               <p>World's first iPad sheet music notation app. Replace later with the story.</p>
               <div class="proj-meta" aria-label="Links and tags">
-                <a class="chip" data-kind="link" href="https://example.com/">iOS</a>
+                <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com?subject=Symphony%20Pro">Email for details</a>
                 <span class="chip">Music</span>
                 <span class="chip">iPad</span>
                 <span class="chip">Design</span>
@@ -575,10 +493,6 @@
         </section>
       </section>
 
-      <footer class="foot">
-        Prototype note: keep it honest. Native scroll, crisp type, and inline visuals that don't
-        compete with the content.
-      </footer>
     </main>
   </body>
 </html>
