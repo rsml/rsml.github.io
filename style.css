@@ -114,11 +114,30 @@ body.no-webgl #scene {
   flex: 1;
 }
 
+.topnav--studies {
+  flex-wrap: wrap;
+  gap: 0.45rem 0.65rem;
+}
+
 .topnav a {
   color: color-mix(in oklab, var(--ink) 80%, var(--muted));
   text-decoration: none;
   font-weight: 560;
   font-size: 0.95rem;
+}
+
+.topnav--studies a {
+  font-size: 0.9rem;
+  font-weight: 650;
+  padding: 0.25rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.topnav--studies a[aria-current="page"] {
+  color: var(--ink);
+  background: color-mix(in oklab, var(--paper-strong) 84%, transparent);
+  border-color: color-mix(in oklab, var(--stroke) 72%, transparent);
 }
 
 .topnav a:hover {
@@ -553,6 +572,15 @@ body.no-webgl #scene {
   background: color-mix(in oklab, var(--paper) 70%, transparent);
 }
 
+a.meta-chip {
+  text-decoration: none;
+}
+
+a.meta-chip:focus-visible {
+  outline: 2px solid oklch(58% 0.2 140);
+  outline-offset: 3px;
+}
+
 .meta-chip--link {
   border-color: color-mix(in oklab, var(--panel-accent) 38%, var(--stroke));
   background: color-mix(in oklab, var(--panel-accent) 14%, var(--paper));
@@ -568,6 +596,12 @@ body.no-webgl #scene {
   border-right: 2px solid currentColor;
   transform: rotate(45deg);
   opacity: 0.9;
+}
+
+.meta-chip--tag {
+  border-color: color-mix(in oklab, var(--panel-support, var(--muted)) 38%, var(--stroke));
+  background: color-mix(in oklab, var(--panel-support, var(--muted)) 12%, var(--paper));
+  color: color-mix(in oklab, var(--ink) 86%, var(--panel-support, var(--muted)));
 }
 
 .footer {
@@ -674,12 +708,350 @@ body.no-webgl #scene {
   font-weight: 560;
 }
 
+/* Study-only: flatter presentation (less "paper lighting"), crisper header. */
+body.study .topbar {
+  backdrop-filter: none;
+  background: color-mix(in oklab, var(--paper) 88%, transparent);
+}
+
+body.study .paper::before {
+  display: none;
+}
+
+/* Homage-to-the-square plate component (nested hard-edged squares). */
+.albers-plate {
+  --c0: oklch(78% 0.2 25);
+  --c1: oklch(78% 0.18 145);
+  --c2: oklch(95% 0.03 90);
+  --outer-pad: 12%;
+  --mid-pad: 12%;
+
+  width: clamp(280px, 44vw, 720px);
+  max-width: 92vw;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  display: grid;
+}
+
+.paper > .albers-plate {
+  grid-column: 1 / -1;
+}
+
+.albers-plate__outer,
+.albers-plate__mid,
+.albers-plate__inner {
+  display: grid;
+  min-width: 0;
+}
+
+.albers-plate__outer {
+  background: var(--c0);
+  padding: var(--outer-pad);
+}
+
+.albers-plate__mid {
+  background: var(--c1);
+  padding: var(--mid-pad);
+}
+
+.albers-plate__inner {
+  background: var(--c2);
+  align-content: center;
+  justify-items: start;
+}
+
+.albers-plate__content {
+  padding: clamp(18px, 3.2vw, 42px);
+  width: 100%;
+}
+
+.albers-plate--mini {
+  width: clamp(160px, 18vw, 240px);
+}
+
+.albers-plate--mini .albers-plate__inner {
+  justify-items: center;
+  align-content: center;
+}
+
+.albers-plate--mini .albers-plate__content {
+  display: none;
+}
+
+/* Study 2: constant plate that updates surrounds per section. */
+.constant-sticky {
+  position: fixed;
+  top: calc(var(--topbar-offset) + 14px);
+  right: var(--page-pad);
+  z-index: 2;
+  pointer-events: none;
+  width: min(260px, 34vw);
+}
+
+.constant-sticky .albers-plate {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Study 3: ratio bar for proportions (hard-edged, no rounding). */
+.ratio-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 1.1rem;
+}
+
+.ratio-bar {
+  height: 18px;
+  display: flex;
+  border: 1px solid color-mix(in oklab, var(--stroke) 70%, transparent);
+}
+
+.ratio-seg {
+  height: 100%;
+  min-width: 0;
+}
+
+/* Study 5: vibration sections (two hard-edged fields, neutral inner square for text). */
+.vibe {
+  position: relative;
+  min-height: min(78vh, 760px);
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding: clamp(26px, 4vw, 54px) var(--page-pad);
+}
+
+.vibe-fields {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.vibe-fields > div {
+  min-width: 0;
+}
+
+.vibe-card {
+  position: relative;
+  width: min(720px, 92vw);
+  aspect-ratio: 1 / 1;
+  background: var(--paper-strong);
+  display: grid;
+  align-content: center;
+  padding: clamp(18px, 3.3vw, 44px);
+  box-shadow: none;
+  border: none;
+}
+
+.vibe-card .lede {
+  margin-top: 0.9rem;
+}
+
+/* Study 2: full-viewport steps + centered constant plate. */
+.study-constant .topbar {
+  background: transparent;
+  border-bottom: none;
+}
+
+.const-main {
+  padding-top: calc(var(--topbar-offset) * 0.35);
+  scroll-snap-type: y proximity;
+}
+
+.const-step {
+  min-height: 100vh;
+  display: grid;
+  align-items: end;
+  padding: clamp(18px, 4vw, 56px) var(--page-pad);
+  scroll-snap-align: start;
+}
+
+.const-caption {
+  max-width: min(68ch, calc(100vw - (var(--page-pad) * 2)));
+  padding: 1rem 1.05rem;
+  background: color-mix(in oklab, var(--paper-strong) 88%, transparent);
+  border: 1px solid color-mix(in oklab, var(--stroke) 72%, transparent);
+}
+
+.study-constant .constant-sticky {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  width: min(520px, 74vw);
+}
+
+/* Study 3: sticky stage that updates via IntersectionObserver. */
+.study-proportion .topbar {
+  background: transparent;
+  border-bottom: none;
+}
+
+.prop-main {
+  padding-top: calc(var(--page-pad) * 1.1);
+  padding-bottom: 12vh;
+}
+
+.prop-stage {
+  position: sticky;
+  top: calc(var(--topbar-offset) + 14px);
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--page-pad);
+  pointer-events: none;
+}
+
+.prop-stage-inner {
+  width: min(780px, 92vw);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  background: color-mix(in oklab, var(--paper-strong) 88%, transparent);
+  border: 1px solid color-mix(in oklab, var(--stroke) 72%, transparent);
+}
+
+.prop-bar {
+  height: 26px;
+  border: 1px solid color-mix(in oklab, var(--stroke) 74%, transparent);
+}
+
+.study-proportion .prop-seg--a {
+  flex: var(--prop-rA, 4);
+  background: var(--pA);
+}
+
+.study-proportion .prop-seg--b {
+  flex: var(--prop-rB, 4);
+  background: var(--pB);
+}
+
+.study-proportion .prop-seg--c {
+  flex: var(--prop-rC, 2);
+  background: var(--pC);
+}
+
+.prop-step {
+  min-height: 100vh;
+  display: grid;
+  align-items: end;
+  padding: clamp(18px, 4vw, 56px) var(--page-pad);
+}
+
+.prop-caption {
+  max-width: min(68ch, calc(100vw - (var(--page-pad) * 2)));
+  padding: 1rem 1.05rem;
+  background: color-mix(in oklab, var(--paper-strong) 88%, transparent);
+  border: 1px solid color-mix(in oklab, var(--stroke) 72%, transparent);
+}
+
+/* Study 4: two-color poster layout with a tile grid. */
+.two-main {
+  padding: clamp(20px, 4vw, 56px) var(--page-pad) 12vh;
+}
+
+.two-hero {
+  min-height: min(72vh, 760px);
+  display: grid;
+  align-items: end;
+}
+
+.two-hero-inner {
+  max-width: 72ch;
+}
+
+.two-display {
+  margin: 0.35rem 0 0;
+  font-size: clamp(3rem, 6vw, 5rem);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+
+.two-lede {
+  margin: 1rem 0 0;
+  max-width: 62ch;
+  color: color-mix(in oklab, var(--ink) 78%, var(--muted));
+  font-size: 1.05rem;
+  font-weight: 560;
+}
+
+.two-legend {
+  margin-top: 1.25rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.two-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+  color: color-mix(in oklab, var(--ink) 78%, var(--muted));
+}
+
+.two-swatch-chip {
+  width: 18px;
+  height: 18px;
+  background: var(--panel-accent);
+  border: 1px solid color-mix(in oklab, var(--panel-accent) 55%, var(--stroke));
+}
+
+.two-swatch--support .two-swatch-chip {
+  background: var(--panel-support);
+  border-color: color-mix(in oklab, var(--panel-support) 55%, var(--stroke));
+}
+
+.two-grid {
+  margin-top: 2.2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.9rem;
+}
+
+.two-tile {
+  background: color-mix(in oklab, var(--paper-strong) 88%, transparent);
+  border: 1px solid color-mix(in oklab, var(--panel-support) 18%, var(--stroke));
+  padding: 1rem;
+}
+
+.two-tile-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.two-tile-title {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: -0.03em;
+}
+
+.two-tile-role {
+  margin: 0;
+  font-weight: 750;
+  color: color-mix(in oklab, var(--ink) 60%, var(--muted));
+}
+
+.two-tile-body {
+  margin: 0.7rem 0 0;
+  color: color-mix(in oklab, var(--ink) 74%, var(--muted));
+  font-weight: 560;
+}
+
 @media (max-width: 860px) {
   /* Full-bleed sections; nothing to change for layout here. */
 }
 
 @media (max-width: 560px) {
-  .topnav {
+  .topnav:not(.topnav--studies) {
     display: none;
   }
 
@@ -710,6 +1082,20 @@ body.no-webgl #scene {
 
   .paper {
     padding-block: 20px;
+  }
+
+  .constant-sticky {
+    position: sticky;
+    top: calc(var(--topbar-offset) + 10px);
+    right: auto;
+    left: auto;
+    width: min(360px, 92vw);
+    margin: 0 auto;
+    padding-bottom: 0.75rem;
+  }
+
+  .ratio-row {
+    grid-template-columns: 1fr;
   }
 }
 

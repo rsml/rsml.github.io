@@ -1,6 +1,11 @@
 import * as THREE from "./vendor/three.module.js";
 
-const SETTINGS_KEY = "rm.vortex.settings.v1";
+const SETTINGS_KEY_BASE = "rm.vortex.settings.v1";
+
+function settingsKey() {
+  const path = window.location?.pathname || "/";
+  return `${SETTINGS_KEY_BASE}:${path}`;
+}
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -21,7 +26,7 @@ function prefersSaveData() {
 
 function loadSettings() {
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
+    const raw = localStorage.getItem(settingsKey());
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return {};
@@ -33,9 +38,22 @@ function loadSettings() {
 
 function saveSettings(settings) {
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    localStorage.setItem(settingsKey(), JSON.stringify(settings));
   } catch {
     // Ignore storage issues (private mode, quota).
+  }
+}
+
+function loadPreset() {
+  const el = document.getElementById("rmPreset");
+  if (!(el instanceof HTMLScriptElement)) return null;
+  const raw = el.textContent;
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
   }
 }
 
@@ -966,13 +984,300 @@ class VortexBackground {
   }
 }
 
+function numberOr(value, fallback) {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function threeColorFromOklchEntry(entry, fallback) {
+  if (!entry || typeof entry !== "object") return fallback.clone();
+  const L = numberOr(entry.L, NaN);
+  const C = numberOr(entry.C, NaN);
+  const h = numberOr(entry.h, NaN);
+  if (!Number.isFinite(L) || !Number.isFinite(C) || !Number.isFinite(h)) return fallback.clone();
+  const fitted = fitOklchToGamut({ L, C, h }, 0.02);
+  return new THREE.Color().setRGB(
+    clamp(fitted.r, 0, 1),
+    clamp(fitted.g, 0, 1),
+    clamp(fitted.b, 0, 1),
+    THREE.SRGBColorSpace,
+  );
+}
+
+function buildAlbersPalette(entries) {
+  const fallback = [
+    { L: 0.74, C: 0.2, h: 28 },
+    { L: 0.74, C: 0.2, h: 235 },
+    { L: 0.94, C: 0.03, h: 92 },
+    { L: 0.9, C: 0.06, h: 150 },
+  ].map((e) => threeColorFromOklchEntry(e, new THREE.Color().setRGB(0.9, 0.2, 0.2, THREE.SRGBColorSpace)));
+
+  const list = Array.isArray(entries) ? entries : [];
+  const colors = list.map((e, i) => threeColorFromOklchEntry(e, fallback[i % fallback.length]));
+  while (colors.length < 4) colors.push(fallback[colors.length % fallback.length].clone());
+  return colors.slice(0, 4);
+}
+
+class AlbersShaderBackground {
+  constructor({ canvas, pattern = "field", config = {} }) {
+    this.canvas = canvas;
+    this.pattern = pattern;
+    this.enabled = false;
+
+    this.params = {
+      edgeSoftness: clamp(numberOr(config.edgeSoftness, 0.04), 0, 1),
+      scale: clamp(numberOr(config.scale, 10), 1, 80),
+    };
+
+    this.palette = buildAlbersPalette(config.palette);
+
+    this.scroll = {
+      progress: 0,
+      velocity: 0,
+      velocitySmoothed: 0,
+    };
+
+    this.userReduceMotion = false;
+    this.time = 0;
+
+    this._init();
+  }
+
+  _buildFragmentShader(pattern) {
+    const shared = `
+      precision highp float;
+
+      varying vec2 vUv;
+      uniform vec2 uResolution;
+      uniform float uTime;
+      uniform float uScroll;
+      uniform float uEdgeSoftness;
+      uniform float uScale;
+      uniform vec3 uPal0;
+      uniform vec3 uPal1;
+      uniform vec3 uPal2;
+      uniform vec3 uPal3;
+
+      float hash21(vec2 p) {
+        vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+        p3 += dot(p3, p3.yzx + 33.33);
+        return fract((p3.x + p3.y) * p3.z);
+      }
+
+      float edgeWidthPx() {
+        float px = 1.0 / max(1.0, min(uResolution.x, uResolution.y));
+        return px * mix(0.75, 14.0, clamp(uEdgeSoftness, 0.0, 1.0));
+      }
+
+      float squareMask(vec2 p, float halfSize, float w) {
+        float d = max(abs(p.x), abs(p.y)) - halfSize;
+        return smoothstep(w, -w, d);
+      }
+    `;
+
+    if (pattern === "grid") {
+      return `
+        ${shared}
+        void main() {
+          float w = edgeWidthPx();
+          float aspect = uResolution.x / max(1.0, uResolution.y);
+          vec2 p = (vUv - 0.5);
+          p.x *= aspect;
+          p += vec2(uScroll * 0.18, -uScroll * 0.14);
+
+          float cells = max(2.0, uScale);
+          vec2 g = p * cells + vec2(cells * 0.5);
+          vec2 id = floor(g);
+          vec2 f = fract(g);
+
+          float inset = 0.08;
+          float inside = step(inset, f.x) * step(inset, f.y) * step(f.x, 1.0 - inset) * step(f.y, 1.0 - inset);
+
+          float h = hash21(id);
+          float pick = floor(h * 3.0);
+          vec3 cell = pick < 1.0 ? uPal0 : (pick < 2.0 ? uPal1 : uPal2);
+
+          vec3 col = uPal3;
+          col = mix(col, cell, inside);
+
+          // Crisp border around each cell.
+          float edge = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
+          float border = 1.0 - smoothstep(inset - w * 1.25, inset + w * 1.25, edge);
+          col = mix(col, uPal3, border * 0.85);
+
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `;
+    }
+
+    if (pattern === "stripes") {
+      return `
+        ${shared}
+        void main() {
+          float aspect = uResolution.x / max(1.0, uResolution.y);
+          vec2 p = (vUv - 0.5);
+          p.x *= aspect;
+          p.x += (uScroll - 0.5) * 0.22;
+
+          float bands = max(2.0, uScale);
+          float t = (p.x + 1.0) * 0.5 * bands;
+          float stripe = mod(floor(t), 2.0);
+          vec3 col = stripe < 1.0 ? uPal0 : uPal1;
+
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `;
+    }
+
+    // Default: "field"
+    return `
+      ${shared}
+      void main() {
+        float aspect = uResolution.x / max(1.0, uResolution.y);
+        vec2 p = (vUv - 0.5) * 2.0;
+        p.x *= aspect;
+        p += vec2(0.0, (uScroll - 0.5) * 0.22);
+
+        // uScale acts like a zoom for the field study (10 == default scale).
+        float zoom = clamp(uScale / 10.0, 0.5, 3.0);
+        p *= zoom;
+
+        float w = edgeWidthPx();
+        float s0 = 0.92;
+        float s1 = 0.64;
+        float s2 = 0.38;
+
+        float m0 = squareMask(p, s0, w);
+        float m1 = squareMask(p, s1, w);
+        float m2 = squareMask(p, s2, w);
+
+        vec3 col = uPal3;
+        col = mix(col, uPal0, m0);
+        col = mix(col, uPal1, m1);
+        col = mix(col, uPal2, m2);
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `;
+  }
+
+  _init() {
+    const canvas = this.canvas;
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: false,
+      antialias: true,
+      powerPreference: "high-performance",
+    });
+    renderer.setClearColor(new THREE.Color("#F4EFE6"), 1);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.sortObjects = false;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    const uniforms = {
+      uResolution: { value: new THREE.Vector2(1, 1) },
+      uTime: { value: 0 },
+      uScroll: { value: 0 },
+      uEdgeSoftness: { value: this.params.edgeSoftness },
+      uScale: { value: this.params.scale },
+      uPal0: { value: this.palette[0].clone() },
+      uPal1: { value: this.palette[1].clone() },
+      uPal2: { value: this.palette[2].clone() },
+      uPal3: { value: this.palette[3].clone() },
+    };
+    this.uniforms = uniforms;
+
+    const vertexShader = `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = vec4(position.xy, 0.0, 1.0);
+      }
+    `;
+
+    const fragmentShader = this._buildFragmentShader(this.pattern);
+
+    const geometry = new THREE.PlaneGeometry(2, 2, 1, 1);
+    const material = new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms,
+      depthWrite: false,
+      depthTest: false,
+      transparent: false,
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+
+    this.renderer = renderer;
+    this.scene = scene;
+    this.camera = camera;
+    this.mesh = mesh;
+    this.enabled = true;
+    this.resize();
+  }
+
+  resize() {
+    if (!this.enabled) return;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    const reduce = this.userReduceMotion ?? false;
+    const saveData = prefersSaveData();
+    const dprCap = reduce || saveData ? 1 : width < 540 ? 1.35 : 1.75;
+    const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+
+    this.renderer.setPixelRatio(dpr);
+    this.renderer.setSize(width, height, false);
+    this.uniforms.uResolution.value.set(width * dpr, height * dpr);
+  }
+
+  setUserMotion({ reduceMotion }) {
+    this.userReduceMotion = !!reduceMotion;
+    this.resize();
+  }
+
+  setRevealStrength(_strength) {
+    // No-op (kept for interface compatibility).
+  }
+
+  setScroll({ progress, velocity, dt }) {
+    this.scroll.progress = clamp(progress, 0, 1);
+    const v = velocity;
+    this.scroll.velocity = v;
+    this.scroll.velocitySmoothed = damp(this.scroll.velocitySmoothed, v, 14, dt);
+  }
+
+  update(dt, _timeSec, { paused, reduceMotion }) {
+    if (!this.enabled) return;
+    if (!paused && !reduceMotion) this.time += dt * 0.08;
+    this.uniforms.uTime.value = this.time;
+    this.uniforms.uScroll.value = this.scroll.progress;
+  }
+
+  render() {
+    if (!this.enabled) return;
+    this.renderer.render(this.scene, this.camera);
+  }
+}
+
 function main() {
   const canvas = document.getElementById("bg");
   if (!(canvas instanceof HTMLCanvasElement)) return;
 
-  let vortex;
+  const preset = loadPreset();
+  const bgKind = canvas.dataset.bg === "albers" ? "albers" : "vortex";
+  const pattern = canvas.dataset.pattern || "field";
+
+  let background;
   try {
-    vortex = new VortexBackground({ canvas });
+    background =
+      bgKind === "albers"
+        ? new AlbersShaderBackground({ canvas, pattern, config: preset?.albers ?? {} })
+        : new VortexBackground({ canvas });
   } catch (error) {
     console.warn("WebGL background disabled:", error);
     document.body.classList.add("no-webgl");
@@ -983,9 +1288,16 @@ function main() {
 
   document.body.classList.remove("no-webgl");
 
+  const hasTuning = typeof background.getTuning === "function" && typeof background.setTuning === "function";
+  const canReset = typeof background.resetTuning === "function";
+  const canRandomize = typeof background.randomizeTuning === "function";
+
+  const presetTuning = preset?.tuning && typeof preset.tuning === "object" ? preset.tuning : null;
+  if (hasTuning && presetTuning) background.setTuning(presetTuning);
+
   const stored = loadSettings();
   const storedTuning = stored.tuning && typeof stored.tuning === "object" ? stored.tuning : null;
-  if (storedTuning) vortex.setTuning(storedTuning);
+  if (hasTuning && storedTuning) background.setTuning(storedTuning);
 
   const reduceMotionDefault = prefersReducedMotion() || prefersSaveData();
   const settings = {
@@ -1010,12 +1322,13 @@ function main() {
   }
 
   function persistSettings() {
-    saveSettings({
+    const next = {
       paused: settings.paused,
       reduceMotion: settings.reduceMotion,
       controlsOpen: settings.controlsOpen,
-      tuning: vortex.getTuning(),
-    });
+    };
+    if (hasTuning) next.tuning = background.getTuning();
+    saveSettings(next);
   }
 
   function syncControls() {
@@ -1027,7 +1340,7 @@ function main() {
       reduceButton.setAttribute("aria-pressed", settings.reduceMotion ? "true" : "false");
       reduceButton.textContent = settings.reduceMotion ? "Full motion" : "Reduce motion";
     }
-    vortex.setUserMotion({ reduceMotion: settings.reduceMotion });
+    background.setUserMotion?.({ reduceMotion: settings.reduceMotion });
   }
 
   syncControls();
@@ -1106,7 +1419,7 @@ function main() {
   }
 
   const tuningInputs = [];
-  if (controlsPanel instanceof HTMLElement) {
+  if (hasTuning && controlsPanel instanceof HTMLElement) {
     for (const el of controlsPanel.querySelectorAll("[data-tune]")) {
       if (el instanceof HTMLInputElement) tuningInputs.push(el);
     }
@@ -1119,7 +1432,8 @@ function main() {
   }
 
   function syncTuningControls() {
-    const tuning = vortex.getTuning();
+    if (!hasTuning) return;
+    const tuning = background.getTuning();
     for (const input of tuningInputs) {
       const key = input.dataset.tune;
       if (!key) continue;
@@ -1144,11 +1458,12 @@ function main() {
   }
 
   function applyTuningFromInput(input, commit) {
+    if (!hasTuning) return;
     const key = input.dataset.tune;
     if (!key) return;
     const value = parseControlValue(input);
     if (!Number.isFinite(value)) return;
-    vortex.setTuning({ [key]: value });
+    background.setTuning({ [key]: value });
 
     if (commit) {
       syncTuningControls();
@@ -1171,17 +1486,17 @@ function main() {
     });
   }
 
-  if (resetButton instanceof HTMLButtonElement) {
+  if (hasTuning && canReset && resetButton instanceof HTMLButtonElement) {
     resetButton.addEventListener("click", () => {
-      vortex.resetTuning();
+      background.resetTuning();
       syncTuningControls();
       persistSettings();
     });
   }
 
-  if (randomizeButton instanceof HTMLButtonElement) {
+  if (hasTuning && canRandomize && randomizeButton instanceof HTMLButtonElement) {
     randomizeButton.addEventListener("click", () => {
-      vortex.randomizeTuning();
+      background.randomizeTuning();
       syncTuningControls();
       persistSettings();
     });
@@ -1223,7 +1538,7 @@ function main() {
   window.addEventListener(
     "resize",
     () => {
-      vortex.resize();
+      background.resize?.();
       syncTopbarOffset();
     },
     { passive: true },
@@ -1247,16 +1562,16 @@ function main() {
     setHintHidden(scrollY > 30);
 
     // Use gap ratio as the "reveal bay" strength (dramatic in whitespace, calm behind panels).
-    vortex.setRevealStrength(gapMaxRatio);
+    background.setRevealStrength?.(gapMaxRatio);
 
-    vortex.setScroll({
+    background.setScroll?.({
       progress,
       velocity: settings.paused ? 0 : v,
       dt,
     });
 
-    vortex.update(dt, now / 1000, settings);
-    vortex.render();
+    background.update?.(dt, now / 1000, settings);
+    background.render?.();
   }
 
   requestAnimationFrame(frame);
