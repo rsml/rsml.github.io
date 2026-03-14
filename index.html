@@ -23,6 +23,7 @@
         /* Rams/Braun-ish: neutral casing, graphite ink, one functional accent. */
         --bg: oklch(99.58% 0.00259 230.474);
         --ink: oklch(18% 0.006 95);
+        --hairHighlight: oklch(18% 0.006 95 / 0.4);
         --muted: oklch(46% 0.006 95);
         --hair: oklch(18% 0.006 95 / 0.14);
         --focus: oklch(72.184% 0.04839 250.534);
@@ -117,7 +118,7 @@
         font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
           monospace;
         font-size: 0.76rem;
-        padding: var(--s-2) var(--s-3);
+        padding: 5px var(--s-3) 8px;
         border: 1px solid var(--hair);
         background: var(--bg);
         color: var(--muted);
@@ -130,13 +131,21 @@
 
       .chip[data-kind="link"] {
         color: var(--ink);
+        text-decoration: none;
+      }
+
+      .chip[data-kind="link"] .chip__text {
         text-decoration: underline;
       }
 
-      .chip[data-kind="link"]::after {
+      .chip:hover {
+        border-color: var(--hairHighlight) !important;
+      }
+
+      /* .chip[data-kind="link"]::after {
         content: "↗";
         opacity: 0.75;
-      }
+      } */
 
       .work {
         display: grid;
@@ -350,12 +359,18 @@
           </div>
         </div>
         <div class="links" aria-label="Contact links">
-          <a class="chip" data-kind="link" href="https://www.linkedin.com/in/rossnmiller/">LinkedIn</a>
-          <a class="chip" data-kind="link" href="https://github.com/rsml">GitHub</a>
-          <a class="chip" data-kind="link" href="https://x.com/coding_ross" aria-label="X"
-            >X</a
+          <a class="chip" data-kind="link" href="https://www.linkedin.com/in/rossnmiller/"
+            ><span class="chip__text">LinkedIn</span></a
           >
-          <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com">Email</a>
+          <a class="chip" data-kind="link" href="https://github.com/rsml"
+            ><span class="chip__text">GitHub</span></a
+          >
+          <a class="chip" data-kind="link" href="https://x.com/coding_ross" aria-label="X"
+            ><span class="chip__text">X</span></a
+          >
+          <a class="chip" data-kind="link" href="mailto:rossnmiller@gmail.com"
+            ><span class="chip__text">Email</span></a
+          >
         </div>
       </section>
 
@@ -375,14 +390,14 @@
                   <li>AI</li>
                 </ul>
                 <div class="proj-links" aria-label="Links">
-                  <a
-                    class="chip"
-                    data-kind="link"
-                    href="https://apps.apple.com/us/app/vivy-glp-1-shot-tracker/id6736508784"
-                    >App Store</a
-                  >
-                </div>
-              </div>
+	                  <a
+	                    class="chip"
+	                    data-kind="link"
+	                    href="https://apps.apple.com/us/app/vivy-glp-1-shot-tracker/id6736508784"
+	                    ><span class="chip__text">App Store</span></a
+	                  >
+	                </div>
+	              </div>
             </div>
 
             <!-- <div class="proj-media" aria-label="Screenshots">
@@ -421,13 +436,22 @@
                   <li>UX</li>
                   <li>Design</li>
                 </ul>
-                <div class="proj-links" aria-label="Links">
-                  <a class="chip" data-kind="link" href="https://chordcolors.app/">MARKETING</a>
-                  <a class="chip" data-kind="link" href="https://apps.apple.com/us/app/id1422598441">iOS</a>
-                  <a class="chip" data-kind="link" href="https://chordcolors.com/">Web</a>
-                </div>
-              </div>
-            </div>
+	                <div class="proj-links" aria-label="Links">
+	                  <a class="chip" data-kind="link" href="https://chordcolors.app/"
+	                    ><span class="chip__text">MARKETING</span></a
+	                  >
+	                  <a
+	                    class="chip"
+	                    data-kind="link"
+	                    href="https://apps.apple.com/us/app/id1422598441"
+	                    ><span class="chip__text">iOS</span></a
+	                  >
+	                  <a class="chip" data-kind="link" href="https://chordcolors.com/"
+	                    ><span class="chip__text">Web</span></a
+	                  >
+	                </div>
+	              </div>
+	            </div>
 
             <!-- <div class="proj-media" aria-label="Screenshots">
               <div class="shots">
@@ -464,12 +488,14 @@
                   <li>Education</li>
                   <li>UX</li>
                   <li>Open Source</li>
-                </ul>
-                <div class="proj-links" aria-label="Links">
-                  <a class="chip" data-kind="link" href="https://github.com/rsml/tutor">GitHub</a>
-                </div>
-              </div>
-            </div>
+	                </ul>
+	                <div class="proj-links" aria-label="Links">
+	                  <a class="chip" data-kind="link" href="https://github.com/rsml/tutor"
+	                    ><span class="chip__text">GitHub</span></a
+	                  >
+	                </div>
+	              </div>
+	            </div>
 
             <!-- <div class="proj-media" aria-label="Screenshots">
               <div class="shots">
@@ -547,12 +573,14 @@
                   <li>WebRTC</li>
                   <li>Reliability</li>
                   <li>Scale</li>
-                </ul>
-                <div class="proj-links" aria-label="Links">
-                  <a class="chip" data-kind="link" href="https://www.openpath.com/">Company</a>
-                </div>
-              </div>
-            </div>
+	                </ul>
+	                <div class="proj-links" aria-label="Links">
+	                  <a class="chip" data-kind="link" href="https://www.openpath.com/"
+	                    ><span class="chip__text">Company</span></a
+	                  >
+	                </div>
+	              </div>
+	            </div>
 
             <!-- <div class="proj-media" aria-label="Screenshots">
               <div class="shots">
@@ -626,17 +654,19 @@
                   <li>Music</li>
                   <li>iPad</li>
                   <li>Design</li>
-                </ul>
-                <div class="proj-links" aria-label="Links">
-                  <a class="chip" data-kind="link" href="https://symphonypro.net/">MARKETING</a>
-                  <a
-                    class="chip"
-                    data-kind="link"
-                    href="https://apps.apple.com/us/app/symphony-pro-music-notation/id412380315"
-                    >App</a
-                  >
-                </div>
-              </div>
+	                </ul>
+	                <div class="proj-links" aria-label="Links">
+	                  <a class="chip" data-kind="link" href="https://symphonypro.net/"
+	                    ><span class="chip__text">MARKETING</span></a
+	                  >
+	                  <a
+	                    class="chip"
+	                    data-kind="link"
+	                    href="https://apps.apple.com/us/app/symphony-pro-music-notation/id412380315"
+	                    ><span class="chip__text">App</span></a
+	                  >
+	                </div>
+	              </div>
             </div>
 
             <!-- <div class="proj-media" aria-label="Screenshots">
