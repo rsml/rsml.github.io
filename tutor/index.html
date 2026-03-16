@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+
+    <title>Tutor — Books That Learn How You Learn</title>
+    <meta
+      name="description"
+      content="AI-generated books that adapt chapter by chapter to your feedback, quiz results, and learning style. Open source desktop app for macOS."
+    />
+
+    <meta property="og:title" content="Tutor — Books That Learn How You Learn" />
+    <meta property="og:description" content="AI-generated adaptive learning books. Open source." />
+    <meta property="og:type" content="website" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              bg: "#07080e",
+              surface: "#0d0f18",
+              ink: "#d8d5d0",
+              muted: "rgba(255, 255, 255, 0.42)",
+              faint: "rgba(255, 255, 255, 0.22)",
+              hair: "rgba(255, 255, 255, 0.06)",
+              "hair-hover": "rgba(255, 255, 255, 0.12)",
+              accent: "#7c6aef",
+              "accent-light": "#a78bfa",
+            },
+            fontFamily: {
+              sans: ['"Instrument Sans"', "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
+              mono: ['"IBM Plex Mono"', "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+            },
+            maxWidth: {
+              container: "1100px",
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      /* Background dot grid */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 32px 32px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Noise grain */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        opacity: 0.3;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Hero radial glow */
+      .hero-glow::before {
+        content: "";
+        position: absolute;
+        top: -40%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 140%;
+        height: 140%;
+        background: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 30%, transparent 65%);
+        pointer-events: none;
+      }
+
+      /* Screenshot glow */
+      .screenshot-glow::before {
+        content: "";
+        position: absolute;
+        inset: -20%;
+        background: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.06) 35%, transparent 60%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Screenshot bottom fade */
+      .screenshot-fade::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 30%;
+        background: linear-gradient(to bottom, transparent, #07080e);
+        pointer-events: none;
+      }
+
+      /* Entrance animations */
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .animate { animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+      .animate-d1 { animation-delay: 0.08s; }
+      .animate-d2 { animation-delay: 0.16s; }
+      .animate-d3 { animation-delay: 0.24s; }
+      .animate-d4 { animation-delay: 0.32s; }
+
+      /* Scroll-triggered (JS required) */
+      html.js .reveal {
+        opacity: 0;
+        transform: translateY(24px);
+        transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      html.js .reveal.in-view {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Gradient text */
+      .gradient-text {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #c084fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+    </style>
+  </head>
+  <body class="bg-bg text-ink antialiased overflow-x-hidden">
+    <!-- NAV -->
+    <nav class="sticky top-0 z-50 bg-bg/80 backdrop-blur-xl border-b border-hair">
+      <div class="max-w-container mx-auto px-5 sm:px-8 py-4 flex justify-between items-center relative z-10">
+        <a href="/tutor/" class="font-semibold tracking-tight text-[17px] no-underline text-ink">
+          Tutor
+        </a>
+        <div class="flex items-center gap-7">
+          <a href="#how-it-works" class="hidden sm:inline text-muted text-[13.5px] font-medium no-underline hover:text-ink transition-colors">How it works</a>
+          <a href="#features" class="hidden sm:inline text-muted text-[13.5px] font-medium no-underline hover:text-ink transition-colors">Features</a>
+          <a
+            href="https://github.com/rsml/tutor"
+            class="font-mono text-accent-light text-[12.5px] tracking-wide px-3.5 py-1.5 rounded-lg bg-accent/[0.12] border border-accent/20 no-underline hover:bg-accent/[0.2] hover:border-accent/30 transition"
+          >GitHub&thinsp;→</a>
+        </div>
+      </div>
+    </nav>
+
+    <main>
+      <!-- HERO -->
+      <section class="hero-glow relative pt-[clamp(64px,10vw,112px)] text-center">
+        <div class="max-w-container mx-auto px-5 sm:px-8 relative z-10">
+          <!-- Badge -->
+          <div class="animate inline-flex items-center gap-1.5 bg-accent/[0.08] border border-accent/[0.15] rounded-full px-4 py-1.5 font-mono text-xs text-accent-light tracking-wide">
+            Open Source&ensp;·&ensp;GPL-3.0
+          </div>
+
+          <!-- Headline -->
+          <h1 class="animate animate-d1 mt-6 text-[clamp(2.6rem,6vw,4.2rem)] font-bold tracking-[-0.04em] leading-[1.02]">
+            Books that<br><span class="gradient-text">learn how you learn</span>
+          </h1>
+
+          <!-- Subtitle -->
+          <p class="animate animate-d2 mt-5 text-muted text-[clamp(1rem,1.8vw,1.12rem)] max-w-[520px] mx-auto leading-relaxed">
+            AI-generated books, chapter by chapter &mdash; adapting to your
+            feedback, quiz results, and learning style.
+          </p>
+
+          <!-- CTAs -->
+          <div class="animate animate-d3 mt-8 flex gap-3 justify-center flex-wrap">
+            <a
+              href="https://github.com/rsml/tutor/releases"
+              class="inline-flex items-center gap-2 px-6 py-3 rounded-[10px] font-semibold text-[14.5px] text-white no-underline
+                     bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-400
+                     shadow-[0_4px_24px_rgba(99,102,241,0.25)]
+                     hover:shadow-[0_6px_32px_rgba(99,102,241,0.35)] hover:-translate-y-px transition-all"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download for macOS
+            </a>
+            <a
+              href="https://github.com/rsml/tutor"
+              class="inline-flex items-center gap-2 px-6 py-3 rounded-[10px] font-medium text-[14.5px] text-ink no-underline
+                     bg-white/[0.05] border border-hair hover:bg-white/[0.08] hover:border-hair-hover hover:-translate-y-px transition-all"
+            >
+              View on GitHub
+            </a>
+          </div>
+        </div>
+
+        <!-- Hero screenshot -->
+        <div class="max-w-container mx-auto px-5 sm:px-8 relative z-10">
+          <div class="screenshot-glow relative mt-[clamp(40px,6vw,64px)] max-w-[960px] mx-auto">
+            <div class="screenshot-fade relative z-10 rounded-xl border border-white/[0.08] overflow-hidden bg-surface
+                        shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_80px_rgba(0,0,0,0.5),0_0_120px_rgba(99,102,241,0.06)]">
+              <img
+                src="screenshots/library.png"
+                alt="Tutor library showing AI-generated books with custom covers"
+                class="block w-full h-auto animate animate-d4"
+                width="2560"
+                height="1600"
+                decoding="async"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HOW IT WORKS -->
+      <section class="py-[clamp(64px,10vw,100px)]" id="how-it-works">
+        <div class="max-w-container mx-auto px-5 sm:px-8 relative z-10">
+          <div class="font-mono text-[11.5px] font-medium tracking-[0.14em] uppercase text-accent mb-2.5">How it works</div>
+          <h2 class="text-[clamp(1.8rem,4vw,2.8rem)] font-bold tracking-[-0.035em] leading-tight mb-[clamp(48px,6vw,72px)] max-w-[520px]">
+            Four steps to mastery
+          </h2>
+
+          <div class="flex flex-col gap-[clamp(48px,6vw,72px)]">
+            <!-- Step 1: text left, screenshot right -->
+            <div class="reveal flex flex-col md:flex-row items-center gap-8 md:gap-12">
+              <div class="md:w-[42%] shrink-0">
+                <div class="font-mono text-xs font-medium text-accent tracking-wide mb-3">01</div>
+                <h3 class="text-2xl font-bold tracking-tight mb-3 text-white/90">Create</h3>
+                <p class="text-muted text-[17px] leading-relaxed">
+                  Enter any topic and a learning prompt. Tutor generates a table
+                  of contents and your first chapter.
+                </p>
+              </div>
+              <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
+                <img
+                  src="screenshots/new-book.png"
+                  alt="New book creation dialog"
+                  class="block w-full h-auto"
+                  width="2560" height="1600"
+                  loading="lazy" decoding="async"
+                />
+              </div>
+            </div>
+
+            <!-- Step 2: screenshot left, text right -->
+            <div class="reveal flex flex-col md:flex-row-reverse items-center gap-8 md:gap-12">
+              <div class="md:w-[42%] shrink-0">
+                <div class="font-mono text-xs font-medium text-accent tracking-wide mb-3">02</div>
+                <h3 class="text-2xl font-bold tracking-tight mb-3 text-white/90">Read</h3>
+                <p class="text-muted text-[17px] leading-relaxed">
+                  ~1,500-word chapters, 5&ndash;10 min each. Select any text to
+                  open an inline AI chat for deeper explanation.
+                </p>
+              </div>
+              <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
+                <img
+                  src="screenshots/inline-chat.png"
+                  alt="Inline chat panel alongside chapter text"
+                  class="block w-full h-auto"
+                  width="2560" height="1600"
+                  loading="lazy" decoding="async"
+                />
+              </div>
+            </div>
+
+            <!-- Step 3: text left, screenshot right -->
+            <div class="reveal flex flex-col md:flex-row items-center gap-8 md:gap-12">
+              <div class="md:w-[42%] shrink-0">
+                <div class="font-mono text-xs font-medium text-accent tracking-wide mb-3">03</div>
+                <h3 class="text-2xl font-bold tracking-tight mb-3 text-white/90">Quiz</h3>
+                <p class="text-muted text-[17px] leading-relaxed">
+                  Post-chapter quizzes reinforce retention. Review answers and see
+                  what you got right.
+                </p>
+              </div>
+              <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
+                <img
+                  src="screenshots/quiz.png"
+                  alt="Multiple choice quiz interface"
+                  class="block w-full h-auto"
+                  width="2560" height="1600"
+                  loading="lazy" decoding="async"
+                />
+              </div>
+            </div>
+
+            <!-- Step 4: screenshot left, text right -->
+            <div class="reveal flex flex-col md:flex-row-reverse items-center gap-8 md:gap-12">
+              <div class="md:w-[42%] shrink-0">
+                <div class="font-mono text-xs font-medium text-accent tracking-wide mb-3">04</div>
+                <h3 class="text-2xl font-bold tracking-tight mb-3 text-white/90">Adapt</h3>
+                <p class="text-muted text-[17px] leading-relaxed">
+                  Give feedback on each chapter. The next one adapts to your quiz
+                  results and learning profile.
+                </p>
+              </div>
+              <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
+                <img
+                  src="screenshots/feedback.png"
+                  alt="Feedback form for chapter content"
+                  class="block w-full h-auto"
+                  width="2560" height="1600"
+                  loading="lazy" decoding="async"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FEATURES -->
+      <section class="py-[clamp(64px,10vw,100px)] border-t border-hair" id="features">
+        <div class="max-w-container mx-auto px-5 sm:px-8 relative z-10">
+          <div class="font-mono text-[11.5px] font-medium tracking-[0.14em] uppercase text-accent mb-2.5">Features</div>
+          <h2 class="text-[clamp(1.8rem,4vw,2.8rem)] font-bold tracking-[-0.035em] leading-tight mb-[clamp(36px,5vw,56px)] max-w-[520px]">
+            Everything you need to learn anything
+          </h2>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="reveal group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+              <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <h3 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">Inline Chat</h3>
+              <p class="text-sm text-muted leading-relaxed">
+                Select any text for a deeper AI-powered explanation without
+                leaving your chapter.
+              </p>
+            </div>
+
+            <div class="reveal group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+              <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10" />
+                  <line x1="12" y1="20" x2="12" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+              </div>
+              <h3 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">Skill Tracking</h3>
+              <p class="text-sm text-muted leading-relaxed">
+                Track progress across multiple books with a personalized skills
+                dashboard.
+              </p>
+            </div>
+
+            <div class="reveal group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+              <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                </svg>
+              </div>
+              <h3 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">EPUB Export</h3>
+              <p class="text-sm text-muted leading-relaxed">
+                Export any book as EPUB to read offline in your favorite e-reader
+                app.
+              </p>
+            </div>
+
+            <div class="reveal group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+              <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="13.5" cy="6.5" r="2.5" />
+                  <path d="M17.5 21.5l1-1.5-4.5-7-3 4.5-2.5-2L4 21.5h13.5z" />
+                  <rect x="2" y="2" width="20" height="20" rx="2" />
+                </svg>
+              </div>
+              <h3 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">AI Covers</h3>
+              <p class="text-sm text-muted leading-relaxed">
+                Every book gets a unique AI-generated cover. Light and dark
+                themes included.
+              </p>
+            </div>
+
+            <div class="reveal group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+              <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </div>
+              <h3 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">BYOK</h3>
+              <p class="text-sm text-muted leading-relaxed">
+                Bring your own API keys. Choose your preferred AI model for
+                generation.
+              </p>
+            </div>
+
+            <div class="reveal group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+              <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="16 18 22 12 16 6" />
+                  <polyline points="8 6 2 12 8 18" />
+                  <line x1="14" y1="4" x2="10" y2="20" />
+                </svg>
+              </div>
+              <h3 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">Rich Content</h3>
+              <p class="text-sm text-muted leading-relaxed">
+                Mermaid diagrams, KaTeX math formulas, and syntax-highlighted
+                code samples.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-hair py-9 relative z-10">
+      <div class="max-w-container mx-auto px-5 sm:px-8 flex flex-col sm:flex-row justify-between items-center gap-3">
+        <p class="text-[13px] text-faint">
+          Open source under GPL-3.0 &middot; Made by <a href="/" class="text-muted no-underline hover:text-accent-light transition-colors">Ross Miller</a>
+        </p>
+        <div class="flex gap-5">
+          <a href="https://github.com/rsml/tutor" class="text-[13px] font-medium text-muted no-underline hover:text-accent-light transition-colors">GitHub</a>
+          <a href="https://github.com/rsml/tutor/releases" class="text-[13px] font-medium text-muted no-underline hover:text-accent-light transition-colors">Releases</a>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      {
+        document.documentElement.classList.add("js");
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("in-view");
+                observer.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.1 }
+        );
+        document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+      }
+    </script>
+  </body>
+</html>
