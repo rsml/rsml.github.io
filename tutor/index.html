@@ -166,8 +166,15 @@
         opacity: 1;
         visibility: visible;
       }
-      .lightbox img {
-        max-width: 90vw;
+      .lightbox-track {
+        display: flex;
+        align-items: center;
+        position: absolute;
+        top: 50%;
+        left: 0;
+      }
+      .lightbox-slide {
+        flex: 0 0 90vw;
         max-height: 85vh;
         object-fit: contain;
         border-radius: 12px;
@@ -208,15 +215,21 @@
       }
       .lightbox-prev { left: 16px; }
       .lightbox-next { right: 16px; }
-      .lightbox-counter {
+      .lightbox-dots {
         position: absolute;
         bottom: 20px;
         left: 50%;
         transform: translateX(-50%);
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.35);
-        letter-spacing: 0.05em;
+        display: flex;
+        gap: 8px;
+        z-index: 1;
+      }
+      .lightbox-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.25);
+        transition: background 0.2s;
       }
 
       /* Screenshot clickability */
@@ -239,8 +252,8 @@
 
       /* Mobile lightbox */
       @media (max-width: 768px) {
-        .lightbox img {
-          max-width: 100vw;
+        .lightbox-slide {
+          flex: 0 0 100vw;
           max-height: 100vh;
           border-radius: 0;
           border: none;
@@ -632,8 +645,12 @@
       <button class="lightbox-btn lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>
       <button class="lightbox-btn lightbox-prev" id="lightbox-prev" aria-label="Previous">&#8249;</button>
       <button class="lightbox-btn lightbox-next" id="lightbox-next" aria-label="Next">&#8250;</button>
-      <img id="lightbox-img" src="" alt="" />
-      <div class="lightbox-counter" id="lightbox-counter"></div>
+      <div class="lightbox-track" id="lightbox-track">
+        <img class="lightbox-slide" id="lb-prev" src="" alt="" />
+        <img class="lightbox-slide" id="lb-current" src="" alt="" />
+        <img class="lightbox-slide" id="lb-next" src="" alt="" />
+      </div>
+      <div class="lightbox-dots" id="lightbox-dots"></div>
     </div>
 
     <script>
@@ -654,18 +671,69 @@
 
         // Lightbox
         const lightbox = document.getElementById("lightbox");
-        const lbImg = document.getElementById("lightbox-img");
-        const lbCounter = document.getElementById("lightbox-counter");
+        const track = document.getElementById("lightbox-track");
+        const lbPrev = document.getElementById("lb-prev");
+        const lbCurrent = document.getElementById("lb-current");
+        const lbNext = document.getElementById("lb-next");
+        const dotsContainer = document.getElementById("lightbox-dots");
         const screenshots = Array.from(document.querySelectorAll('img[data-lightbox]'));
         let currentIndex = 0;
+        const GAP = 18;
+        let dots = [];
 
         screenshots.forEach((img, i) => {
           img.addEventListener("click", () => openLightbox(i));
         });
 
+        function slideW() { return window.innerWidth <= 768 ? window.innerWidth : window.innerWidth * 0.9; }
+        function baseOffset() { return -(slideW() + GAP); }
+
+        function updateSlides() {
+          const len = screenshots.length;
+          const prev = screenshots[(currentIndex - 1 + len) % len];
+          const cur = screenshots[currentIndex];
+          const next = screenshots[(currentIndex + 1) % len];
+          lbPrev.src = prev.src; lbPrev.alt = prev.alt;
+          lbCurrent.src = cur.src; lbCurrent.alt = cur.alt;
+          lbNext.src = next.src; lbNext.alt = next.alt;
+          updateDots(currentIndex, -1, 0);
+        }
+
+        function buildDots() {
+          while (dotsContainer.firstChild) dotsContainer.removeChild(dotsContainer.firstChild);
+          dots = [];
+          for (let i = 0; i < screenshots.length; i++) {
+            const dot = document.createElement("span");
+            dot.className = "lightbox-dot";
+            dotsContainer.appendChild(dot);
+            dots.push(dot);
+          }
+        }
+
+        function updateDots(activeIdx, targetIdx, progress) {
+          for (let i = 0; i < dots.length; i++) {
+            if (i === activeIdx) {
+              const alpha = 0.25 + 0.65 * (1 - progress);
+              dots[i].style.background = "rgba(255,255,255," + alpha + ")";
+            } else if (i === targetIdx && targetIdx >= 0) {
+              const alpha = 0.25 + 0.65 * progress;
+              dots[i].style.background = "rgba(255,255,255," + alpha + ")";
+            } else {
+              dots[i].style.background = "";
+            }
+          }
+        }
+
+        function setTrack(dragX) {
+          track.style.transform = "translate3d(" + (baseOffset() + dragX) + "px, -50%, 0)";
+        }
+
         function openLightbox(index) {
           currentIndex = index;
-          updateLightbox();
+          track.style.gap = GAP + "px";
+          buildDots();
+          updateSlides();
+          setTrack(0);
           lightbox.classList.add("open");
           document.body.style.overflow = "hidden";
         }
@@ -675,16 +743,10 @@
           document.body.style.overflow = "";
         }
 
-        function updateLightbox() {
-          const img = screenshots[currentIndex];
-          lbImg.src = img.src;
-          lbImg.alt = img.alt;
-          lbCounter.textContent = (currentIndex + 1) + " / " + screenshots.length;
-        }
-
         function navigate(delta) {
           currentIndex = (currentIndex + delta + screenshots.length) % screenshots.length;
-          updateLightbox();
+          updateSlides();
+          setTrack(0);
         }
 
         document.getElementById("lightbox-close").addEventListener("click", closeLightbox);
@@ -704,30 +766,38 @@
 
         // Spring-physics swipe gesture (mobile)
         {
-          const vw = () => window.innerWidth;
           let dragging = false;
           let startX = 0;
           let tx = 0;
           let springId = null;
-          const pts = []; // velocity sample buffer
+          const pts = [];
 
           function cancelSpring() {
             if (springId) { cancelAnimationFrame(springId); springId = null; }
           }
 
           function setLb(x) {
-            const p = Math.min(Math.abs(x) / vw(), 1);
-            lbImg.style.transform =
-              "translate3d(" + x + "px,0,0) scale(" + Math.max(1 - p * 0.08, 0.88) + ")";
-            lbImg.style.opacity = Math.max(1 - p * 0.35, 0.35);
-            lbCounter.style.transform = "translateX(calc(-50% + " + (-x * 0.12) + "px))";
+            setTrack(x);
+            // Interpolate dots during drag
+            const sw = slideW() + GAP;
+            const p = Math.min(Math.abs(x) / sw, 1);
+            const len = screenshots.length;
+            const atEdge = (currentIndex === 0 && x > 0) ||
+                           (currentIndex === len - 1 && x < 0);
+            if (!atEdge && p > 0) {
+              const targetIdx = x < 0
+                ? (currentIndex + 1) % len
+                : (currentIndex - 1 + len) % len;
+              updateDots(currentIndex, targetIdx, p);
+            } else {
+              updateDots(currentIndex, -1, 0);
+            }
           }
 
           function clearLb() {
-            lbImg.style.transform = "";
-            lbImg.style.opacity = "";
-            lbImg.style.willChange = "";
-            lbCounter.style.transform = "";
+            track.style.willChange = "";
+            setTrack(0);
+            updateDots(currentIndex, -1, 0);
           }
 
           function vel() {
@@ -751,7 +821,6 @@
               }
               setLb(pos);
               if (Math.abs(pos - to) < 0.5 && Math.abs(v) < 50) {
-                if (to === 0) clearLb();
                 springId = null;
                 done && done();
               } else {
@@ -768,7 +837,7 @@
             tx = 0;
             pts.length = 0;
             pts.push({ x: startX, t: performance.now() });
-            lbImg.style.willChange = "transform, opacity";
+            track.style.willChange = "transform";
           }, { passive: true });
 
           lightbox.addEventListener("touchmove", (e) => {
@@ -790,38 +859,24 @@
             if (!dragging) return;
             dragging = false;
             const dx = tx;
-            const v = vel() * 1000; // px/s
-            const w = vw();
+            const v = vel() * 1000;
+            const sw = slideW() + GAP;
             const atEdge = (currentIndex === 0 && dx > 0) ||
                            (currentIndex === screenshots.length - 1 && dx < 0);
             const commit = !atEdge && (
-              Math.abs(dx) > w * 0.35 ||
+              Math.abs(dx) > sw * 0.35 ||
               (Math.abs(v) > 400 && Math.sign(dx) === Math.sign(v))
             );
 
             if (commit) {
               const dir = dx < 0 ? 1 : -1;
-              const exit = dir < 0 ? w * 1.15 : -w * 1.15;
-              // Stiffness 300, damping 26 → ratio ~0.75 (bouncy exit)
-              spring(dx, exit, v, 300, 26, () => {
+              const target = dir < 0 ? sw : -sw;
+              spring(dx, target, v, 300, 26, () => {
                 navigate(dir);
-                // New image enters from opposite side
-                // Stiffness 320, damping 28 → ratio ~0.78 (smooth settle)
-                spring(-exit * 0.55, 0, 0, 320, 28, clearLb);
+                clearLb();
               });
             } else {
-              // Snap back — stiff, nearly critically damped
-              // Stiffness 500, damping 38 → ratio ~0.85
               spring(dx, 0, v, 500, 38, clearLb);
-            }
-          }, { passive: true });
-
-          // Preload adjacent images during idle
-          lightbox.addEventListener("touchmove", () => {
-            if (Math.abs(tx) > 30) {
-              const idx = (currentIndex + (tx < 0 ? 1 : -1) + screenshots.length) % screenshots.length;
-              const img = new Image();
-              img.src = screenshots[idx].src;
             }
           }, { passive: true });
         }
