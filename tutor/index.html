@@ -271,7 +271,6 @@
 
       @media (min-width: 769px) {
         #lb-prev, #lb-next { display: none; }
-        .lightbox-dots { display: none; }
         .lightbox-track {
           width: 100%;
           justify-content: center;
@@ -829,8 +828,9 @@
             return (r[r.length - 1].x - r[0].x) / (r[r.length - 1].t - r[0].t);
           }
 
-          function spring(from, to, v0, stiff, damp, done) {
+          function spring(from, to, v0, stiff, damp, done, setter) {
             let pos = from, v = v0, last = performance.now();
+            const update = setter || setLb;
             cancelSpring();
             (function tick(now) {
               if (!lightbox.classList.contains("open")) { clearLb(); springId = null; return; }
@@ -841,7 +841,7 @@
                 v += (-stiff * (pos - to) - damp * v) * s;
                 pos += v * s;
               }
-              setLb(pos);
+              update(pos);
               if (Math.abs(pos - to) < 0.5 && Math.abs(v) < 50) {
                 springId = null;
                 done && done();
@@ -884,13 +884,11 @@
 
             if (commit) {
               const dir = dx < 0 ? 1 : -1;
-              const target = dir < 0 ? sw : -sw;
-              spring(dx, target, v, 300, 26, () => {
-                navigate(dir);
-                clearLb();
-              });
+              currentIndex = (currentIndex + dir + screenshots.length) % screenshots.length;
+              updateSlides();
+              spring(dx + dir * sw, 0, v, 300, 38, clearLb, setTrack);
             } else {
-              spring(dx, 0, v, 500, 38, clearLb);
+              spring(dx, 0, v, 500, 46, clearLb);
             }
           }, { passive: true });
         }
