@@ -159,6 +159,8 @@
         opacity: 0;
         visibility: hidden;
         transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s;
+        overflow: hidden;
+        touch-action: none;
       }
       .lightbox.open {
         opacity: 1;
@@ -700,17 +702,129 @@
           if (e.key === "ArrowRight") navigate(1);
         });
 
-        // Swipe support for mobile lightbox
-        let touchStartX = 0;
-        lightbox.addEventListener("touchstart", (e) => {
-          touchStartX = e.changedTouches[0].clientX;
-        }, { passive: true });
-        lightbox.addEventListener("touchend", (e) => {
-          const deltaX = e.changedTouches[0].clientX - touchStartX;
-          if (Math.abs(deltaX) > 50) {
-            navigate(deltaX < 0 ? 1 : -1);
+        // Spring-physics swipe gesture (mobile)
+        {
+          const vw = () => window.innerWidth;
+          let dragging = false;
+          let startX = 0;
+          let tx = 0;
+          let springId = null;
+          const pts = []; // velocity sample buffer
+
+          function cancelSpring() {
+            if (springId) { cancelAnimationFrame(springId); springId = null; }
           }
-        }, { passive: true });
+
+          function setLb(x) {
+            const p = Math.min(Math.abs(x) / vw(), 1);
+            lbImg.style.transform =
+              "translate3d(" + x + "px,0,0) scale(" + Math.max(1 - p * 0.08, 0.88) + ")";
+            lbImg.style.opacity = Math.max(1 - p * 0.35, 0.35);
+            lbCounter.style.transform = "translateX(calc(-50% + " + (-x * 0.12) + "px))";
+          }
+
+          function clearLb() {
+            lbImg.style.transform = "";
+            lbImg.style.opacity = "";
+            lbImg.style.willChange = "";
+            lbCounter.style.transform = "";
+          }
+
+          function vel() {
+            const now = performance.now();
+            const r = pts.filter(p => now - p.t < 80);
+            if (r.length < 2) return 0;
+            return (r[r.length - 1].x - r[0].x) / (r[r.length - 1].t - r[0].t);
+          }
+
+          function spring(from, to, v0, stiff, damp, done) {
+            let pos = from, v = v0, last = performance.now();
+            cancelSpring();
+            (function tick(now) {
+              if (!lightbox.classList.contains("open")) { clearLb(); springId = null; return; }
+              const dt = Math.min((now - last) / 1000, 0.032);
+              last = now;
+              for (let i = 0; i < 4; i++) {
+                const s = dt / 4;
+                v += (-stiff * (pos - to) - damp * v) * s;
+                pos += v * s;
+              }
+              setLb(pos);
+              if (Math.abs(pos - to) < 0.5 && Math.abs(v) < 50) {
+                if (to === 0) clearLb();
+                springId = null;
+                done && done();
+              } else {
+                springId = requestAnimationFrame(tick);
+              }
+            })(performance.now());
+          }
+
+          lightbox.addEventListener("touchstart", (e) => {
+            if (!lightbox.classList.contains("open")) return;
+            cancelSpring();
+            dragging = true;
+            startX = e.touches[0].clientX;
+            tx = 0;
+            pts.length = 0;
+            pts.push({ x: startX, t: performance.now() });
+            lbImg.style.willChange = "transform, opacity";
+          }, { passive: true });
+
+          lightbox.addEventListener("touchmove", (e) => {
+            if (!dragging) return;
+            const x = e.touches[0].clientX;
+            pts.push({ x, t: performance.now() });
+            if (pts.length > 20) pts.splice(0, pts.length - 20);
+            let dx = x - startX;
+            // Rubber-band at boundaries
+            if ((currentIndex === 0 && dx > 0) ||
+                (currentIndex === screenshots.length - 1 && dx < 0)) {
+              dx = Math.sign(dx) * Math.pow(Math.abs(dx), 0.7);
+            }
+            tx = dx;
+            setLb(dx);
+          }, { passive: true });
+
+          lightbox.addEventListener("touchend", () => {
+            if (!dragging) return;
+            dragging = false;
+            const dx = tx;
+            const v = vel() * 1000; // px/s
+            const w = vw();
+            const atEdge = (currentIndex === 0 && dx > 0) ||
+                           (currentIndex === screenshots.length - 1 && dx < 0);
+            const commit = !atEdge && (
+              Math.abs(dx) > w * 0.35 ||
+              (Math.abs(v) > 400 && Math.sign(dx) === Math.sign(v))
+            );
+
+            if (commit) {
+              const dir = dx < 0 ? 1 : -1;
+              const exit = dir < 0 ? w * 1.15 : -w * 1.15;
+              // Stiffness 300, damping 26 → ratio ~0.75 (bouncy exit)
+              spring(dx, exit, v, 300, 26, () => {
+                navigate(dir);
+                // New image enters from opposite side
+                // Stiffness 320, damping 28 → ratio ~0.78 (smooth settle)
+                spring(-exit * 0.55, 0, 0, 320, 28, clearLb);
+              });
+            } else {
+              // Snap back — stiff, nearly critically damped
+              // Stiffness 500, damping 38 → ratio ~0.85
+              spring(dx, 0, v, 500, 38, clearLb);
+            }
+          }, { passive: true });
+
+          // Preload adjacent images during idle
+          lightbox.addEventListener("touchmove", () => {
+            if (Math.abs(tx) > 30) {
+              const idx = (currentIndex + (tx < 0 ? 1 : -1) + screenshots.length) % screenshots.length;
+              const img = new Image();
+              img.src = screenshots[idx].src;
+            }
+          }, { passive: true });
+        }
       }
     </script>
   </body>
