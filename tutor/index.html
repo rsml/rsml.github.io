@@ -131,6 +131,79 @@
         transform: translateY(0);
       }
 
+      /* Lightbox */
+      .lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(7, 8, 14, 0.95);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s;
+      }
+      .lightbox.open {
+        opacity: 1;
+        visibility: visible;
+      }
+      .lightbox img {
+        max-width: 90vw;
+        max-height: 85vh;
+        object-fit: contain;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .lightbox-btn {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lightbox-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #a78bfa;
+      }
+      .lightbox-close {
+        top: 16px;
+        right: 16px;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        font-size: 20px;
+        line-height: 1;
+      }
+      .lightbox-prev,
+      .lightbox-next {
+        top: 50%;
+        transform: translateY(-50%);
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        font-size: 18px;
+      }
+      .lightbox-prev { left: 16px; }
+      .lightbox-next { right: 16px; }
+      .lightbox-counter {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.35);
+        letter-spacing: 0.05em;
+      }
+
+      /* Screenshot clickability */
+      img[data-lightbox] { cursor: pointer; }
+
       /* Gradient text */
       .gradient-text {
         background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #c084fc 100%);
@@ -215,6 +288,7 @@
               <img
                 src="screenshots/library.png"
                 alt="Tutor library showing AI-generated books with custom covers"
+                data-lightbox
                 class="block w-full h-auto animate animate-d4"
                 width="2560"
                 height="1600"
@@ -249,6 +323,7 @@
                 <img
                   src="screenshots/personalize.png"
                   alt="Personalization interview screen"
+                  data-lightbox
                   class="block w-full h-auto"
                   width="2560" height="1600"
                   loading="lazy" decoding="async"
@@ -272,6 +347,7 @@
                 <img
                   src="screenshots/new-book.png"
                   alt="New book creation dialog"
+                  data-lightbox
                   class="block w-full h-auto"
                   width="2560" height="1600"
                   loading="lazy" decoding="async"
@@ -293,6 +369,7 @@
                 <img
                   src="screenshots/inline-chat.png"
                   alt="Inline chat panel alongside chapter text"
+                  data-lightbox
                   class="block w-full h-auto"
                   width="2560" height="1600"
                   loading="lazy" decoding="async"
@@ -314,6 +391,7 @@
                 <img
                   src="screenshots/quiz.png"
                   alt="Multiple choice quiz interface"
+                  data-lightbox
                   class="block w-full h-auto"
                   width="2560" height="1600"
                   loading="lazy" decoding="async"
@@ -337,6 +415,7 @@
                 <img
                   src="screenshots/feedback.png"
                   alt="Feedback form for chapter content"
+                  data-lightbox
                   class="block w-full h-auto"
                   width="2560" height="1600"
                   loading="lazy" decoding="async"
@@ -501,6 +580,15 @@
       </div>
     </footer>
 
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+      <button class="lightbox-btn lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>
+      <button class="lightbox-btn lightbox-prev" id="lightbox-prev" aria-label="Previous">&#8249;</button>
+      <button class="lightbox-btn lightbox-next" id="lightbox-next" aria-label="Next">&#8250;</button>
+      <img id="lightbox-img" src="" alt="" />
+      <div class="lightbox-counter" id="lightbox-counter"></div>
+    </div>
+
     <script>
       {
         document.documentElement.classList.add("js");
@@ -516,6 +604,56 @@
           { threshold: 0.1 }
         );
         document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+
+        // Lightbox
+        const lightbox = document.getElementById("lightbox");
+        const lbImg = document.getElementById("lightbox-img");
+        const lbCounter = document.getElementById("lightbox-counter");
+        const screenshots = Array.from(document.querySelectorAll('img[data-lightbox]'));
+        let currentIndex = 0;
+
+        screenshots.forEach((img, i) => {
+          img.addEventListener("click", () => openLightbox(i));
+        });
+
+        function openLightbox(index) {
+          currentIndex = index;
+          updateLightbox();
+          lightbox.classList.add("open");
+          document.body.style.overflow = "hidden";
+        }
+
+        function closeLightbox() {
+          lightbox.classList.remove("open");
+          document.body.style.overflow = "";
+        }
+
+        function updateLightbox() {
+          const img = screenshots[currentIndex];
+          lbImg.src = img.src;
+          lbImg.alt = img.alt;
+          lbCounter.textContent = (currentIndex + 1) + " / " + screenshots.length;
+        }
+
+        function navigate(delta) {
+          currentIndex = (currentIndex + delta + screenshots.length) % screenshots.length;
+          updateLightbox();
+        }
+
+        document.getElementById("lightbox-close").addEventListener("click", closeLightbox);
+        document.getElementById("lightbox-prev").addEventListener("click", () => navigate(-1));
+        document.getElementById("lightbox-next").addEventListener("click", () => navigate(1));
+
+        lightbox.addEventListener("click", (e) => {
+          if (e.target === lightbox) closeLightbox();
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (!lightbox.classList.contains("open")) return;
+          if (e.key === "Escape") closeLightbox();
+          if (e.key === "ArrowLeft") navigate(-1);
+          if (e.key === "ArrowRight") navigate(1);
+        });
       }
     </script>
   </body>
