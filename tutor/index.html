@@ -849,10 +849,10 @@
             pts.push({ x, t: performance.now() });
             if (pts.length > 20) pts.splice(0, pts.length - 20);
             let dx = x - startX;
-            // Rubber-band at boundaries
+            // Rubber-band at boundaries — heavy friction, capped at 60px
             if ((currentIndex === 0 && dx > 0) ||
                 (currentIndex === screenshots.length - 1 && dx < 0)) {
-              dx = Math.sign(dx) * Math.pow(Math.abs(dx), 0.7);
+              dx = Math.sign(dx) * Math.min(Math.pow(Math.abs(dx), 0.55), 60);
             }
             tx = dx;
             setLb(dx);
