@@ -272,6 +272,16 @@
       @media (min-width: 769px) {
         #lb-prev, #lb-next { display: none; }
         .lightbox-dots { display: none; }
+        .lightbox-track {
+          width: 100%;
+          justify-content: center;
+        }
+        .lightbox-slide {
+          flex: none;
+          width: auto;
+          max-width: 80vw;
+          max-height: 85vh;
+        }
       }
 
       /* Gradient text */
@@ -699,7 +709,7 @@
         function baseOffset() {
           return window.innerWidth <= 768
             ? -(slideW() + GAP)
-            : (window.innerWidth - slideW()) / 2;
+            : 0;
         }
 
         function updateSlides() {
@@ -796,9 +806,7 @@
             const sw = slideW() + GAP;
             const p = Math.min(Math.abs(x) / sw, 1);
             const len = screenshots.length;
-            const atEdge = (currentIndex === 0 && x > 0) ||
-                           (currentIndex === len - 1 && x < 0);
-            if (!atEdge && p > 0) {
+            if (p > 0) {
               const targetIdx = x < 0
                 ? (currentIndex + 1) % len
                 : (currentIndex - 1 + len) % len;
@@ -860,11 +868,6 @@
             pts.push({ x, t: performance.now() });
             if (pts.length > 20) pts.splice(0, pts.length - 20);
             let dx = x - startX;
-            // Hard clamp at boundaries — no overscroll
-            if ((currentIndex === 0 && dx > 0) ||
-                (currentIndex === screenshots.length - 1 && dx < 0)) {
-              dx = 0;
-            }
             tx = dx;
             setLb(dx);
           }, { passive: true });
@@ -875,12 +878,9 @@
             const dx = tx;
             const v = vel() * 1000;
             const sw = slideW() + GAP;
-            const atEdge = (currentIndex === 0 && dx > 0) ||
-                           (currentIndex === screenshots.length - 1 && dx < 0);
-            const commit = !atEdge && (
+            const commit =
               Math.abs(dx) > sw * 0.35 ||
-              (Math.abs(v) > 400 && Math.sign(dx) === Math.sign(v))
-            );
+              (Math.abs(v) > 400 && Math.sign(dx) === Math.sign(v));
 
             if (commit) {
               const dir = dx < 0 ? 1 : -1;
