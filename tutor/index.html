@@ -182,6 +182,7 @@
       }
       .lightbox-btn {
         position: absolute;
+        z-index: 2;
         background: rgba(255, 255, 255, 0.06);
         border: 1px solid rgba(255, 255, 255, 0.08);
         color: rgba(255, 255, 255, 0.5);
@@ -255,7 +256,6 @@
         .lightbox-slide {
           flex: 0 0 100vw;
           width: 100vw;
-          height: 100vh;
           max-height: 100vh;
           object-fit: contain;
           border-radius: 0;
@@ -265,6 +265,11 @@
         .lightbox-next {
           display: none;
         }
+      }
+
+      @media (min-width: 769px) {
+        #lb-prev, #lb-next { display: none; }
+        .lightbox-dots { display: none; }
       }
 
       /* Gradient text */
@@ -689,7 +694,11 @@
         });
 
         function slideW() { return window.innerWidth <= 768 ? window.innerWidth : window.innerWidth * 0.9; }
-        function baseOffset() { return -(slideW() + GAP); }
+        function baseOffset() {
+          return window.innerWidth <= 768
+            ? -(slideW() + GAP)
+            : (window.innerWidth - slideW()) / 2;
+        }
 
         function updateSlides() {
           const len = screenshots.length;
