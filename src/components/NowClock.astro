@@ -38,13 +38,13 @@ const { class: className, ...rest } = Astro.props;
 // Initial / no-JS frame for the ASCII cat. Rendered via expressions (not as
 // literal template text) because the art contains `<` and `>`, which the Astro
 // compiler would otherwise try to parse as tags. The frame is split at the mouth
-// so the template can wrap '∧' in the same <span class="cm"> the runtime uses
+// so the template can wrap 'ㅅ' in the same <span class="cm"> the runtime uses
 // (see setCat below): that keeps the mouth centred on its column before JS runs
 // (and without JS), and makes the first JS paint a no-op swap, so nothing shifts.
 // The `<script>` keeps its own copy of this exact frame (FRAME_CARET) and
 // overwrites the <pre> on load.
-const CAT_INITIAL = [' /\\_/\\  ', '( ^.^ ) ', ' > ∧ <  '].join('\n');
-const [CAT_BEFORE_MOUTH, CAT_AFTER_MOUTH] = CAT_INITIAL.split('∧');
+const CAT_INITIAL = [' /\\_/\\  ', '( ^.^ ) ', ' > ㅅ <  '].join('\n');
+const [CAT_BEFORE_MOUTH, CAT_AFTER_MOUTH] = CAT_INITIAL.split('ㅅ');
 ---
 <p class:list={['now-line', className]} {...rest}>
   <span class="now-clock" aria-live="off">
@@ -56,7 +56,7 @@ const [CAT_BEFORE_MOUTH, CAT_AFTER_MOUTH] = CAT_INITIAL.split('∧');
     in Nashville, TN.
   </span>
   <button type="button" class="cat" aria-label="pet the cat">
-    <pre class="cat-art" aria-hidden="true">{CAT_BEFORE_MOUTH}<span class="cm">∧</span>{CAT_AFTER_MOUTH}</pre>
+    <pre class="cat-art" aria-hidden="true">{CAT_BEFORE_MOUTH}<span class="cm">ㅅ</span>{CAT_AFTER_MOUTH}</pre>
   </button>
   <noscript><span class="now-clock">It's currently the local time in Nashville, TN.</span></noscript>
 </p>
@@ -128,13 +128,14 @@ const [CAT_BEFORE_MOUTH, CAT_AFTER_MOUTH] = CAT_INITIAL.split('∧');
     color: var(--muted);
     letter-spacing: 0;
   }
-  /* The closed-mouth glyph '∧' (U+2227 LOGICAL AND) is a standard 1-cell-wide
-     math symbol, so no overflow correction is needed. The 1ch clamp and flex
-     centering are kept because they are harmless and ensure the glyph stays
-     column-exact even if a font substitution ever renders it slightly off-width.
-     `justify-content: center` is spec-required to overflow EQUALLY in both
-     directions when content is wider than the box. (text-align: center does NOT
-     do this; Chrome start-aligns overflowing inline content.) '> ∧ <' sits
+  /* The closed-mouth glyph 'ㅅ' comes from a Korean fallback font and renders
+     ~1.4 monospace cells wide, so flanking it with the 1-cell whiskers would shove
+     the right whisker off the grid. Clamp it to a single cell so it advances
+     exactly one column, and centre the overflow with flex: `justify-content:
+     center` is spec-required to overflow EQUALLY in both directions when content
+     is wider than the box. (text-align: center does NOT do this; Chrome
+     start-aligns overflowing inline content, which left the mouth ~1.6px right of
+     centre.) The glyph overlaps the flanking spaces evenly and '> ㅅ <' sits
      centred under the nose. */
   /* :global because the span is also injected via innerHTML (JS), so it doesn't
      carry Astro's scoping attribute that a scoped selector would require. */
@@ -237,9 +238,9 @@ const [CAT_BEFORE_MOUTH, CAT_AFTER_MOUTH] = CAT_INITIAL.split('∧');
 
   // The cat rests with caret eyes '^' and, every ~4s, opens them wide '°' for a
   // brief beat (see the eye loop below). The nose stays a '.' dot; the mouth stays
-  // closed ('∧') except during the click (meow) and mouse-move (purr) reactions.
-  const FRAME_CARET = f(' /\\_/\\', '( ^.^ )', ' > ∧ <  ');  // resting eyes
-  const FRAME_OPEN  = f(' /\\_/\\', '( °.° )', ' > ∧ <  ');  // eyes open (brief)
+  // closed ('ㅅ') except during the click (meow) and mouse-move (purr) reactions.
+  const FRAME_CARET = f(' /\\_/\\', '( ^.^ )', ' > ㅅ <  ');  // resting eyes
+  const FRAME_OPEN  = f(' /\\_/\\', '( °.° )', ' > ㅅ <  ');  // eyes open (brief)
 
   // One-shot reactions (raw strings, not f()): the extra word makes the middle line
   // wider than the box, which is fine — the cat is pinned left (text-align:left), so
@@ -247,7 +248,7 @@ const [CAT_BEFORE_MOUTH, CAT_AFTER_MOUTH] = CAT_INITIAL.split('∧');
   //   meow: click — eyes go wide, the mouth opens to 'o', "meow!" sounds out.
   //   purr: mouse-move while hovering — mouth stays closed, "purr" sounds out.
   const MEOW_FRAME = ' /\\_/\\\n( °.° )    meow!\n > o <';
-  const PURR_FRAME = ' /\\_/\\\n( ^.^ )    purr\n > ∧ <';
+  const PURR_FRAME = ' /\\_/\\\n( ^.^ )    purr\n > ㅅ <';
 
   // Cat runtime state, all module-scoped so timers can be explicitly torn down and
   // re-armed across view-transitions (never left to survive a DOM swap).
@@ -266,13 +267,13 @@ const [CAT_BEFORE_MOUTH, CAT_AFTER_MOUTH] = CAT_INITIAL.split('∧');
   }
 
   // Render a frame into the cat box. Frames are plain text, but the closed mouth
-  // '∧' needs a wrapping <span class="cm"> so CSS can clamp it to one column and
+  // 'ㅅ' needs a wrapping <span class="cm"> so CSS can clamp it to one column and
   // centre the glyph on it (see the .cm rule), so escape the frame to HTML and
-  // wrap the '∧' before assigning innerHTML.
+  // wrap the 'ㅅ' before assigning innerHTML.
   const escapeHtml = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   function setCat(el: HTMLElement, frame: string) {
-    el.innerHTML = escapeHtml(frame).replace(/∧/g, '<span class="cm">∧</span>');
+    el.innerHTML = escapeHtml(frame).replace(/ㅅ/g, '<span class="cm">ㅅ</span>');
   }
 
   // Paint the resting cat for the current eye state. Suppressed while a meow/purr
