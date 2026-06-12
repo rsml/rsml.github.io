@@ -495,7 +495,7 @@
     - src: /symphonypro/Score-View-v.1.7-change.webp
       alt: "sidebar expanded"
       orientation: landscape
-    - type: gif
+    - type: image
       src: /symphonypro/bookshelf-loading.webp
       alt: Symphony Pro's bookshelf loading animation
       orientation: landscape
