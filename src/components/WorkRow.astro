@@ -3,6 +3,8 @@ import { existsSync } from 'node:fs';
 import { thumbPath } from '../../tools/optimize-portfolio.mjs';
 import { youtubePoster, type Project } from '../data/work';
 import ActionLinks from './ActionLinks.astro';
+import { getDims } from '../../tools/image-dims.mjs';
+
 interface Props { project: Project; eager?: boolean; }
 const { project, eager = false } = Astro.props;
 const assets = project.assets;
@@ -20,30 +22,20 @@ const assets = project.assets;
  * the animation. YouTube and external poster URLs bypass the thumb check.
  */
 function resolveStripSrc(asset: (typeof assets)[number]): string {
-  // Build the base ref in the same priority order WorkRow used before thumbs.
-  // video/embed/pdf always supply a poster (schema enforces it), so the final
-  // fallback to asset.src is only a safety net for schema-violating inputs.
   const ref: string =
     asset.poster
     ?? (asset.type === 'youtube' ? youtubePoster(asset.src) : undefined)
     ?? ((asset.type == null || asset.type === 'image') ? asset.src : undefined)
     ?? asset.src;
-  // Only probe disk for local absolute paths that are not animated GIFs.
-  // GIFs animate in the strip; their thumb would be a static WebP (no good).
   if (ref.startsWith('/') && asset.type !== 'gif') {
     const thumb = thumbPath(ref);
-    // process.cwd() is the repo root at Astro build time.
     if (existsSync(`${process.cwd()}/public${thumb}`)) return thumb;
   }
   return ref;
 }
 
-// Links: an optional "Deep dive" (always an internal page) followed by the
-// project's platform/store links. Internal ("/…") links render "→"; external
-// ("http…") links render "↗" and open in a new tab, both derived from the
-// href so work.yaml stays the single source of truth. ActionLinks renders them
-// as borderless destinations (see ActionLinks.astro); the same list, the same
-// look, also feeds the lightbox's "Links" dropdown.
+const dims = await Promise.all(assets.map(resolveStripSrc).map(getDims));
+
 const actions = [
   ...(project.deepDive ? [{ label: 'Deep dive', href: `/work/${project.slug}/` }] : []),
   ...project.links,
@@ -81,6 +73,8 @@ const actions = [
           <img
             src={resolveStripSrc(s)}
             alt={s.alt}
+            width={dims[i]?.width}
+            height={dims[i]?.height}
             loading={eager && i < 4 ? 'eager' : 'lazy'}
             fetchpriority={eager && i === 0 ? 'high' : undefined}
             decoding="async"
