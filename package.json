@@ -10,7 +10,8 @@
     "preview": "astro preview",
     "check": "astro check",
     "test": "vitest run",
-    "optimize": "node tools/optimize-portfolio.mjs"
+    "optimize": "node tools/optimize-portfolio.mjs",
+    "push-chunked": "node tools/chunked-push.mjs"
   },
   "dependencies": {
     "astro": "^6.4.4",

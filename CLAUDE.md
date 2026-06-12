@@ -19,6 +19,12 @@ Astro static site (SSG). Deploys to GitHub Pages via GitHub Actions on push to `
   marker), PNG/GIF to lossless WebP (JPG stays). Renames rewrite work.yaml and the
   .astro files; originals are backed up to `public-backup-<timestamp>/` (gitignored).
   Settings and rationale live in `tools/optimize-portfolio.mjs`. Needs ffmpeg.
+- `pnpm push-chunked` pushes the current branch in <= 40 MB slices via a
+  throwaway seed branch, then the real push sends almost nothing
+  (`--chunk-mb N` to change the slice size). Use it when a plain `git push`
+  with new media dies mid-upload ("broken pipe" / "RPC failed"): some
+  networks reset large sustained uploads. A single file can't be sliced, so
+  one bigger than the network can sustain has to be shrunk, not re-pushed.
 - `pnpm build` static build to `dist/`
 - `pnpm check` Astro + TypeScript diagnostics
 - `pnpm test` Vitest unit tests
