@@ -1,0 +1,52 @@
+---
+interface Props { variant?: 'static' | 'embedded'; }
+const { variant = 'static' } = Astro.props;
+---
+<div class:list={["phone-demo", variant === 'embedded' && 'embedded']}>
+  <div class="phone-frame">
+    <slot />
+    {variant === 'static' && <img class="phone-img" src="/phone.webp" alt="" />}
+  </div>
+</div>
+<style>
+  .phone-demo {
+    margin: 8px 0 6px;
+    background: #fcfcfc;
+    border: 1px solid var(--hair);
+    border-radius: 10px;
+    padding: 28px;
+    display: flex;
+    justify-content: center;
+  }
+  .phone-frame {
+    position: relative;
+    width: 240px;
+    aspect-ratio: 0.507;
+  }
+  .phone-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+    user-select: none;
+  }
+  .phone-demo.embedded {
+    padding: 36px 24px;
+    position: relative;
+  }
+  .phone-demo.embedded .phone-frame {
+    width: 380px;
+    aspect-ratio: 9 / 19.5;
+    background: #1a1a1a;
+    border-radius: 52px;
+    box-shadow:
+      0 14px 40px rgba(0, 0, 0, 0.16),
+      0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    pointer-events: none;
+  }
+  .phone-demo.embedded .phone-img {
+    display: none;
+  }
+</style>

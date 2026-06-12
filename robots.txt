@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://rossmiller.dev/sitemap.xml

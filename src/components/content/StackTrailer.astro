@@ -1,0 +1,14 @@
+---
+interface Props { items: string[]; }
+const { items } = Astro.props;
+---
+<p class="stack-trailer">{items.join(' · ')}</p>
+<style>
+  .stack-trailer {
+    margin: 28px 0 0;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+</style>

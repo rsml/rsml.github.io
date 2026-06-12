@@ -1,0 +1,18 @@
+---
+interface Props { num: string; label: string; }
+const { num, label } = Astro.props;
+---
+<div class="case-stat"><div class="case-stat-num">{num}</div><div class="case-stat-lbl">{label}</div></div>
+<style>
+  .case-stat-num {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.09px;
+  }
+  .case-stat-lbl {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+</style>

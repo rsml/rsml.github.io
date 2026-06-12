@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>work.yaml editor</title>
+  <link rel="stylesheet" href="/editor.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>work.yaml editor</h1>
+    <p id="status" class="status">loading...</p>
+    <button id="save" type="button" disabled>Save</button>
+  </header>
+  <p class="hint">Drag the ⠿ handles to reorder projects and links. Drag thumbnails to reorder a gallery. Drop images, PDFs, or videos onto a gallery (posters render automatically; ⌖ frame on a video picks its thumbnail). YouTube and web views have their buttons below each gallery. Cmd+S saves.</p>
+  <div id="error" class="error" hidden></div>
+  <main id="projects"></main>
+  <script src="/vendor/sortable.js"></script>
+  <script src="/editor.js"></script>
+</body>
+</html>

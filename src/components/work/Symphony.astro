@@ -1,0 +1,66 @@
+---
+import Lede from '../content/Lede.astro';
+import Section from '../content/Section.astro';
+import PhoneFrame from '../content/PhoneFrame.astro';
+import Screen from '../content/Screen.astro';
+import Caption from '../content/Caption.astro';
+import StackTrailer from '../content/StackTrailer.astro';
+import Footnotes from '../content/Footnotes.astro';
+---
+
+<Lede>In 2009, still in college, I started a company with two classmates. The iPad did not exist yet, so our first product was a sheet music app for the iPhone.</Lede>
+<Lede>The iPhone was too small and too underpowered to write real notation on. So we bet the company on a device Apple had not announced. A larger touch surface was coming, and sheet music was the obvious thing to put on it.</Lede>
+<Lede>On April 3, 2010, day one of the iPad App Store, Symphony Pro shipped. World's first iPad sheet music notation app, alongside the device itself.</Lede>
+
+<Section title="Day one">
+  <p>April 3, 2010. Saturday. The iPad went on sale and our app went live in the same hour. We had built the whole thing against a simulator on a Mac, with no hardware to test on.</p>
+  <p>I first held an iPad with Symphony Pro running on it a few days before launch, under NDA in an Apple building. The screen was the right size for a stave. The bet had landed.</p>
+  <PhoneFrame>
+    <Screen theme="sp-launch" label="launch-day.mp4" />
+  </PhoneFrame>
+  <Caption>Symphony Pro 1.0, shipped on iPad launch day in April 2010.</Caption>
+</Section>
+
+<Section title="Notation as input">
+  <p>I was the team's music notation expert, the one who knew how engraving actually works. Playback was easy. Layout was hard. Writing notation on a sheet of glass was harder.</p>
+  <p>We shipped tap-to-place notes, an on-screen piano for chords, and support for any MIDI keyboard you could plug in. Handwriting recognition was the right answer, and it was years away from being practical. It came later, after I had handed the app off.</p>
+  <PhoneFrame>
+    <Screen theme="sp-notation" label="notation.mp4" />
+  </PhoneFrame>
+  <Caption>Four ways to put a note on a stave in 2010.</Caption>
+</Section>
+
+<Section title="Climbing">
+  <p>Symphony Pro reached #3 highest grossing iPad music app in the US in 2010. We then spent eleven straight months on apple.com/education and apple.com/education/apps, hand-picked by Apple's editorial team back when that was a thing.</p>
+  <PhoneFrame>
+    <Screen theme="sp-feature" label="apple-feature.mp4" />
+  </PhoneFrame>
+  <Caption>Featured on apple.com/education for eleven straight months in 2010 and 2011.</Caption>
+</Section>
+
+<Section title="What it could do">
+  <p>You could build a multi-instrument score on an iPad and hear it play back through the device speaker. Export went out as PDF and as MIDI, the standard way music software exchanged scores at the time.</p>
+  <p>Two of us built it, sometimes three. The first version was rough. It got better.</p>
+  <PhoneFrame>
+    <Screen theme="sp-features" label="features.mp4" />
+  </PhoneFrame>
+  <Caption>Instruments, score layout, playback, export. The 2010 feature set.</Caption>
+</Section>
+
+<Section title="What it became">
+  <p>In September 2013, after four years, I handed Symphony Pro to Xenon Labs. I wanted to build other things, and the app deserved a team that would live inside it for the next decade.</p>
+  <p>They have. The app on the store today is Symphony Pro 6. Different team, same lineage, same name I picked in 2009.</p>
+</Section>
+
+<Section title="Reflections">
+  <p>The thing that mattered was the platform bet. We started in 2009 building for a device that did not exist, on a guess about where Apple was going, and we were ready on day one.</p>
+  <p>The thing that did not matter, in retrospect, was most of the feature arguments we had in year one. What survived was the score model, the playback engine, and the name.</p>
+  <p>Symphony Pro is on the <a href="https://apps.apple.com/us/app/symphony-pro-music-notation/id412380315">App Store</a>, now maintained by Xenon Labs.</p>
+</Section>
+
+<StackTrailer items={["iOS", "Objective-C", "CoreAudio", "MIDI"]} />
+
+<Footnotes>
+  <li>Before the iPad shipped, the SDK had a simulator window that ran at the device's actual pixel dimensions on your Mac. For months that 1024 by 768 rectangle was the only iPad in existence outside Cupertino. I designed the whole first version against that window.</li>
+  <li>The one feature I wish we had shipped on day one is undo. The 1.0 release did not have a proper undo stack. We added it in 1.1 and support email volume dropped by half overnight.</li>
+</Footnotes>

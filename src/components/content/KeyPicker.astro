@@ -1,0 +1,34 @@
+---
+import { findKey } from '../../scripts/sim-controls-core';
+
+interface Props {
+  defaultKey?: string;
+}
+
+const { defaultKey = 'C' } = Astro.props;
+const key = findKey(defaultKey);
+---
+
+<div class="key-picker" data-open="false" style={`--current-hue: ${key.hex}`}>
+  <button
+    class="key-picker-trigger"
+    type="button"
+    aria-haspopup="listbox"
+    aria-expanded="false"
+    aria-label="Choose key"
+  >
+    <span class="key-picker-trigger-label">Key</span>
+    <span class="key-picker-swatch" aria-hidden="true" style={`--swatch-color: ${key.hex}`}></span>
+    <span class="key-picker-value">{key.label}</span>
+    <svg
+      class="key-picker-caret"
+      viewBox="0 0 10 6"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.6"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"><path d="M1 1l4 4 4-4" /></svg>
+  </button>
+  <div class="key-picker-menu" role="listbox" aria-label="Key"></div>
+</div>

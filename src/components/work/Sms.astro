@@ -1,0 +1,74 @@
+---
+import Lede from '../content/Lede.astro';
+import Section from '../content/Section.astro';
+import PhoneFrame from '../content/PhoneFrame.astro';
+import DesktopFrame from '../content/DesktopFrame.astro';
+import Screen from '../content/Screen.astro';
+import Caption from '../content/Caption.astro';
+import StackTrailer from '../content/StackTrailer.astro';
+import Footnotes from '../content/Footnotes.astro';
+import Ref from '../content/Ref.astro';
+---
+
+<Lede>Two startups, five years apart, both about one thing: ordering food and drink at a live event without leaving your seat or standing in line. Grub Runner came first, at the University of Arizona football stadium. Text2Order came second, at music festivals up to 88,000 people.</Lede>
+<Lede>Grub Runner ran from 2013 to 2016 out of Tucson and Los Angeles. Text2Order, from 2022 to 2024, was its resurrection: the same software rebranded and aimed at festivals, sold turnkey with the logistics and staffing included, so a venue could let fans skip the line by texting in an order. Same insight five years apart: at a live event, the bar line is the worst part of the night.</Lede>
+<Lede>Founder and CTO of both. I built the product from scratch each time, then worked the events on the floor in a staff shirt, watching orders move from a phone in section 214 to a printer behind a bar.</Lede>
+
+<Section title="The bet">
+  <p>Before writing a line of code, I tested the value hypothesis the cheapest way I could: a survey at a UCLA basketball game. Would you pay to have food and drinks brought to your seat, and how much? Enough people said yes, and named a price above the threshold I had set in advance, to justify building. The survey was the first MVP.</p>
+  <p>That was Grub Runner. I worked the concessionaire conferences to learn the business from the people already running the stands, landed a deal with the University of Arizona, and turned two football seasons into a live testbed, fulfilling thousands of orders. Problem-solution fit found the hands-on way, in a business I knew nothing about going in.</p>
+</Section>
+
+<Section title="Three products in a few weeks">
+  <p>The first real MVP was a native app. The numbers said nobody at a game downloads an app to buy a beer, so we pivoted to a mobile web app. Still too much friction, so we pivoted again and stripped the MVP to its core: plain SMS. Three versions in a few weeks, each a smaller MVP than the last, every pivot driven by watching real fans try the previous one from their seats.</p>
+  <p>SMS won the adoption hypothesis because every phone can text. No install, no account, and it keeps working when venue WiFi is saturated and cell data is choked, which at a packed stadium or festival is always.</p>
+  <PhoneFrame>
+    <Screen theme="sms-customer" label="sms-flow.mp4" />
+  </PhoneFrame>
+  <Caption>The customer flow. Text a short code, get a menu, reply with a number, confirm, pay, wait for a runner.</Caption>
+</Section>
+
+<Section title="Every game, every role">
+  <p>Every game was one turn of the build-measure-learn loop. We worked every position, prepping, taking orders, running food, gathering feedback in the stands, then filmed the operation and watched it back against the night's numbers to see what actually slowed us down.</p>
+  <p>Then we changed one variable and tested it the next week. Marketing, staffing and training, fulfillment, and the product itself each had experiments running in parallel, judged by innovation accounting: the metrics that actually moved the business, not the vanity numbers that only felt good. The clearest validated learning came from delivery. Our first system batched orders with a routing scheme too clever for temp workers hired that morning, so we killed it for something a new runner could learn in five minutes. Simpler measured better.</p>
+</Section>
+
+<Section title="The suite">
+  <p>By Text2Order the operation had a shape. Shipping one product to the customer meant building six behind it: a kitchen display for bartenders, a runner app, an ops site for the floor manager, an admin dashboard, a payment site, and a support tool.</p>
+  <p>The tablets ran fleet-managed Android with ticket printers on the local network, so a paper ticket dropped at the bar the second payment cleared.</p>
+  <DesktopFrame>
+    <Screen kind="desktop" theme="sms-kds" label="kds.mp4" />
+  </DesktopFrame>
+  <Caption>The KDS on a managed tablet. Tickets print at the bar the moment payment clears.</Caption>
+</Section>
+
+<Section title="At the event">
+  <p>By the Text2Order summer of 2023 we ran a festival or concert every weekend: Electric Zoo in New York at 88,000 people, Tiësto at 20,000, Chainsmokers at 20,000.</p>
+  <p>Attendance is a vanity metric. The number I am proudest of is small, specific, and actionable: in one 6.5-hour shift, two bartenders fulfilled 502 orders for $12,903, peaking at 139 orders in a single hour.<Ref id="fn-sms-1" n={1} /> 100% uptime at every event we ran.</p>
+  <DesktopFrame>
+    <Screen kind="desktop" theme="sms-event" label="event-ops.mp4" />
+  </DesktopFrame>
+  <Caption>The onsite ops site. Order velocity, runner positions, bar throughput, all on one screen.</Caption>
+</Section>
+
+<Section title="Reliability">
+  <p>At a 20,000 person concert with mobile ordering as the headline amenity, an SMS outage makes you the story. We ran hourly end-to-end tests across the major carriers to a real test phone, because carrier routing issues never show up in synthetic checks.</p>
+  <p>Release gates blocked any deploy that touched the order path within four hours of an event, with on-call and redundancy for the SMS gateway, the database, and the payment processor. At Text2Order I led six engineers and two QA on that cadence; at Grub Runner I built most of it myself with a small contractor bench.</p>
+  <DesktopFrame>
+    <Screen kind="desktop" theme="sms-dashboard" label="dashboard.mp4" />
+  </DesktopFrame>
+  <Caption>The admin dashboard. Health checks, carrier status, revenue and order volume in real time.</Caption>
+</Section>
+
+<Section title="Reflections">
+  <p>Three pieces of validated learning carried from the first company to the second. The bottleneck is never the software, it is the bar or the runner or the ice, so build for the slowest physical step. SMS is the right channel for events and the wrong channel for relationships. And the venue is the buyer while the attendee is the user, and their incentives do not line up.</p>
+  <p>Both companies died for the same reason, and it was not the product. We proved the value hypothesis twice and never proved the growth hypothesis, because we never cracked distribution. Grub Runner stalled in the sales cycle: selling into a college athletic department is glacial, no stakeholder had any incentive to champion something untested, and we never got past the pilot. Text2Order was supposed to be the easier sale and turned out harder. A festival runs on a tangled web of promoters, concessionaires, union labor, and bartenders, each holding a veto and none with an obvious reason to say yes. Even with advisors who had real connections and influence in the space, we could not close a single promoter.</p>
+  <p>That last lesson, the buyer and the user pulling in different directions, is the one that ended both companies. I built the engine twice and never owned the channel. I am still proud of the uptime, and proud that two bartenders and a quiet Node service moved nearly thirteen thousand dollars of drinks while a headliner played. The back-of-house apps ran on Cordova the whole way and stayed pragmatic tech debt to the end, never quite worth the rewrite.<Ref id="fn-sms-2" n={2} /> I would build for events again, but never without a distribution partner who already owns the venue relationship.</p>
+</Section>
+
+<StackTrailer items={["TypeScript", "React", "Next.js", "Node", "MySQL", "AWS", "Twilio", "CM.com", "Cordova"]} />
+
+<Footnotes>
+  <li id="fn-sms-1">At 139 orders per hour with two bartenders, the bottleneck is hands pouring drinks, not the SMS stack. Each bartender is making a drink every fifty seconds, sustained, for an hour. The software's job is to never make them wait for a ticket and never let a runner pick up the wrong tray.</li>
+  <li id="fn-sms-2">Cordova for the runner and KDS apps, picked because it shipped fast on the Android tablets we already had. There was never a good window for a rewrite, it was never the most important thing, and it never really got in the way of debugging or shipping. The textbook 2022 answer was React Native with a thin native printer module. The pragmatic one held up fine.</li>
+</Footnotes>

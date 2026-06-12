@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Restaurant Food Hunt</title>
+  <style>
+    :root {
+      --ink: #2d2a32;
+      --highlight: #8bd17c;
+      --bg-red: #c95b5b;
+      --bg-dark: #b34949;
+      --paper: #fffefd;
+      --shadow: rgba(0,0,0,0.16);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Trebuchet MS", "Avenir", "Nunito", sans-serif;
+      background: #dcd1c6;
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 12px 32px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #f3756d, #f0c341, #74c77a, #58a7f7, #c16cf3);
+      -webkit-background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 3px 0 rgba(0,0,0,0.12));
+    }
+
+    .top-row {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      background: #ffeccb;
+      padding: 12px 16px;
+      border-radius: 22px;
+      box-shadow: 0 12px 26px rgba(0,0,0,0.12);
+      border: 3px solid #ffd59c;
+    }
+
+    .prompt {
+      font-size: 22px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .prompt span {
+      padding: 8px 16px;
+      border-radius: 14px;
+      background: white;
+      border: 3px solid #ffb8b1;
+      box-shadow: 0 6px 0 #ff9e94;
+      font-size: 28px;
+      letter-spacing: 1px;
+    }
+
+    .score {
+      font-size: 20px;
+      font-weight: 700;
+      background: #dff7b6;
+      padding: 8px 14px;
+      border-radius: 14px;
+      border: 3px solid #bfe172;
+      box-shadow: 0 6px 0 #9fc44f;
+    }
+
+    #message {
+      margin: 12px 0 16px;
+      font-size: 22px;
+      min-height: 28px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      transition: opacity 0.2s ease;
+    }
+
+    #message.yes { color: #2c9c4d; }
+    #message.no { color: #e04b4b; }
+
+    .scene-wrap {
+      width: 100%;
+      max-width: 900px;
+      background: #c95b5b;
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 14px 36px rgba(0,0,0,0.16);
+      border: 4px solid #b44a4a;
+      overflow: hidden;
+    }
+
+    #room {
+      width: 100%;
+      height: auto;
+      background: #c95b5b;
+      border-radius: 14px;
+      display: block;
+    }
+
+    .table {
+      cursor: pointer;
+      transition: filter 0.12s ease;
+    }
+
+    .table:hover {
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.18));
+    }
+
+    .name-tag {
+      font-size: 16px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      fill: var(--ink);
+    }
+
+    .correct-flash circle.table-top {
+      animation: flash 0.5s ease;
+    }
+
+    @keyframes flash {
+      0% { stroke: var(--highlight); stroke-width: 6; }
+      100% { stroke: var(--table-edge); stroke-width: 4; }
+    }
+
+
+    @media (max-width: 600px) {
+      h1 { font-size: 26px; }
+      .prompt { font-size: 18px; }
+      .prompt span { font-size: 22px; }
+      .score { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Restaurant Food Hunt</h1>
+  <div class="top-row">
+    <div class="prompt">Find: <span id="target-word">Pizza</span></div>
+    <div class="score">Score: <span id="score">0</span></div>
+  </div>
+  <div id="message"></div>
+  <div class="scene-wrap">
+    <svg id="room" viewBox="0 0 860 520" role="img" aria-label="Restaurant tables with food items"></svg>
+  </div>
+
+  <script>
+    const svgNS = "http://www.w3.org/2000/svg";
+    const room = document.getElementById('room');
+    const targetWord = document.getElementById('target-word');
+    const message = document.getElementById('message');
+    const scoreBox = document.getElementById('score');
+
+    const foods = [
+      { name: 'Apple', color: '#f85552' },
+      { name: 'Banana', color: '#f4d35e' },
+      { name: 'Pizza', color: '#f29b3d' },
+      { name: 'Carrot', color: '#f78232' },
+      { name: 'Bread', color: '#d9a066' },
+      { name: 'Grape', color: '#9c6ade' }
+    ];
+
+    const tablePositions = [
+      { x: 160, y: 120 },
+      { x: 440, y: 120 },
+      { x: 160, y: 300 },
+      { x: 440, y: 300 },
+      { x: 160, y: 480 },
+      { x: 440, y: 480 }
+    ];
+
+    let score = 0;
+    let targetFood = null;
+
+    function makeDefs() {
+      const defs = document.createElementNS(svgNS, 'defs');
+      const pattern = document.createElementNS(svgNS, 'pattern');
+      pattern.setAttribute('id', 'stripes');
+      pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+      pattern.setAttribute('width', 24);
+      pattern.setAttribute('height', 24);
+      pattern.setAttribute('patternTransform', 'rotate(18)');
+
+      const stripe = document.createElementNS(svgNS, 'rect');
+      stripe.setAttribute('x', 0);
+      stripe.setAttribute('y', 0);
+      stripe.setAttribute('width', 10);
+      stripe.setAttribute('height', 24);
+      stripe.setAttribute('fill', 'rgba(255,255,255,0.07)');
+      pattern.appendChild(stripe);
+      defs.appendChild(pattern);
+
+      const filter = document.createElementNS(svgNS, 'filter');
+      filter.setAttribute('id', 'sticker-shadow');
+      filter.setAttribute('x', '-20%');
+      filter.setAttribute('y', '-20%');
+      filter.setAttribute('width', '140%');
+      filter.setAttribute('height', '140%');
+      const feDrop = document.createElementNS(svgNS, 'feDropShadow');
+      feDrop.setAttribute('dx', '0');
+      feDrop.setAttribute('dy', '6');
+      feDrop.setAttribute('stdDeviation', '4');
+      feDrop.setAttribute('flood-color', 'rgba(0,0,0,0.22)');
+      filter.appendChild(feDrop);
+      defs.appendChild(filter);
+
+      room.appendChild(defs);
+    }
+
+    function drawBackground() {
+      const bg = document.createElementNS(svgNS, 'rect');
+      bg.setAttribute('x', 0);
+      bg.setAttribute('y', 0);
+      bg.setAttribute('width', '860');
+      bg.setAttribute('height', '520');
+      bg.setAttribute('fill', '#c95b5b');
+
+      const overlay = document.createElementNS(svgNS, 'rect');
+      overlay.setAttribute('x', 0);
+      overlay.setAttribute('y', 0);
+      overlay.setAttribute('width', '860');
+      overlay.setAttribute('height', '520');
+      overlay.setAttribute('fill', 'url(#stripes)');
+
+      room.appendChild(bg);
+      room.appendChild(overlay);
+    }
+
+    function makeTable(food, position) {
+      const g = document.createElementNS(svgNS, 'g');
+      g.classList.add('table');
+      g.setAttribute('data-food', food.name);
+      g.setAttribute('transform', `translate(${position.x}, ${position.y})`);
+      g.setAttribute('role', 'button');
+      g.setAttribute('tabindex', '0');
+      g.setAttribute('aria-label', `Table with ${food.name}`);
+
+      const shadow = document.createElementNS(svgNS, 'ellipse');
+      shadow.setAttribute('cx', 0);
+      shadow.setAttribute('cy', 40);
+      shadow.setAttribute('rx', 95);
+      shadow.setAttribute('ry', 18);
+      shadow.setAttribute('fill', 'rgba(0,0,0,0.08)');
+
+      const edge = document.createElementNS(svgNS, 'circle');
+      edge.setAttribute('r', 90);
+      edge.setAttribute('fill', 'var(--table-edge)');
+
+      const top = document.createElementNS(svgNS, 'circle');
+      top.setAttribute('r', 80);
+      top.setAttribute('fill', 'var(--table)');
+      top.setAttribute('class', 'table-top');
+
+      const plate = document.createElementNS(svgNS, 'circle');
+      plate.setAttribute('r', 54);
+      plate.setAttribute('fill', 'white');
+      plate.setAttribute('cy', -6);
+      plate.setAttribute('stroke', '#d8d8d8');
+      plate.setAttribute('stroke-width', '3');
+
+      const rim = document.createElementNS(svgNS, 'circle');
+      rim.setAttribute('r', 48);
+      rim.setAttribute('fill', '#f9f9f9');
+      rim.setAttribute('cy', -6);
+
+      const label = document.createElementNS(svgNS, 'text');
+      label.setAttribute('class', 'name-tag');
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('y', 118);
+      label.textContent = food.name;
+
+      g.appendChild(shadow);
+      g.appendChild(edge);
+      g.appendChild(top);
+      g.appendChild(plate);
+      g.appendChild(rim);
+      drawFoodIcon(g, food);
+      g.appendChild(label);
+
+      g.addEventListener('click', () => handlePick(food.name, g));
+      g.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          handlePick(food.name, g);
+        }
+      });
+
+      room.appendChild(g);
+    }
+
+    function drawFoodIcon(group, food) {
+      switch (food.name) {
+        case 'Apple': {
+          const apple = document.createElementNS(svgNS, 'circle');
+          apple.setAttribute('r', 28);
+          apple.setAttribute('cy', -10);
+          apple.setAttribute('fill', food.color);
+          apple.setAttribute('stroke', '#c93b3b');
+          apple.setAttribute('stroke-width', '4');
+
+          const leaf = document.createElementNS(svgNS, 'path');
+          leaf.setAttribute('d', 'M-6 -36 Q 0 -50 14 -38 Q 6 -22 -6 -36');
+          leaf.setAttribute('fill', '#5bbf6a');
+
+          const stem = document.createElementNS(svgNS, 'rect');
+          stem.setAttribute('x', -2);
+          stem.setAttribute('y', -44);
+          stem.setAttribute('width', 6);
+          stem.setAttribute('height', 12);
+          stem.setAttribute('fill', '#7b4b2a');
+
+          group.appendChild(apple);
+          group.appendChild(leaf);
+          group.appendChild(stem);
+          break;
+        }
+        case 'Banana': {
+          const banana = document.createElementNS(svgNS, 'path');
+          banana.setAttribute('d', 'M-26 6 Q -6 -22 24 -6 Q 8 28 -26 6');
+          banana.setAttribute('fill', '#f8e86b');
+          banana.setAttribute('stroke', '#d7c04d');
+          banana.setAttribute('stroke-width', 4);
+          group.appendChild(banana);
+          break;
+        }
+        case 'Pizza': {
+          const slice = document.createElementNS(svgNS, 'path');
+          slice.setAttribute('d', 'M-32 28 L 34 24 L 0 -40 Z');
+          slice.setAttribute('fill', '#f6d28b');
+          slice.setAttribute('stroke', '#d89b3c');
+          slice.setAttribute('stroke-width', 4);
+
+          const cheese = document.createElementNS(svgNS, 'path');
+          cheese.setAttribute('d', 'M-26 18 L 24 15 L 0 -24 Z');
+          cheese.setAttribute('fill', '#f4b942');
+
+          const spot1 = document.createElementNS(svgNS, 'circle');
+          spot1.setAttribute('r', 5);
+          spot1.setAttribute('cx', -8);
+          spot1.setAttribute('cy', -4);
+          spot1.setAttribute('fill', '#b72628');
+          const spot2 = spot1.cloneNode();
+          spot2.setAttribute('cx', 12);
+          spot2.setAttribute('cy', 4);
+          const spot3 = spot1.cloneNode();
+          spot3.setAttribute('cx', 0);
+          spot3.setAttribute('cy', 14);
+
+          group.appendChild(slice);
+          group.appendChild(cheese);
+          group.appendChild(spot1);
+          group.appendChild(spot2);
+          group.appendChild(spot3);
+          break;
+        }
+        case 'Carrot': {
+          const body = document.createElementNS(svgNS, 'path');
+          body.setAttribute('d', 'M-10 -28 L 16 28 L -20 24 Z');
+          body.setAttribute('fill', '#f78232');
+          body.setAttribute('stroke', '#d5631d');
+          body.setAttribute('stroke-width', 4);
+
+          const leaf1 = document.createElementNS(svgNS, 'path');
+          leaf1.setAttribute('d', 'M-6 -32 Q -14 -52 2 -52 Q -4 -42 -6 -32');
+          leaf1.setAttribute('fill', '#4caf50');
+          const leaf2 = document.createElementNS(svgNS, 'path');
+          leaf2.setAttribute('d', 'M2 -32 Q -2 -54 16 -48 Q 6 -40 2 -32');
+          leaf2.setAttribute('fill', '#5bc45f');
+
+          group.appendChild(body);
+          group.appendChild(leaf1);
+          group.appendChild(leaf2);
+          break;
+        }
+        case 'Bread': {
+          const slice = document.createElementNS(svgNS, 'rect');
+          slice.setAttribute('x', -26);
+          slice.setAttribute('y', -28);
+          slice.setAttribute('width', 52);
+          slice.setAttribute('height', 60);
+          slice.setAttribute('rx', 12);
+          slice.setAttribute('fill', '#e7c48c');
+          slice.setAttribute('stroke', '#c39b64');
+          slice.setAttribute('stroke-width', 4);
+
+          const top = document.createElementNS(svgNS, 'rect');
+          top.setAttribute('x', -26);
+          top.setAttribute('y', -38);
+          top.setAttribute('width', 52);
+          top.setAttribute('height', 18);
+          top.setAttribute('rx', 12);
+          top.setAttribute('fill', '#f3d7a8');
+
+          group.appendChild(slice);
+          group.appendChild(top);
+          break;
+        }
+        case 'Grape': {
+          const grapes = [
+            { x: -8, y: -10 }, { x: 8, y: -10 }, { x: 0, y: -24 },
+            { x: -12, y: 6 }, { x: 12, y: 6 }, { x: 0, y: 20 }
+          ];
+          grapes.forEach(pos => {
+            const orb = document.createElementNS(svgNS, 'circle');
+            orb.setAttribute('r', 10);
+            orb.setAttribute('cx', pos.x);
+            orb.setAttribute('cy', pos.y);
+            orb.setAttribute('fill', '#9c6ade');
+            orb.setAttribute('stroke', '#7c4bb5');
+            orb.setAttribute('stroke-width', 3);
+            group.appendChild(orb);
+          });
+
+          const stem = document.createElementNS(svgNS, 'rect');
+          stem.setAttribute('x', -2);
+          stem.setAttribute('y', -44);
+          stem.setAttribute('width', 6);
+          stem.setAttribute('height', 18);
+          stem.setAttribute('fill', '#7b4b2a');
+
+          group.appendChild(stem);
+          break;
+        }
+        default:
+          break;
+      }
+    }
+
+    let messageTimer = null;
+
+    function showMessage(text, isYes) {
+      clearTimeout(messageTimer);
+      message.textContent = text;
+      message.classList.toggle('yes', isYes);
+      message.classList.toggle('no', !isYes);
+      message.style.opacity = 1;
+      messageTimer = setTimeout(() => {
+        message.style.opacity = 0;
+      }, 800);
+    }
+
+    function handlePick(pickedName, tableNode) {
+      if (!targetFood) return;
+      if (pickedName === targetFood.name) {
+        score += 1;
+        scoreBox.textContent = score;
+        showMessage('YES!', true);
+        tableNode.classList.add('correct-flash');
+        setTimeout(() => tableNode.classList.remove('correct-flash'), 400);
+        chooseTarget();
+      } else {
+        showMessage('NO!', false);
+      }
+    }
+
+    function shuffleFoods() {
+      const copy = [...foods];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function chooseTarget() {
+      targetFood = foods[Math.floor(Math.random() * foods.length)];
+      targetWord.textContent = targetFood.name.toUpperCase();
+      targetWord.style.color = targetFood.color;
+    }
+
+    function buildScene() {
+      room.innerHTML = '';
+      makeDefs();
+      drawBackground();
+      drawPeople();
+      const shuffled = shuffleFoods();
+      tablePositions.forEach((pos, idx) => {
+        makeTable(shuffled[idx % shuffled.length], pos);
+      });
+      chooseTarget();
+    }
+
+    buildScene();
+  </script>
+</body>
+</html>

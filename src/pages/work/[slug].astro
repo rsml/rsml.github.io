@@ -1,0 +1,118 @@
+---
+import PortfolioLayout from '../../layouts/PortfolioLayout.astro';
+import BackLink from '../../components/BackLink.astro';
+import MarketingButton from '../../components/MarketingButton.astro';
+import { WORK, getProject } from '../../data/work';
+
+import ChordColors from '../../components/work/ChordColors.astro';
+import Tutor from '../../components/work/Tutor.astro';
+import Forge from '../../components/work/Forge.astro';
+import Symphony from '../../components/work/Symphony.astro';
+import Openpath from '../../components/work/Openpath.astro';
+import Sms from '../../components/work/Sms.astro';
+import Vivy from '../../components/work/Vivy.astro';
+
+const bodies: Record<string, any> = {
+  'chord-colors': ChordColors, tutor: Tutor, forge: Forge, symphony: Symphony,
+  openpath: Openpath, sms: Sms, vivy: Vivy,
+};
+
+export function getStaticPaths() {
+  return WORK.map((p) => ({ params: { slug: p.slug } }));
+}
+const { slug } = Astro.params;
+const project = getProject(slug!)!;
+const Body = bodies[project.slug];
+---
+<PortfolioLayout title={`${project.title} - Ross Miller`} description={project.cardDesc}>
+  <div class="container dive" data-rise>
+    <div class="rise-slot top-row" style="--rise-i:0">
+      <BackLink />
+      {project.marketingUrl && <MarketingButton href={project.marketingUrl} label={project.marketingLabel ?? 'Visit site'} />}
+    </div>
+    <div class="dive-header" style="--rise-i:1">
+      {project.thumbImage && (
+        <span class:list={['dive-logo', project.thumbClass]}>
+          <img src={project.thumbImage} alt="" />
+        </span>
+      )}
+      <div class="dive-heading">
+        <h1 class="dive-title">
+          <span class="dive-name">{project.cardTitle}:</span>
+          <span class="dive-sub">{project.subtitle}</span>
+        </h1>
+        <p class="dive-role">{project.role}</p>
+      </div>
+      {project.appStoreUrl && (
+        <a class="appstore-badge" href={project.appStoreUrl} target="_blank" rel="noopener">
+          <img src="/badges/download-on-the-app-store-white.svg" alt="Download on the App Store" width="120" height="40" />
+        </a>
+      )}
+    </div>
+    <div class="dive-body case-body" style="--rise-i:3"><Body /></div>
+  </div>
+</PortfolioLayout>
+<style>
+  .container.dive { position: relative; }
+  /* Back link left, marketing button right, one flex row. Flex (not absolute
+     positioning) keeps each link's hit area exactly its own box: the rise
+     animation's retained transform turns each .rise-slot into a containing
+     block + stacking context, which made an absolutely-positioned button land
+     under the block-level back link's full-width hit area (clicks went home). */
+  .top-row { display: flex; align-items: center; justify-content: space-between; margin: 0 0 32px; }
+  /* Same header as the gallery lightbox (logo · title : subtitle · role), in the
+     case study's light theme. See Lightbox.astro's .lb-phead. */
+  .dive-header { display: flex; align-items: center; gap: 12px; margin: 0 0 32px; }
+  /* Square app-icon tile: inner <img> fills it; overflow:hidden + radius clip
+     every source icon to one silhouette. Hairline rim + soft shadow lift the
+     tile off the white page. */
+  .dive-logo {
+    flex: none;
+    width: 48px; height: 48px;
+    border-radius: 22%;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--hair), 0 4px 14px rgba(17, 17, 17, 0.10);
+  }
+  .dive-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* Tutor's icon carries extra macOS padding (see Thumb.astro); zoom to match. */
+  .dive-logo.thumb-tutor img { transform: scale(1.25); }
+  .dive-heading { min-width: 0; }
+  .dive-title {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.3;
+    letter-spacing: -0.012em;
+  }
+  .dive-name { font-weight: 600; color: var(--ink); }
+  .dive-sub  { font-weight: 460; color: var(--muted); }
+  .dive-role { margin: 1px 0 0; color: var(--muted); font-size: 12.5px; }
+  /* Official Apple "Download on the App Store" badge (white variant), right-aligned
+     past a flex spacer. Badge artwork is the unmodified official SVG. */
+  .appstore-badge { margin-left: auto; flex: none; line-height: 0; transition: opacity 160ms ease; }
+  .appstore-badge:hover { opacity: 0.7; }
+  .appstore-badge img { display: block; height: 40px; width: auto; }
+  .dive-body p { margin: 0 0 20px; }
+  .case-body p { margin: 0 0 14px; max-width: 62ch; }
+  .case-body code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12.5px;
+    background: rgb(244, 244, 244);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--ink);
+  }
+  /* Match the rest of the page: hairline underline, fills to ink on hover. */
+  .case-body a {
+    color: inherit;
+    text-decoration: none;
+    background-image: linear-gradient(var(--hairHigh), var(--hairHigh));
+    background-size: 100% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    padding-bottom: 1px;
+    transition: background-image 200ms ease;
+  }
+  .case-body a:hover {
+    background-image: linear-gradient(var(--ink), var(--ink));
+  }
+</style>

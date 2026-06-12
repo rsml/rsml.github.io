@@ -1,0 +1,3235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎈 Bray's Birthday Balloon Adventure! 🎈</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            font-family: 'Rajdhani', sans-serif;
+            background: #000;
+        }
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100vh;
+        }
+
+        
+        #confettiCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 150; /* above 3D, below win/lose modal */
+        }
+
+/* ── shadcn-inspired HUD ── */
+        #hud {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .hud-card {
+            background: rgba(9,9,11,.72);
+            backdrop-filter: blur(16px) saturate(1.4);
+            -webkit-backdrop-filter: blur(16px) saturate(1.4);
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 12px;
+            padding: 12px 18px;
+            color: #fafafa;
+            box-shadow: 0 1px 3px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
+            min-width: 210px;
+        }
+        .hud-label {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1.6px;
+            color: rgba(161,161,170,1);
+            margin-bottom: 6px;
+        }
+        .hud-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .hud-value .icon { font-size: 20px; }
+
+        /* progress track */
+        .progress-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,.08);
+            border-radius: 999px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #f97316, #facc15);
+            transition: width .35s cubic-bezier(.4,0,.2,1);
+            box-shadow: 0 0 8px rgba(249,115,22,.5);
+        }
+
+        /* hearts row */
+        .hearts-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 2px;
+        }
+        .heart {
+            width: 22px; height: 22px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+            background: rgba(255,255,255,.06);
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,.06);
+            transition: all .25s;
+        }
+        .heart.active {
+            background: rgba(239,68,68,.18);
+            border-color: rgba(239,68,68,.35);
+            box-shadow: 0 0 10px rgba(239,68,68,.25);
+        }
+        .heart.lost { opacity: .22; filter: grayscale(1); }
+
+        /* badge chip */
+        .hud-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            background: rgba(34,197,94,.12);
+            color: #4ade80;
+            border: 1px solid rgba(34,197,94,.2);
+            margin-top: 6px;
+        }
+        .hud-badge.danger {
+            background: rgba(239,68,68,.12);
+            color: #f87171;
+            border-color: rgba(239,68,68,.2);
+        }
+
+        /* ── Message overlay ── */
+        #message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 200;
+            display: none;
+            text-align: center;
+        }
+        #message .msg-card {
+            background: rgba(9,9,11,.88);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 20px;
+            padding: 48px 64px;
+            box-shadow: 0 0 60px rgba(0,0,0,.6), 0 0 120px rgba(0,0,0,.3);
+            animation: msgIn .4s cubic-bezier(.16,1,.3,1);
+        }
+        #message .msg-text {
+            font-family: 'Orbitron', monospace;
+            font-size: 36px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #fde68a, #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        #message .msg-sub {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 16px;
+            color: rgba(161,161,170,1);
+            margin-top: 12px;
+            letter-spacing: 1px;
+        }
+        @keyframes msgIn {
+            from { transform: scale(.85); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* ── Instructions bar ── */
+        #instructions {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: rgba(9,9,11,.64);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,.06);
+            border-radius: 10px;
+            padding: 10px 22px;
+            color: rgba(161,161,170,1);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 13px;
+            letter-spacing: .8px;
+            display: flex;
+            gap: 18px;
+            align-items: center;
+        }
+        #instructions kbd {
+            display: inline-block;
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 5px;
+            padding: 1px 7px;
+            font-family: 'Orbitron', monospace;
+            font-size: 11px;
+            color: #fafafa;
+            margin: 0 2px;
+        }
+        #instructions .sep {
+            width: 1px;
+            height: 16px;
+            background: rgba(255,255,255,.1);
+        }
+
+        /* ── Banner ── */
+        #birthday-banner {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            font-family: 'Orbitron', monospace;
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, #f97316, #facc15, #4ade80, #38bdf8, #a78bfa, #f97316);
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: bannerShift 4s linear infinite;
+            text-shadow: none;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,.5));
+        }
+        @keyframes bannerShift {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 300% 50%; }
+        }
+
+        /* ── Difficulty Select Screen ── */
+        #difficulty-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(ellipse at 50% 30%, rgba(30,30,50,0.95) 0%, rgba(5,5,12,0.98) 100%);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            animation: screenFadeIn .5s ease-out;
+        }
+        @keyframes screenFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .diff-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #facc15, #f97316, #ef4444);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+            filter: drop-shadow(0 4px 20px rgba(249,115,22,.4));
+        }
+        .diff-subtitle {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 16px;
+            color: rgba(161,161,170,.8);
+            letter-spacing: 2px;
+            margin-bottom: 40px;
+        }
+        .diff-grid {
+            display: flex;
+            gap: 14px;
+        }
+        .diff-btn {
+            position: relative;
+            width: 120px;
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 16px;
+            padding: 22px 16px 18px;
+            cursor: pointer;
+            transition: all .25s cubic-bezier(.4,0,.2,1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            outline: none;
+        }
+        .diff-btn:hover, .diff-btn:focus-visible {
+            background: rgba(255,255,255,.08);
+            border-color: rgba(255,255,255,.18);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.06);
+        }
+        .diff-btn:active { transform: translateY(-1px); }
+        .diff-number {
+            font-family: 'Orbitron', monospace;
+            font-size: 32px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .diff-label {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.4px;
+            color: rgba(161,161,170,.9);
+        }
+        .diff-dots {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .diff-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.12);
+            transition: background .2s;
+        }
+        .diff-dot.active { background: currentColor; }
+
+        .diff-btn[data-level="1"] .diff-number { color: #4ade80; }
+        .diff-btn[data-level="1"] .diff-dot.active { background: #4ade80; }
+        .diff-btn[data-level="1"]:hover { border-color: rgba(74,222,128,.35); box-shadow: 0 12px 32px rgba(0,0,0,.4), 0 0 20px rgba(74,222,128,.12); }
+
+        .diff-btn[data-level="2"] .diff-number { color: #38bdf8; }
+        .diff-btn[data-level="2"] .diff-dot.active { background: #38bdf8; }
+        .diff-btn[data-level="2"]:hover { border-color: rgba(56,189,248,.35); box-shadow: 0 12px 32px rgba(0,0,0,.4), 0 0 20px rgba(56,189,248,.12); }
+
+        .diff-btn[data-level="3"] .diff-number { color: #facc15; }
+        .diff-btn[data-level="3"] .diff-dot.active { background: #facc15; }
+        .diff-btn[data-level="3"]:hover { border-color: rgba(250,204,21,.35); box-shadow: 0 12px 32px rgba(0,0,0,.4), 0 0 20px rgba(250,204,21,.12); }
+
+        .diff-btn[data-level="4"] .diff-number { color: #f97316; }
+        .diff-btn[data-level="4"] .diff-dot.active { background: #f97316; }
+        .diff-btn[data-level="4"]:hover { border-color: rgba(249,115,22,.35); box-shadow: 0 12px 32px rgba(0,0,0,.4), 0 0 20px rgba(249,115,22,.12); }
+
+        .diff-btn[data-level="5"] .diff-number { color: #ef4444; }
+        .diff-btn[data-level="5"] .diff-dot.active { background: #ef4444; }
+        .diff-btn[data-level="5"]:hover { border-color: rgba(239,68,68,.35); box-shadow: 0 12px 32px rgba(0,0,0,.4), 0 0 20px rgba(239,68,68,.12); }
+
+        .diff-footer {
+            margin-top: 32px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 13px;
+            color: rgba(161,161,170,.45);
+            letter-spacing: 1px;
+        }
+        .diff-footer kbd {
+            display: inline-block;
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-family: 'Orbitron', monospace;
+            font-size: 11px;
+            color: rgba(161,161,170,.7);
+        }
+    </style>
+</head>
+<body>
+    <!-- Difficulty Selection -->
+    <div id="difficulty-screen">
+        <div class="diff-title">Choose Difficulty</div>
+        <div class="diff-subtitle">How fast can you handle it?</div>
+        <div class="diff-grid">
+            <button class="diff-btn" data-level="1" onclick="startGame(1)">
+                <div class="diff-number">1</div>
+                <div class="diff-label">Chill</div>
+                <div class="diff-dots"><div class="diff-dot active"></div><div class="diff-dot"></div><div class="diff-dot"></div><div class="diff-dot"></div><div class="diff-dot"></div></div>
+            </button>
+            <button class="diff-btn" data-level="2" onclick="startGame(2)">
+                <div class="diff-number">2</div>
+                <div class="diff-label">Easy</div>
+                <div class="diff-dots"><div class="diff-dot active"></div><div class="diff-dot active"></div><div class="diff-dot"></div><div class="diff-dot"></div><div class="diff-dot"></div></div>
+            </button>
+            <button class="diff-btn" data-level="3" onclick="startGame(3)">
+                <div class="diff-number">3</div>
+                <div class="diff-label">Medium</div>
+                <div class="diff-dots"><div class="diff-dot active"></div><div class="diff-dot active"></div><div class="diff-dot active"></div><div class="diff-dot"></div><div class="diff-dot"></div></div>
+            </button>
+            <button class="diff-btn" data-level="4" onclick="startGame(4)">
+                <div class="diff-number">4</div>
+                <div class="diff-label">Fast</div>
+                <div class="diff-dots"><div class="diff-dot active"></div><div class="diff-dot active"></div><div class="diff-dot active"></div><div class="diff-dot active"></div><div class="diff-dot"></div></div>
+            </button>
+            <button class="diff-btn" data-level="5" onclick="startGame(5)">
+                <div class="diff-number">5</div>
+                <div class="diff-label">Brutal</div>
+                <div class="diff-dots"><div class="diff-dot active"></div><div class="diff-dot active"></div><div class="diff-dot active"></div><div class="diff-dot active"></div><div class="diff-dot active"></div></div>
+            </button>
+        </div>
+        <div class="diff-footer">Press <kbd>1</kbd> – <kbd>5</kbd> or click to select</div>
+    </div>
+
+    <div id="birthday-banner">🎉 HAPPY BIRTHDAY BRAY 🎉</div>
+
+    <div id="hud">
+        <div class="hud-card">
+            <div class="hud-label">Balloons Collected</div>
+            <div class="hud-value">
+                <span class="icon">🎈</span>
+                <span id="score">0</span>
+                <span style="font-size:13px;color:rgba(161,161,170,1);font-weight:500">/ 8</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progress" style="width:0%"></div>
+            </div>
+        </div>
+        <div class="hud-card">
+            <div class="hud-label">Shields</div>
+            <div class="hearts-row" id="hearts">
+                <div class="heart active">❤️</div>
+                <div class="heart active">❤️</div>
+                <div class="heart active">❤️</div>
+            </div>
+            <div class="hud-badge" id="status-badge">
+                <span style="font-size:8px">●</span> Operational
+            </div>
+        </div>
+    </div>
+
+    <div id="message">
+        <div class="msg-card">
+            <div class="msg-text" id="msg-text"></div>
+            <div class="msg-sub" id="msg-sub"></div>
+        </div>
+    </div>
+
+    <div id="instructions">
+        <span><kbd>ARROWS</kbd> Move + Turn</span>
+        <div class="sep"></div>
+        <span><kbd>SPACE</kbd> Jump</span>
+        <div class="sep"></div>
+        <span style="color:#f87171">⚠ Dodge LEGO blasters!</span>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    <canvas id="confettiCanvas"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    // ══════════════════════════════════════════
+    //  GAME SETUP
+    // ══════════════════════════════════════════
+    const canvas = document.getElementById('gameCanvas');
+    const confettiCanvas = document.getElementById('confettiCanvas');
+    const confettiCtx = confettiCanvas.getContext('2d', { alpha: true });
+
+    function resizeConfettiCanvas() {
+        confettiCanvas.width = innerWidth;
+        confettiCanvas.height = innerHeight;
+    }
+    resizeConfettiCanvas();
+
+    let confettiActive = false;
+    let confettiPieces = [];
+
+    function resetConfetti() {
+        confettiActive = false;
+        confettiPieces = [];
+        confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    }
+
+    function startConfetti() {
+        resizeConfettiCanvas();
+        confettiActive = true;
+        confettiPieces = [];
+        const W = confettiCanvas.width;
+        const H = confettiCanvas.height;
+
+        const palette = ['#f97316', '#facc15', '#4ade80', '#38bdf8', '#a78bfa', '#fb7185', '#ffffff'];
+        const count = 240;
+
+        for (let i = 0; i < count; i++) {
+            confettiPieces.push({
+                x: Math.random() * W,
+                y: -Math.random() * H * 0.6,
+                vx: (Math.random() - 0.5) * 1.8,
+                vy: 2.2 + Math.random() * 3.2,
+                w: 6 + Math.random() * 10,
+                h: 4 + Math.random() * 8,
+                rot: Math.random() * Math.PI * 2,
+                vrot: (Math.random() - 0.5) * 0.25,
+                color: palette[Math.floor(Math.random() * palette.length)],
+                life: 0
+            });
+        }
+    }
+
+    function updateConfetti() {
+        if (!confettiActive) return;
+        const ctx = confettiCtx;
+        const W = confettiCanvas.width;
+        const H = confettiCanvas.height;
+
+        ctx.clearRect(0, 0, W, H);
+
+        for (let p of confettiPieces) {
+            p.life += 1;
+            p.vy += 0.02; // gentle gravity
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rot += p.vrot;
+
+            // subtle air drag
+            p.vx *= 0.998;
+
+            // wrap around sides
+            if (p.x < -30) p.x = W + 30;
+            if (p.x > W + 30) p.x = -30;
+
+            // recycle from top when it falls out
+            if (p.y > H + 40) {
+                p.y = -20 - Math.random() * 120;
+                p.vy = 2.2 + Math.random() * 3.2;
+                p.vx = (Math.random() - 0.5) * 1.8;
+            }
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = 0.92;
+            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+            ctx.restore();
+        }
+    }
+
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB);
+    scene.fog = new THREE.Fog(0x87CEEB, 45, 95);
+
+    const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    const sunLight = new THREE.DirectionalLight(0xffffcc, 0.8);
+    sunLight.position.set(50, 100, 50);
+    sunLight.castShadow = true;
+    sunLight.shadow.camera.left = -100;
+    sunLight.shadow.camera.right = 100;
+    sunLight.shadow.camera.top = 100;
+    sunLight.shadow.camera.bottom = -100;
+    scene.add(sunLight);
+
+    // ══════════════════════════════════════════
+    //  CLOUDS
+    // ══════════════════════════════════════════
+    (function createClouds() {
+        const mat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.7 });
+        for (let i = 0; i < 8; i++) {
+            const g = new THREE.Group();
+            for (let j = 0; j < 3 + Math.floor(Math.random() * 4); j++) {
+                const b = new THREE.Mesh(new THREE.BoxGeometry(2+Math.random()*2, 1.5, 2+Math.random()*2), mat);
+                b.position.set((Math.random()-.5)*4, Math.random()*.5, (Math.random()-.5)*4);
+                g.add(b);
+            }
+            g.position.set((Math.random()-.5)*140, 26+Math.random()*14, (Math.random()-.5)*140);
+            scene.add(g);
+        }
+    })();
+
+    // ══════════════════════════════════════════
+    //  GAME STATE
+    // ══════════════════════════════════════════
+    let score = 0;
+    let lives = 3;
+    let invincible = false;
+    let gameEnded = false;
+    const totalBalloons = 8;
+    const blockSize = 2;
+    const worldSize = 42;
+
+    // Playable bounds stay inside the last terrain ring (prevents edge weirdness)
+    const PLAY_BOUNDS = worldSize - blockSize;
+
+    // Collision tuning
+    const TREE_COLLISION_RADIUS = 1.35; // tighter trunk hitbox so you don't get "stuck"
+    const TREE_EDGE_MARGIN = 4;
+    const TREE_SOUTH_EDGE_MARGIN = 6; // extra buffer on the bottom/south edge
+    const PLAYER_COLLISION_RADIUS = 0.8; // keeps shoulders inside walls/edges
+    const ROBOT_COLLISION_RADIUS = 0.75;
+
+    // Performance helpers
+    const terrainBlocks = [];
+    const staticDecor = [];
+    const TERRAIN_CULL_RADIUS = 34;
+    const STATIC_CULL_RADIUS = 40;
+    const DYNAMIC_CULL_RADIUS = 44;
+    const CULL_UPDATE_INTERVAL = 4; // frames
+    let cullFrameCounter = 0;
+
+    function freezeStaticMesh(mesh) {
+        if (!mesh) return;
+        mesh.matrixAutoUpdate = false;
+        mesh.updateMatrix();
+        mesh.frustumCulled = true;
+    }
+
+    function updateStaticCulling() {
+        if (!gameStarted) return;
+        cullFrameCounter++;
+        if (cullFrameCounter % CULL_UPDATE_INTERVAL !== 0) return;
+
+        const px = player.position.x;
+        const pz = player.position.z;
+        const terrainMaxSq = TERRAIN_CULL_RADIUS * TERRAIN_CULL_RADIUS;
+        const staticMaxSq = STATIC_CULL_RADIUS * STATIC_CULL_RADIUS;
+        const dynamicMaxSq = DYNAMIC_CULL_RADIUS * DYNAMIC_CULL_RADIUS;
+
+        for (const b of terrainBlocks) {
+            const dx = b.position.x - px;
+            const dz = b.position.z - pz;
+            b.visible = (dx * dx + dz * dz) <= terrainMaxSq;
+        }
+        for (const s of staticDecor) {
+            const dx = s.position.x - px;
+            const dz = s.position.z - pz;
+            s.visible = (dx * dx + dz * dz) <= staticMaxSq;
+        }
+        for (const r of robots) {
+            const dx = r.position.x - px;
+            const dz = r.position.z - pz;
+            r.visible = (dx * dx + dz * dz) <= dynamicMaxSq;
+        }
+        for (const a of animals) {
+            const dx = a.position.x - px;
+            const dz = a.position.z - pz;
+            a.visible = (dx * dx + dz * dz) <= dynamicMaxSq;
+        }
+        for (const b of balloons) {
+            const dx = b.position.x - px;
+            const dz = b.position.z - pz;
+            b.visible = (dx * dx + dz * dz) <= dynamicMaxSq;
+        }
+    }
+
+
+    // Balloon pickup tuning (magnet feel)
+    const BALLOON_MAGNET_RADIUS = 5.0;
+    const BALLOON_MAGNET_STRENGTH = 0.12; // higher = stronger suction
+    const BALLOON_PICKUP_RADIUS = 3.0;
+    const BALLOON_PICKUP_Y_TOL = 3.5;
+
+    // Balloon placement (avoid stacking)
+    const BALLOON_MIN_DIST = 7.0;
+    
+    // ══════════════════════════════════════════
+    //  WATER
+    // ══════════════════════════════════════════
+    const waterRects = [];
+    const WATER_EDGE_MARGIN = 10;
+    const WATER_TILE_THICKNESS = 0.25;
+    const WATER_SURFACE_OFFSET = 0.02;
+    const WATER_WALK_SPEED_MULT = 0.2; // 5x slower when walking in water
+
+    const waterGroup = new THREE.Group();
+    scene.add(waterGroup);
+    const waterTileSet = new Set();
+    const waterTileMeshes = [];
+
+    function snapToBlock(v) { return Math.floor((v + blockSize / 2) / blockSize) * blockSize; }
+    function waterTileKey(x, z) { return `${snapToBlock(x)},${snapToBlock(z)}`; }
+
+    function addWaterTile(tile) {
+        const key = waterTileKey(tile.position.x, tile.position.z);
+        tile.userData.waterKey = key;
+        freezeStaticMesh(tile);
+        waterTileSet.add(key);
+        waterTileMeshes.push(tile);
+        staticDecor.push(tile);
+    }
+
+    function removeWaterTile(tile) {
+        const key = tile && tile.userData ? tile.userData.waterKey : null;
+        if (key) waterTileSet.delete(key);
+        const idx = waterTileMeshes.indexOf(tile);
+        if (idx !== -1) waterTileMeshes.splice(idx, 1);
+        const sidx = staticDecor.indexOf(tile);
+        if (sidx !== -1) staticDecor.splice(sidx, 1);
+        if (tile && tile.parent === waterGroup) waterGroup.remove(tile);
+    }
+
+    function isInWater(x, z) {
+        if (waterTileSet.has(waterTileKey(x, z))) return 0;
+        return -1;
+    }
+
+    // Tree anchors are declared early so water generation can avoid them.
+    const TREE_BASE_POSITIONS = [
+        [12, 12], [-12, 12], [12, -12], [-12, -12],
+        [18, 0], [-18, 0], [0, 18], [0, -18]
+    ];
+
+    // ══════════════════════════════════════════
+    //  LEGO TEXTURE HELPERS (raised look)
+    // ══════════════════════════════════════════
+    function makeLegoStudTexture(baseColor, studColor, highlightColor, size) {
+        const c = document.createElement('canvas');
+        c.width = c.height = size || 64;
+        const ctx = c.getContext('2d');
+        // Base
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, c.width, c.height);
+        // Top-edge highlight for raised look
+        ctx.fillStyle = highlightColor || 'rgba(255,255,255,0.18)';
+        ctx.fillRect(0, 0, c.width, 3);
+        ctx.fillRect(0, 0, 3, c.height);
+        // Bottom-edge shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(0, c.height - 3, c.width, 3);
+        ctx.fillRect(c.width - 3, 0, 3, c.height);
+        // Studs (2×2 grid)
+        ctx.fillStyle = studColor || 'rgba(0,0,0,0.12)';
+        const s = c.width;
+        for (let i = 0; i < 2; i++) {
+            for (let j = 0; j < 2; j++) {
+                const cx = s * 0.25 + i * s * 0.5;
+                const cy = s * 0.25 + j * s * 0.5;
+                // stud shadow
+                ctx.beginPath();
+                ctx.arc(cx, cy+1, s*0.12, 0, Math.PI*2);
+                ctx.fillStyle = 'rgba(0,0,0,0.18)';
+                ctx.fill();
+                // stud body
+                ctx.beginPath();
+                ctx.arc(cx, cy, s*0.12, 0, Math.PI*2);
+                ctx.fillStyle = studColor || baseColor;
+                ctx.fill();
+                // stud highlight
+                ctx.beginPath();
+                ctx.arc(cx - s*0.03, cy - s*0.03, s*0.06, 0, Math.PI*2);
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fill();
+            }
+        }
+        const tex = new THREE.CanvasTexture(c);
+        tex.magFilter = THREE.NearestFilter;
+        tex.minFilter = THREE.NearestFilter;
+        return tex;
+    }
+
+    function makeLegoSideTexture(baseColor, size) {
+        const c = document.createElement('canvas');
+        c.width = c.height = size || 64;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, c.width, c.height);
+        // Raised edge highlights
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(0, 0, c.width, 2);
+        ctx.fillRect(0, 0, 2, c.height);
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(0, c.height-2, c.width, 2);
+        ctx.fillRect(c.width-2, 0, 2, c.height);
+        // Horizontal mortar line
+        ctx.fillStyle = 'rgba(0,0,0,0.08)';
+        ctx.fillRect(0, c.height/2 - 1, c.width, 2);
+        const tex = new THREE.CanvasTexture(c);
+        tex.magFilter = THREE.NearestFilter;
+        tex.minFilter = THREE.NearestFilter;
+        return tex;
+    }
+
+    function makeInsetWaterTexture(size) {
+        const c = document.createElement('canvas');
+        c.width = c.height = size || 64;
+        const ctx = c.getContext('2d');
+        const s = c.width;
+
+        const grad = ctx.createLinearGradient(0, 0, 0, s);
+        grad.addColorStop(0, '#4FA7FF');
+        grad.addColorStop(0.5, '#237FDB');
+        grad.addColorStop(1, '#1C66BA');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, s, s);
+
+        // Darkened rim + subtle center highlight creates an inset "pool" feel.
+        ctx.strokeStyle = 'rgba(8, 34, 70, 0.55)';
+        ctx.lineWidth = 5;
+        ctx.strokeRect(2, 2, s - 4, s - 4);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.14)';
+        for (let i = 0; i < 4; i++) {
+            const y = s * (0.18 + i * 0.2) + (Math.random() - 0.5) * 2;
+            ctx.fillRect(8, y, s - 16, 2);
+        }
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.magFilter = THREE.LinearFilter;
+        tex.minFilter = THREE.LinearFilter;
+        return tex;
+    }
+
+    // ══════════════════════════════════════════
+    //  TERRAIN
+    // ══════════════════════════════════════════
+    // Map any continuous (x,z) to the nearest terrain column center so collision/grounding
+    // always matches the actual block grid (fixes occasional one-frame "dip through floor" artifacts).
+    function snapToTerrainGrid(v) {
+        return Math.floor((v + blockSize / 2) / blockSize) * blockSize;
+    }
+
+    function getHeight(x, z) {
+        const sx = snapToTerrainGrid(x);
+        const sz = snapToTerrainGrid(z);
+        const noise1 = Math.sin(sx * 0.08) * Math.cos(sz * 0.08);
+        const noise2 = Math.sin(sx * 0.04) * Math.cos(sz * 0.05);
+        return Math.max(0, Math.floor((noise1 * 1 + noise2 * 1 + 3)));
+    }
+    window.getTerrainHeight = getHeight;
+
+    // Returns the Y of the TOP SURFACE of the terrain at (x,z)
+    function getTerrainTopY(x, z) {
+        const h = getHeight(x, z);
+        return h * blockSize + blockSize / 2; // top of highest block
+    }
+
+    (function createTerrain() {
+        const grassTex = makeLegoStudTexture('#4CBB17', '#3AA00F', 'rgba(255,255,255,0.2)', 64);
+        const dirtTex = makeLegoSideTexture('#D4A373', 64);
+        const stoneTex = makeLegoSideTexture('#9BA0A8', 64);
+
+        const grassMats = [
+            new THREE.MeshPhongMaterial({ map: dirtTex }),
+            new THREE.MeshPhongMaterial({ map: dirtTex }),
+            new THREE.MeshPhongMaterial({ map: grassTex }),
+            new THREE.MeshPhongMaterial({ map: dirtTex }),
+            new THREE.MeshPhongMaterial({ map: dirtTex }),
+            new THREE.MeshPhongMaterial({ map: dirtTex })
+        ];
+        const stoneMat = new THREE.MeshPhongMaterial({ map: stoneTex });
+
+        const geom = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+
+        for (let x = -worldSize; x < worldSize; x += blockSize) {
+            for (let z = -worldSize; z < worldSize; z += blockSize) {
+                const height = getHeight(x, z);
+                for (let y = 0; y <= height; y++) {
+                    const isTop = y === height;
+                    const block = new THREE.Mesh(geom, isTop ? grassMats : [stoneMat,stoneMat,stoneMat,stoneMat,stoneMat,stoneMat]);
+                    block.position.set(x, y * blockSize, z);
+                    block.castShadow = true;
+                    block.receiveShadow = true;
+                    freezeStaticMesh(block);
+                    terrainBlocks.push(block);
+                    scene.add(block);
+                }
+            }
+        }
+    })();
+
+    // ══════════════════════════════════════════
+    //  WATER TILES (inset)
+    // ══════════════════════════════════════════
+    (function createWaterObstacles() {
+        const waterTex = makeInsetWaterTexture(64);
+        const waterMat = new THREE.MeshPhongMaterial({
+            map: waterTex,
+            transparent: true,
+            opacity: 0.86,
+            shininess: 130,
+            specular: 0x88cfff,
+            flatShading: false,
+            depthWrite: false,
+            polygonOffset: true,
+            polygonOffsetFactor: -1,
+            polygonOffsetUnits: -2
+        });
+        const geom = new THREE.BoxGeometry(blockSize * 0.96, WATER_TILE_THICKNESS, blockSize * 0.96);
+
+        const riverCount = 3;
+        const attemptsMax = 140;
+
+        function rectCenter(r){ return {x:(r.x1+r.x2)/2, z:(r.z1+r.z2)/2}; }
+
+        for (let i = 0; i < riverCount; i++) {
+            let placed = false;
+            for (let a = 0; a < attemptsMax && !placed; a++) {
+                const vertical = Math.random() < 0.5;
+
+                const length = 18 + Math.random() * 14;
+                const width = 4 + Math.random() * 2;
+                const halfL = snapToBlock(length / 2);
+                const halfW = snapToBlock(width / 2);
+
+                let cx = (Math.random() - 0.5) * (PLAY_BOUNDS * 2 - WATER_EDGE_MARGIN * 2);
+                let cz = (Math.random() - 0.5) * (PLAY_BOUNDS * 2 - WATER_EDGE_MARGIN * 2);
+                cx = Math.max(-PLAY_BOUNDS + WATER_EDGE_MARGIN, Math.min(PLAY_BOUNDS - WATER_EDGE_MARGIN, cx));
+                cz = Math.max(-PLAY_BOUNDS + WATER_EDGE_MARGIN, Math.min(PLAY_BOUNDS - WATER_EDGE_MARGIN, cz));
+
+                // Keep the start area clear
+                if (Math.hypot(cx, cz) < 8) continue;
+
+                let x1, x2, z1, z2;
+                if (vertical) {
+                    x1 = snapToBlock(cx - halfW);
+                    x2 = snapToBlock(cx + halfW);
+                    z1 = snapToBlock(cz - halfL);
+                    z2 = snapToBlock(cz + halfL);
+                } else {
+                    x1 = snapToBlock(cx - halfL);
+                    x2 = snapToBlock(cx + halfL);
+                    z1 = snapToBlock(cz - halfW);
+                    z2 = snapToBlock(cz + halfW);
+                }
+
+                x1 = Math.max(-PLAY_BOUNDS + WATER_EDGE_MARGIN, x1);
+                x2 = Math.min(PLAY_BOUNDS - WATER_EDGE_MARGIN, x2);
+                z1 = Math.max(-PLAY_BOUNDS + WATER_EDGE_MARGIN, z1);
+                z2 = Math.min(PLAY_BOUNDS - WATER_EDGE_MARGIN, z2);
+
+                if (x2 - x1 < blockSize * 2 || z2 - z1 < blockSize * 2) continue;
+
+                const r = { x1, x2, z1, z2 };
+
+                // Avoid overlapping/nearby water strips
+                let ok = true;
+                const c1 = rectCenter(r);
+                for (const rr of waterRects) {
+                    const c2 = rectCenter(rr);
+                    if (Math.hypot(c1.x - c2.x, c1.z - c2.z) < 16) { ok = false; break; }
+                }
+                if (!ok) continue;
+
+                // Avoid tree trunk zones.
+                for (const tp of TREE_BASE_POSITIONS) {
+                    const d = Math.hypot(c1.x - tp[0], c1.z - tp[1]);
+                    if (d < 6) { ok = false; break; }
+                }
+                if (!ok) continue;
+
+                waterRects.push(r);
+
+                // Render water just above terrain so it stays visible at close range.
+                for (let x = x1; x <= x2; x += blockSize) {
+                    for (let z = z1; z <= z2; z += blockSize) {
+                        const topY = getTerrainTopY(x, z);
+                        const tile = new THREE.Mesh(geom, waterMat);
+                        tile.position.set(x, topY + WATER_TILE_THICKNESS / 2 + WATER_SURFACE_OFFSET, z);
+                        tile.renderOrder = 2;
+                        tile.receiveShadow = true;
+                        waterGroup.add(tile);
+                        addWaterTile(tile);
+                    }
+                }
+
+                placed = true;
+            }
+        }
+    })();
+
+
+    // ══════════════════════════════════════════
+    //  LEGO TREES (placed ON terrain)
+    // ══════════════════════════════════════════
+    window.treePositions = TREE_BASE_POSITIONS.slice();
+
+    // Keep trees away from edges (especially the south/bottom edge) to avoid wedge-traps.
+    window.treePositions = window.treePositions.map(([x, z]) => {
+        x = Math.max(-PLAY_BOUNDS + TREE_EDGE_MARGIN, Math.min(PLAY_BOUNDS - TREE_EDGE_MARGIN, x));
+        z = Math.max(-PLAY_BOUNDS + TREE_SOUTH_EDGE_MARGIN, Math.min(PLAY_BOUNDS - TREE_EDGE_MARGIN, z));
+        return [x, z];
+    });
+
+    function createTree(tx, tz) {
+        const g = new THREE.Group();
+        const topY = getTerrainTopY(tx, tz);
+
+        // LEGO brown trunk texture with studs
+        const trunkTex = makeLegoSideTexture('#764C28', 32);
+        const trunkMat = new THREE.MeshPhongMaterial({ map: trunkTex, flatShading: true });
+
+        // LEGO leaf texture with studs
+        const leafTex = makeLegoStudTexture('#4A9D2A', '#3A8520', 'rgba(255,255,255,0.15)', 32);
+        const leafMat = new THREE.MeshPhongMaterial({ map: leafTex, flatShading: true });
+
+        // Trunk (4 blocks tall, sitting ON terrain)
+        for (let i = 0; i < 4; i++) {
+            const trunk = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), trunkMat);
+            trunk.position.y = topY + 1 + i * 2; // starts right on terrain surface
+            trunk.castShadow = true;
+            freezeStaticMesh(trunk);
+            g.add(trunk);
+        }
+
+        // Leaves crown
+        const leafPositions = [
+            [0, 2, 0], [0, 0, 0],
+            [2, 0, 0], [-2, 0, 0], [0, 0, 2], [0, 0, -2],
+            [2, 0, 2], [-2, 0, 2], [2, 0, -2], [-2, 0, -2],
+            [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1],
+            [2, -2, 0], [-2, -2, 0], [0, -2, 2], [0, -2, -2]
+        ];
+        const leafBaseY = topY + 9; // on top of trunk
+        leafPositions.forEach(p => {
+            const leaf = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), leafMat);
+            leaf.position.set(p[0], leafBaseY + p[1], p[2]);
+            leaf.castShadow = true;
+            leaf.receiveShadow = true;
+            freezeStaticMesh(leaf);
+            g.add(leaf);
+        });
+
+        g.position.set(tx, 0, tz);
+        g.matrixAutoUpdate = false;
+        g.updateMatrix();
+        staticDecor.push(g);
+        scene.add(g);
+    }
+    window.treePositions.forEach(p => createTree(p[0], p[1]));
+
+    // Clear any water tiles too close to tree trunks (prevents wedge-stuck cases)
+    (function pruneWaterNearTrees() {
+        const safe = TREE_COLLISION_RADIUS + 1.2;
+        if (!waterGroup || !waterGroup.children || waterGroup.children.length === 0) return;
+
+        const toRemove = [];
+        for (const tile of waterGroup.children) {
+            for (const tp of window.treePositions) {
+                if (Math.hypot(tile.position.x - tp[0], tile.position.z - tp[1]) < safe) {
+                    toRemove.push(tile);
+                    break;
+                }
+            }
+        }
+        for (const tile of toRemove) removeWaterTile(tile);
+    })();
+
+    // ══════════════════════════════════════════
+    //  FLOWERS
+    // ══════════════════════════════════════════
+    (function createFlowers() {
+        const flowerCount = 15;
+        for (let i = 0; i < flowerCount; i++) {
+            let placed = false;
+            for (let attempts = 0; attempts < 180 && !placed; attempts++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 6 + Math.random() * 20;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                if (isInWater(x, z) !== -1) continue;
+
+                let nearTree = false;
+                for (const tp of window.treePositions) {
+                    if (Math.hypot(x - tp[0], z - tp[1]) < 2.2) { nearTree = true; break; }
+                }
+                if (nearTree) continue;
+
+                const topY = getTerrainTopY(x, z);
+                const colors = [0xFF69B4, 0xFFFF00, 0xFF4500, 0x9370DB, 0xFFFFFF];
+                const fg = new THREE.Group();
+                const stem = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.1), new THREE.MeshPhongMaterial({ color: 0x228B22 }));
+                stem.position.y = topY + 0.25;
+                freezeStaticMesh(stem);
+                const flower = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshPhongMaterial({ color: colors[Math.floor(Math.random() * colors.length)] }));
+                flower.position.y = topY + 0.7;
+                flower.rotation.y = Math.random() * Math.PI;
+                freezeStaticMesh(flower);
+                fg.add(stem, flower);
+                fg.position.set(x, 0, z);
+                fg.matrixAutoUpdate = false;
+                fg.updateMatrix();
+                staticDecor.push(fg);
+                scene.add(fg);
+                placed = true;
+            }
+        }
+    })();
+
+    // ══════════════════════════════════════════
+    //  LEGO BALLOONS (on terrain)
+    // ══════════════════════════════════════════
+    const balloons = [];
+    function createBalloon(x, z) {
+        const g = new THREE.Group();
+        const colors = [0xFF6B6B, 0xFFD93D, 0x6BCB77, 0x4D96FF, 0xFF9FF3, 0xFFA07A];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const hex = '#' + color.toString(16).padStart(6, '0');
+
+        // LEGO stud texture for balloon
+        const balloonTex = makeLegoStudTexture(hex, hex, 'rgba(255,255,255,0.35)', 64);
+        const balloonMat = new THREE.MeshPhongMaterial({ map: balloonTex, flatShading: true, shininess: 60 });
+
+        // Main body
+        const main = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 1), balloonMat);
+        main.position.y = 0.6;
+        main.castShadow = true;
+
+        // Top piece
+        const top = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.6), balloonMat);
+        top.position.y = 1.4;
+        top.castShadow = true;
+
+        // Bottom nub
+        const nub = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.2, 0.25), balloonMat);
+        nub.position.y = -0.1;
+
+        // String
+        const stringMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+        const string = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.5, 0.05), stringMat);
+        string.position.y = -0.95;
+
+        g.add(main, top, nub, string);
+        g.userData.floatOffset = Math.random() * Math.PI * 2;
+        g.userData.baseX = x;
+        g.userData.baseZ = z;
+
+        scene.add(g);
+        balloons.push(g);
+    }
+
+    
+    for (let i = 0; i < totalBalloons; i++) {
+        let placed = false, attempts = 0;
+        while (!placed && attempts < 200) {
+            const angle = (i / totalBalloons) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+            const radius = 14 + Math.random() * 28; // spread wide in the bigger world
+            let x = Math.cos(angle) * radius + (Math.random() - 0.5) * 6;
+            let z = Math.sin(angle) * radius + (Math.random() - 0.5) * 6;
+
+            // Keep balloons comfortably inside bounds
+            x = Math.max(-PLAY_BOUNDS + 4, Math.min(PLAY_BOUNDS - 4, x));
+            z = Math.max(-PLAY_BOUNDS + 6, Math.min(PLAY_BOUNDS - 4, z));
+
+            let tooClose = false;
+
+            // Not in water
+            if (isInWater(x, z) !== -1) tooClose = true;
+
+            // Not too close to trees
+            window.treePositions.forEach(tp => {
+                if (Math.hypot(x - tp[0], z - tp[1]) < 3.2) tooClose = true;
+            });
+
+            // Not too close to other balloons
+            for (let b of balloons) {
+                const bx = b.userData.baseX;
+                const bz = b.userData.baseZ;
+                if (Math.hypot(x - bx, z - bz) < BALLOON_MIN_DIST) { tooClose = true; break; }
+            }
+
+            if (!tooClose) { createBalloon(x, z); placed = true; }
+            attempts++;
+        }
+        // If we somehow fail to place after lots of attempts, relax spacing slightly and try once more.
+        if (!placed) {
+            const x = (Math.random() - 0.5) * (PLAY_BOUNDS - 8);
+            const z = (Math.random() - 0.5) * (PLAY_BOUNDS - 8);
+            createBalloon(x, z);
+        }
+    }
+
+    // ══════════════════════════════════════════
+    //  LEGO MINIFIG PLAYER (with feet!)
+    // ══════════════════════════════════════════
+    const player = new THREE.Group();
+    const legoYellow = 0xFFD700;
+    const legoBlue = 0x0055BF;
+    const legoBluePants = 0x003D99;
+    const legoBlack = 0x1A1A1A;
+
+    const yellowMat = new THREE.MeshPhongMaterial({ color: legoYellow, flatShading: true, shininess: 80 });
+    const blueMat = new THREE.MeshPhongMaterial({ color: legoBlue, flatShading: true, shininess: 80 });
+    const pantsMat = new THREE.MeshPhongMaterial({ color: legoBluePants, flatShading: true, shininess: 80 });
+    const blackMat = new THREE.MeshPhongMaterial({ color: legoBlack, flatShading: true, shininess: 60 });
+
+    // Head
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.8, 16), yellowMat);
+    head.position.y = 2.2;
+    head.castShadow = true;
+
+    // Stud on head
+    const stud = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.15, 12), yellowMat);
+    stud.position.y = 2.7;
+
+    // Eyes
+    const eyeGeo = new THREE.SphereGeometry(0.08, 8, 8);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+    leftEye.position.set(-0.15, 2.25, 0.48);
+    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+    rightEye.position.set(0.15, 2.25, 0.48);
+
+    // Smile
+    const smileGeo = new THREE.TorusGeometry(0.15, 0.03, 8, 12, Math.PI);
+    const smile = new THREE.Mesh(smileGeo, new THREE.MeshBasicMaterial({ color: 0x000000 }));
+    smile.position.set(0, 2.05, 0.48);
+    smile.rotation.x = Math.PI;
+
+    // Body
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.5), blueMat);
+    body.position.y = 1.45;
+    body.castShadow = true;
+
+    // Arms
+    const armGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 12);
+    const leftArm = new THREE.Mesh(armGeo, blueMat);
+    leftArm.position.set(-0.6, 1.45, 0);
+    leftArm.castShadow = true;
+    const rightArm = new THREE.Mesh(armGeo, blueMat);
+    rightArm.position.set(0.6, 1.45, 0);
+    rightArm.castShadow = true;
+
+    // Hands
+    const handGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.2, 12);
+    const leftHand = new THREE.Mesh(handGeo, yellowMat);
+    leftHand.position.set(-0.6, 0.95, 0);
+    const rightHand = new THREE.Mesh(handGeo, yellowMat);
+    rightHand.position.set(0.6, 0.95, 0);
+
+    // Hip
+    const hip = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.3, 0.4), blueMat);
+    hip.position.y = 0.85;
+    hip.castShadow = true;
+
+    // Legs
+    const legGeo = new THREE.BoxGeometry(0.3, 0.5, 0.3);
+    const leftLeg = new THREE.Mesh(legGeo, pantsMat);
+    leftLeg.position.set(-0.22, 0.45, 0);
+    leftLeg.castShadow = true;
+    const rightLeg = new THREE.Mesh(legGeo, pantsMat);
+    rightLeg.position.set(0.22, 0.45, 0);
+    rightLeg.castShadow = true;
+
+    // FEET (new! flat LEGO shoes)
+    const footGeo = new THREE.BoxGeometry(0.35, 0.15, 0.45);
+    const leftFoot = new THREE.Mesh(footGeo, blackMat);
+    leftFoot.position.set(-0.22, 0.12, 0.05);
+    leftFoot.castShadow = true;
+    const rightFoot = new THREE.Mesh(footGeo, blackMat);
+    rightFoot.position.set(0.22, 0.12, 0.05);
+    rightFoot.castShadow = true;
+
+    player.add(head, stud, leftEye, rightEye, smile, body, leftArm, rightArm, leftHand, rightHand, hip, leftLeg, rightLeg, leftFoot, rightFoot);
+
+    // Store limb refs for walk animation
+    player.userData.walk = {
+        phase: 0,
+        lastX: 0,
+        lastZ: 0,
+        leftLeg,
+        rightLeg,
+        leftFoot,
+        rightFoot
+    };
+
+    // Player's feet bottom is at y ≈ 0.12 - 0.075 = 0.045 in local space
+    // So player.position.y = terrainTopY + 0 means feet are ~0.045 above surface ≈ perfect
+    const PLAYER_FOOT_OFFSET = 0.05;
+
+    player.position.set(0, getTerrainTopY(0, 0) + PLAYER_FOOT_OFFSET, 0);
+    player.userData.walk.lastX = player.position.x;
+    player.userData.walk.lastZ = player.position.z;
+    scene.add(player);
+
+    let wasPlayerInWater = false;
+    let waterStepSfxCooldown = 0;
+
+    // ══════════════════════════════════════════
+    //  MARIO-STYLE JUMP PHYSICS
+    // ══════════════════════════════════════════
+    // Base values (before difficulty scaling)
+    const BASE_GRAVITY = -0.018;
+    const BASE_FAST_FALL = -0.035;
+    const BASE_JUMP = 0.38;
+    const BASE_PLAYER_SPEED = 0.3;
+    const BASE_ROBOT_SPEED = 0.22;
+    const BASE_ROBOT_WANDER = 0.08;
+    const BASE_LASER_SPEED = 0.6;
+    const BASE_LASER_INTERVAL = 1800;
+
+    // Tuning
+    const LASER_SPEED_MULT = 0.2; // slow lasers by 80%
+    const ROBOT_SPEED_MULT = 0.8; // slow robots by 20%
+    const GLOBAL_SPEED_MULT = 0.8; // slow everything by another 20%
+
+    // Active values (set by difficulty)
+    let GRAVITY = BASE_GRAVITY;
+    let FAST_FALL_GRAVITY = BASE_FAST_FALL;
+    let JUMP_VELOCITY = BASE_JUMP;
+    let gamePlayerSpeed = BASE_PLAYER_SPEED;
+    let gameRobotSpeed = BASE_ROBOT_SPEED;
+    let gameRobotWander = BASE_ROBOT_WANDER;
+    let gameLaserSpeed = BASE_LASER_SPEED;
+    let gameLaserInterval = BASE_LASER_INTERVAL;
+
+    const MAX_STEP_HEIGHT = 0.6;
+    const playerSpeed = 0.3; // will be overridden
+    let speedMultiplier = 0.8; // default = level 5
+    let gameStarted = false;
+
+    let playerVelocityY = 0;
+    let isGrounded = false;
+    let jumpHeld = false;
+    let coyoteTimer = 0;
+    const COYOTE_TIME = 6;
+
+    // Difficulty: Level 1=0.4x, 2=0.5x, 3=0.6x, 4=0.7x, 5=0.8x
+    function applyDifficulty(level) {
+        const multipliers = { 1: 0.4, 2: 0.5, 3: 0.6, 4: 0.7, 5: 0.8 };
+        speedMultiplier = (multipliers[level] || 0.6) * GLOBAL_SPEED_MULT;
+
+        // Scale speeds (higher multiplier = faster)
+        gamePlayerSpeed = BASE_PLAYER_SPEED * speedMultiplier;
+        GRAVITY = BASE_GRAVITY * speedMultiplier;
+        FAST_FALL_GRAVITY = BASE_FAST_FALL * speedMultiplier;
+        JUMP_VELOCITY = BASE_JUMP * Math.sqrt(speedMultiplier); // sqrt so jump height scales reasonably
+        gameRobotSpeed = BASE_ROBOT_SPEED * speedMultiplier * ROBOT_SPEED_MULT;
+        gameRobotWander = BASE_ROBOT_WANDER * speedMultiplier * ROBOT_SPEED_MULT;
+        gameLaserSpeed = BASE_LASER_SPEED * speedMultiplier * LASER_SPEED_MULT;
+        // Faster difficulty = shorter interval between shots
+        gameLaserInterval = BASE_LASER_INTERVAL / speedMultiplier;
+    }
+
+    // Start game function called from difficulty screen
+    window.startGame = function(level) {
+        applyDifficulty(level);
+        gameStarted = true;
+        try { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); } catch (e) {}
+        try { startMusic(); } catch (e) {}
+        const screen = document.getElementById('difficulty-screen');
+        screen.style.transition = 'opacity .4s ease-out';
+        screen.style.opacity = '0';
+        screen.style.pointerEvents = 'none';
+        setTimeout(() => screen.style.display = 'none', 400);
+    };
+
+    // Keyboard shortcut for difficulty (1-5)
+    window.addEventListener('keydown', function diffKey(e) {
+        if (gameStarted) return;
+        const num = parseInt(e.key);
+        if (num >= 1 && num <= 5) {
+            window.startGame(num);
+        }
+    });
+
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+        const k = e.key.toLowerCase();
+        keys[k] = true;
+        const ac = window.__audioCtx;
+        if (ac && ac.state === 'suspended') { ac.resume(); }
+        if (k === 'r' && gameEnded) { resetConfetti(); location.reload(); return; }
+        if (e.key === ' ') { jumpHeld = true; e.preventDefault(); }
+    });
+    window.addEventListener('keyup', (e) => {
+        keys[e.key.toLowerCase()] = false;
+        if (e.key === ' ') jumpHeld = false;
+    });
+
+    // ══════════════════════════════════════════
+    //  LEGO MINIFIG ROBOTS (similar to player)
+    // ══════════════════════════════════════════
+    const robots = [];
+
+    function createRobot(rx, rz) {
+        const g = new THREE.Group();
+
+        // Red LEGO colors
+        const redMat = new THREE.MeshPhongMaterial({ color: 0xCC2020, flatShading: true, shininess: 80 });
+        const darkRedMat = new THREE.MeshPhongMaterial({ color: 0x880000, flatShading: true, shininess: 80 });
+        const grayMat = new THREE.MeshPhongMaterial({ color: 0x4A4A4A, flatShading: true, shininess: 60 });
+
+        // Head (cylinder like player)
+        const rHead = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.75, 16), darkRedMat);
+        rHead.position.y = 2.1;
+        rHead.castShadow = true;
+
+        // Stud on head
+        const rStud = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.15, 12), darkRedMat);
+        rStud.position.y = 2.55;
+
+        // Angry eyes (glowing)
+        const rEyeMat = new THREE.MeshBasicMaterial({ color: 0xFFFF00 });
+        const rEyeGeo = new THREE.BoxGeometry(0.2, 0.15, 0.1);
+        const rLeftEye = new THREE.Mesh(rEyeGeo, rEyeMat);
+        rLeftEye.position.set(-0.18, 2.15, 0.42);
+        const rRightEye = new THREE.Mesh(rEyeGeo, rEyeMat);
+        rRightEye.position.set(0.18, 2.15, 0.42);
+
+        // Angry eyebrows
+        const browGeo = new THREE.BoxGeometry(0.22, 0.06, 0.06);
+        const browMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const lBrow = new THREE.Mesh(browGeo, browMat);
+        lBrow.position.set(-0.18, 2.3, 0.44);
+        lBrow.rotation.z = 0.3;
+        const rBrow = new THREE.Mesh(browGeo, browMat);
+        rBrow.position.set(0.18, 2.3, 0.44);
+        rBrow.rotation.z = -0.3;
+
+        // Antenna
+        const antenna = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.4, 0.08), grayMat);
+        antenna.position.y = 2.7;
+        const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), rEyeMat);
+        antennaTip.position.y = 2.95;
+
+        // Body
+        const rBody = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.85, 0.48), redMat);
+        rBody.position.y = 1.4;
+        rBody.castShadow = true;
+
+        // Arms (like player)
+        const rArmGeo = new THREE.CylinderGeometry(0.14, 0.14, 0.75, 12);
+        const rLeftArm = new THREE.Mesh(rArmGeo, redMat);
+        rLeftArm.position.set(-0.56, 1.4, 0);
+        rLeftArm.castShadow = true;
+        const rRightArm = new THREE.Mesh(rArmGeo, redMat);
+        rRightArm.position.set(0.56, 1.4, 0);
+        rRightArm.castShadow = true;
+
+        // Claws/hands
+        const clawMat = new THREE.MeshPhongMaterial({ color: 0x444444, flatShading: true, shininess: 90 });
+        const clawGeo = new THREE.CylinderGeometry(0.14, 0.14, 0.18, 12);
+        const rLeftClaw = new THREE.Mesh(clawGeo, clawMat);
+        rLeftClaw.position.set(-0.56, 0.95, 0);
+        const rRightClaw = new THREE.Mesh(clawGeo, clawMat);
+        rRightClaw.position.set(0.56, 0.95, 0);
+
+        // Hip
+        const rHip = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.25, 0.38), redMat);
+        rHip.position.y = 0.85;
+
+        // Legs
+        const rLegGeo = new THREE.BoxGeometry(0.28, 0.5, 0.28);
+        const rLeftLeg = new THREE.Mesh(rLegGeo, darkRedMat);
+        rLeftLeg.position.set(-0.22, 0.45, 0);
+        rLeftLeg.castShadow = true;
+        const rRightLeg = new THREE.Mesh(rLegGeo, darkRedMat);
+        rRightLeg.position.set(0.22, 0.45, 0);
+        rRightLeg.castShadow = true;
+
+        // Feet
+        const rFootGeo = new THREE.BoxGeometry(0.32, 0.14, 0.42);
+        const rLeftFoot = new THREE.Mesh(rFootGeo, grayMat);
+        rLeftFoot.position.set(-0.22, 0.13, 0.04);
+        rLeftFoot.castShadow = true;
+        const rRightFoot = new THREE.Mesh(rFootGeo, grayMat);
+        rRightFoot.position.set(0.22, 0.13, 0.04);
+        rRightFoot.castShadow = true;
+
+        g.add(rHead, rStud, rLeftEye, rRightEye, lBrow, rBrow, antenna, antennaTip,
+              rBody, rLeftArm, rRightArm, rLeftClaw, rRightClaw,
+              rHip, rLeftLeg, rRightLeg, rLeftFoot, rRightFoot);
+
+        const topY = getTerrainTopY(rx, rz);
+        g.position.set(rx, topY + PLAYER_FOOT_OFFSET, rz);
+
+        // Robot physics & AI
+        g.userData = {
+            velocity: new THREE.Vector3((Math.random()-.5)*0.05, 0, (Math.random()-.5)*0.05),
+            velocityY: 0,
+            isGrounded: true,
+            chasing: false,
+            detectionRadius: 12,
+            wanderTimer: 0,
+            lastLaserTime: 0,
+            jumpCooldown: 0,
+
+            // Walk animation (limb refs)
+            walkPhase: 0,
+            lastX: rx,
+            lastZ: rz,
+            prevX: rx,
+            prevZ: rz,
+            leftLeg: rLeftLeg,
+            rightLeg: rRightLeg,
+            leftFoot: rLeftFoot,
+            rightFoot: rRightFoot
+        };
+
+        scene.add(g);
+        robots.push(g);
+    }
+
+    function findRobotSpot(index, total) {
+        const baseAngle = (index / total) * Math.PI * 2 + Math.PI / total;
+
+        for (let attempts = 0; attempts < 260; attempts++) {
+            const angle = baseAngle + (Math.random() - 0.5) * 0.95;
+            const radius = 18 + Math.random() * 18;
+            let x = Math.cos(angle) * radius;
+            let z = Math.sin(angle) * radius;
+            x = Math.max(-PLAY_BOUNDS + 6, Math.min(PLAY_BOUNDS - 6, x));
+            z = Math.max(-PLAY_BOUNDS + 6, Math.min(PLAY_BOUNDS - 6, z));
+
+            if (isInWater(x, z) !== -1) continue;
+
+            let blocked = false;
+            for (const tp of window.treePositions) {
+                if (Math.hypot(x - tp[0], z - tp[1]) < TREE_COLLISION_RADIUS + ROBOT_COLLISION_RADIUS + 0.75) {
+                    blocked = true;
+                    break;
+                }
+            }
+            if (blocked) continue;
+
+            for (const r of robots) {
+                if (Math.hypot(x - r.position.x, z - r.position.z) < ROBOT_COLLISION_RADIUS * 2.5) {
+                    blocked = true;
+                    break;
+                }
+            }
+            if (blocked) continue;
+
+            return { x, z };
+        }
+
+        for (let i = 0; i < 36; i++) {
+            const angle = baseAngle + (i / 36) * Math.PI * 2;
+            const radius = 22;
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            if (isInWater(x, z) === -1) return { x, z };
+        }
+        return { x: 0, z: 0 };
+    }
+
+    const ROBOT_COUNT = 10;
+    for (let i = 0; i < ROBOT_COUNT; i++) {
+        const spot = findRobotSpot(i, ROBOT_COUNT);
+        createRobot(spot.x, spot.z);
+    }
+
+    // ══════════════════════════════════════════
+    //  ANIMALS (duck, sheep, cow) — friendly obstacles
+    // ══════════════════════════════════════════
+    const animals = [];
+
+    function makeAnimalMat(color) {
+        return new THREE.MeshPhongMaterial({ color, flatShading: true, shininess: 60 });
+    }
+
+    function createDuck(x, z) {
+        const g = new THREE.Group();
+        const yellow = makeAnimalMat(0xFFD93D);
+        const orange = makeAnimalMat(0xFF8C1A);
+        const black = makeAnimalMat(0x222222);
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.6), yellow);
+        body.position.y = 0.6;
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.7), yellow);
+        head.position.set(0, 1.1, 0.65);
+
+        const beak = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.35), orange);
+        beak.position.set(0, 1.0, 1.05);
+
+        const eyeGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+        const eyeL = new THREE.Mesh(eyeGeo, black);
+        eyeL.position.set(-0.18, 1.18, 0.95);
+        const eyeR = new THREE.Mesh(eyeGeo, black);
+        eyeR.position.set(0.18, 1.18, 0.95);
+
+        const legGeo = new THREE.BoxGeometry(0.18, 0.35, 0.18);
+        const footGeo = new THREE.BoxGeometry(0.45, 0.12, 0.55);
+        const leftLeg = new THREE.Mesh(legGeo, orange);
+        const rightLeg = new THREE.Mesh(legGeo, orange);
+        const leftFoot = new THREE.Mesh(footGeo, orange);
+        const rightFoot = new THREE.Mesh(footGeo, orange);
+        leftLeg.position.set(-0.28, 0.18, -0.25);
+        rightLeg.position.set(0.28, 0.18, -0.25);
+        leftFoot.position.set(-0.28, 0.06, -0.05);
+        rightFoot.position.set(0.28, 0.06, -0.05);
+
+        g.add(body, head, beak, eyeL, eyeR, leftLeg, rightLeg, leftFoot, rightFoot);
+        const duckY = (isInWater(x, z) !== -1)
+            ? (getTerrainTopY(x, z) + WATER_SURFACE_OFFSET + 0.02)
+            : (getTerrainTopY(x, z) + 0.05);
+        g.position.set(x, duckY, z);
+
+        g.userData = {
+            type: 'duck',
+            radius: 1.05,
+            speed: 0.07,
+            vx: (Math.random() - 0.5) * 0.08,
+            vz: (Math.random() - 0.5) * 0.08,
+            timer: 60 + Math.random() * 120,
+            phase: Math.random() * Math.PI * 2,
+            leftLeg, rightLeg, leftFoot, rightFoot
+        };
+
+        scene.add(g);
+        animals.push(g);
+        return g;
+    }
+
+    function createSheep(x, z) {
+        const g = new THREE.Group();
+        const white = makeAnimalMat(0xF4F4F4);
+        const gray = makeAnimalMat(0x444444);
+        const pink = makeAnimalMat(0xF2B6C9);
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.1, 1.4), white);
+        body.position.y = 0.9;
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.8), gray);
+        head.position.set(0, 1.05, 1.05);
+
+        const nose = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.25, 0.25), pink);
+        nose.position.set(0, 0.95, 1.42);
+
+        const legGeo = new THREE.BoxGeometry(0.25, 0.55, 0.25);
+        const footGeo = new THREE.BoxGeometry(0.35, 0.12, 0.35);
+        const legs = [];
+        const feet = [];
+        const lx = [-0.6, 0.6];
+        const lz = [-0.45, 0.25];
+        for (let ix = 0; ix < 2; ix++) for (let iz = 0; iz < 2; iz++) {
+            const leg = new THREE.Mesh(legGeo, gray);
+            leg.position.set(lx[ix], 0.28, lz[iz]);
+            const foot = new THREE.Mesh(footGeo, gray);
+            foot.position.set(lx[ix], 0.06, lz[iz] + 0.05);
+            legs.push(leg); feet.push(foot);
+            g.add(leg, foot);
+        }
+
+        g.add(body, head, nose);
+        g.position.set(x, getTerrainTopY(x, z) + 0.05, z);
+
+        g.userData = {
+            type: 'sheep',
+            radius: 1.25,
+            speed: 0.06,
+            vx: (Math.random() - 0.5) * 0.07,
+            vz: (Math.random() - 0.5) * 0.07,
+            timer: 80 + Math.random() * 140,
+            phase: Math.random() * Math.PI * 2,
+            legs, feet
+        };
+
+        scene.add(g);
+        animals.push(g);
+        return g;
+    }
+
+    function createCow(x, z) {
+        const g = new THREE.Group();
+        const white = makeAnimalMat(0xF8F8F8);
+        const black = makeAnimalMat(0x1C1C1C);
+        const pink = makeAnimalMat(0xF4A6B6);
+        const tan = makeAnimalMat(0xC2A77A);
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.3, 1.6), white);
+        body.position.y = 1.0;
+
+        // Spots
+        const spot1 = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.2), black);
+        spot1.position.set(-0.55, 1.05, 0.75);
+        const spot2 = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.2), black);
+        spot2.position.set(0.65, 0.95, -0.65);
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.85, 0.9), white);
+        head.position.set(0, 1.15, 1.25);
+
+        const snout = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.35, 0.35), pink);
+        snout.position.set(0, 0.95, 1.7);
+
+        const hornGeo = new THREE.BoxGeometry(0.2, 0.25, 0.2);
+        const hornL = new THREE.Mesh(hornGeo, tan);
+        const hornR = new THREE.Mesh(hornGeo, tan);
+        hornL.position.set(-0.45, 1.55, 1.45);
+        hornR.position.set(0.45, 1.55, 1.45);
+
+        const legGeo = new THREE.BoxGeometry(0.3, 0.7, 0.3);
+        const footGeo = new THREE.BoxGeometry(0.42, 0.12, 0.42);
+        const legs = [];
+        const feet = [];
+        const lx = [-0.75, 0.75];
+        const lz = [-0.5, 0.35];
+        for (let ix = 0; ix < 2; ix++) for (let iz = 0; iz < 2; iz++) {
+            const leg = new THREE.Mesh(legGeo, black);
+            leg.position.set(lx[ix], 0.35, lz[iz]);
+            const foot = new THREE.Mesh(footGeo, black);
+            foot.position.set(lx[ix], 0.06, lz[iz] + 0.05);
+            legs.push(leg); feet.push(foot);
+            g.add(leg, foot);
+        }
+
+        g.add(body, spot1, spot2, head, snout, hornL, hornR);
+        g.position.set(x, getTerrainTopY(x, z) + 0.05, z);
+
+        g.userData = {
+            type: 'cow',
+            radius: 1.45,
+            speed: 0.055,
+            vx: (Math.random() - 0.5) * 0.065,
+            vz: (Math.random() - 0.5) * 0.065,
+            timer: 90 + Math.random() * 160,
+            phase: Math.random() * Math.PI * 2,
+            legs, feet
+        };
+
+        scene.add(g);
+        animals.push(g);
+        return g;
+    }
+
+    function findAnimalSpot(options = {}) {
+        const minFromCenter = options.minFromCenter || 7;
+        const mustBeWater = !!options.mustBeWater;
+        const radius = options.radius || 1.0;
+        const edgePad = options.edgePad || 6;
+
+        for (let attempts = 0; attempts < 280; attempts++) {
+            let x = (Math.random() - 0.5) * (PLAY_BOUNDS * 2 - 12);
+            let z = (Math.random() - 0.5) * (PLAY_BOUNDS * 2 - 12);
+            x = Math.max(-PLAY_BOUNDS + edgePad, Math.min(PLAY_BOUNDS - edgePad, x));
+            z = Math.max(-PLAY_BOUNDS + edgePad, Math.min(PLAY_BOUNDS - edgePad, z));
+            if (Math.hypot(x, z) < minFromCenter) continue;
+
+            const inWater = isInWater(x, z) !== -1;
+            if (mustBeWater !== inWater) continue;
+
+            let blocked = false;
+            if (!mustBeWater) {
+                for (const tp of window.treePositions || []) {
+                    if (Math.hypot(x - tp[0], z - tp[1]) < TREE_COLLISION_RADIUS + radius + 0.6) { blocked = true; break; }
+                }
+            }
+            if (blocked) continue;
+
+            for (const a of animals) {
+                const ar = a.userData.radius || 1.0;
+                if (Math.hypot(x - a.position.x, z - a.position.z) < radius + ar + 1.0) { blocked = true; break; }
+            }
+            if (blocked) continue;
+
+            return { x, z };
+        }
+
+        if (mustBeWater && waterTileMeshes.length > 0) {
+            for (let i = 0; i < waterTileMeshes.length; i++) {
+                const tile = waterTileMeshes[Math.floor(Math.random() * waterTileMeshes.length)];
+                let blocked = false;
+                for (const a of animals) {
+                    const ar = a.userData.radius || 1.0;
+                    if (Math.hypot(tile.position.x - a.position.x, tile.position.z - a.position.z) < radius + ar + 0.8) {
+                        blocked = true;
+                        break;
+                    }
+                }
+                if (!blocked) return { x: tile.position.x, z: tile.position.z };
+            }
+        }
+
+        return { x: 10, z: 10 };
+    }
+
+    function applyAnimalVerticalPosition(a) {
+        const ud = a.userData || {};
+        const topY = getTerrainTopY(a.position.x, a.position.z);
+        if (ud.type === 'duck' && isInWater(a.position.x, a.position.z) !== -1) {
+            a.position.y = topY + WATER_SURFACE_OFFSET + 0.02;
+        } else {
+            a.position.y = topY + 0.05;
+        }
+    }
+
+    function enforceAnimalWaterRule(a) {
+        const ud = a.userData || {};
+        const shouldBeWater = ud.type === 'duck';
+        const currentlyInWater = isInWater(a.position.x, a.position.z) !== -1;
+        if (currentlyInWater === shouldBeWater) return;
+
+        if (typeof ud.prevX === 'number' && typeof ud.prevZ === 'number') {
+            a.position.x = ud.prevX;
+            a.position.z = ud.prevZ;
+            if ((isInWater(a.position.x, a.position.z) !== -1) === shouldBeWater) return;
+        }
+
+        const r = ud.radius || 1.0;
+        let found = null;
+        for (let dist = 0; dist <= 22 && !found; dist += blockSize) {
+            const samples = dist === 0 ? 1 : 18;
+            for (let i = 0; i < samples; i++) {
+                const ang = (i / samples) * Math.PI * 2;
+                const x = Math.max(-PLAY_BOUNDS + r, Math.min(PLAY_BOUNDS - r, a.position.x + Math.cos(ang) * dist));
+                const z = Math.max(-PLAY_BOUNDS + r, Math.min(PLAY_BOUNDS - r, a.position.z + Math.sin(ang) * dist));
+                const inWater = isInWater(x, z) !== -1;
+                if (inWater !== shouldBeWater) continue;
+
+                let blocked = false;
+                if (!shouldBeWater) {
+                    for (const tp of window.treePositions) {
+                        if (Math.hypot(x - tp[0], z - tp[1]) < TREE_COLLISION_RADIUS + r + 0.25) { blocked = true; break; }
+                    }
+                    if (blocked) continue;
+                }
+
+                for (const other of animals) {
+                    if (other === a) continue;
+                    const or = other.userData.radius || 1.0;
+                    if (Math.hypot(x - other.position.x, z - other.position.z) < r + or + 0.15) { blocked = true; break; }
+                }
+                if (blocked) continue;
+
+                found = { x, z };
+                break;
+            }
+        }
+
+        if (found) {
+            a.position.x = found.x;
+            a.position.z = found.z;
+        }
+    }
+
+    // Spawn 3 ducks (water only), 3 sheep (land only), 3 cows (land only)
+    (function spawnAnimals() {
+        const each = 3;
+        for (let i = 0; i < each; i++) {
+            const p = findAnimalSpot({ minFromCenter: 8 + i * 0.2, mustBeWater: true, radius: 1.05, edgePad: 4 });
+            createDuck(p.x, p.z);
+        }
+        for (let i = 0; i < each; i++) {
+            const p = findAnimalSpot({ minFromCenter: 9 + i * 0.4, mustBeWater: false, radius: 1.25 });
+            createSheep(p.x, p.z);
+        }
+        for (let i = 0; i < each; i++) {
+            const p = findAnimalSpot({ minFromCenter: 10 + i * 0.4, mustBeWater: false, radius: 1.45 });
+            createCow(p.x, p.z);
+        }
+    })();
+
+    function updateAnimals(dt60) {
+        for (const a of animals) {
+            const ud = a.userData;
+            ud.prevX = a.position.x;
+            ud.prevZ = a.position.z;
+            ud.timer -= 1 * GLOBAL_SPEED_MULT;
+            if (ud.timer <= 0) {
+                const ang = Math.random() * Math.PI * 2;
+                ud.vx = Math.cos(ang) * (0.7 + Math.random() * 0.6) * ud.speed;
+                ud.vz = Math.sin(ang) * (0.7 + Math.random() * 0.6) * ud.speed;
+                ud.timer = 80 + Math.random() * 160;
+            }
+
+            // Proposed move
+            let nx = a.position.x + ud.vx * dt60;
+            let nz = a.position.z + ud.vz * dt60;
+            const r = ud.radius || 1.0;
+
+            // Bounds bounce
+            if (nx < -PLAY_BOUNDS + r || nx > PLAY_BOUNDS - r) { ud.vx *= -1; nx = a.position.x + ud.vx * dt60; }
+            if (nz < -PLAY_BOUNDS + r || nz > PLAY_BOUNDS - r) { ud.vz *= -1; nz = a.position.z + ud.vz * dt60; }
+
+            // Species water rules: ducks stay in water, sheep/cows stay out.
+            const shouldBeWater = ud.type === 'duck';
+            if ((isInWater(nx, nz) !== -1) !== shouldBeWater) {
+                ud.vx *= -1;
+                ud.vz *= -1;
+                nx = a.position.x + ud.vx * dt60;
+                nz = a.position.z + ud.vz * dt60;
+            }
+
+            // Don't let animals run into each other.
+            let blockedByAnimal = false;
+            for (const other of animals) {
+                if (other === a) continue;
+                const or = other.userData.radius || 1.0;
+                const minD = r + or + 0.2;
+                const dx = nx - other.position.x;
+                const dz = nz - other.position.z;
+                const dist = Math.hypot(dx, dz);
+                if (dist < minD) {
+                    blockedByAnimal = true;
+                    if (dist > 1e-6) {
+                        ud.vx += (dx / dist) * 0.02;
+                        ud.vz += (dz / dist) * 0.02;
+                    }
+                    break;
+                }
+            }
+            if (blockedByAnimal) {
+                ud.vx *= -0.7;
+                ud.vz *= -0.7;
+                nx = a.position.x;
+                nz = a.position.z;
+            }
+
+            a.position.x = nx;
+            a.position.z = nz;
+
+            if (ud.type !== 'duck') resolveTreeCollisions(a.position, r);
+            enforceAnimalWaterRule(a);
+            applyAnimalVerticalPosition(a);
+
+            // Face direction
+            if (Math.abs(ud.vx) + Math.abs(ud.vz) > 0.0001) {
+                a.rotation.y = Math.atan2(ud.vx, ud.vz);
+            }
+
+            // Simple walk cycle (tiny, cute)
+            const moving = (Math.abs(ud.vx) + Math.abs(ud.vz) > 0.0005);
+            const gait = moving ? 1 : 0;
+            ud.phase += gait * 0.45 * dt60;
+
+            // Duck: waddle legs
+            if (ud.type === 'duck' && ud.leftLeg) {
+                const swing = Math.sin(ud.phase) * 0.5 * gait;
+                ud.leftLeg.rotation.x = swing;
+                ud.rightLeg.rotation.x = -swing;
+                ud.leftFoot.rotation.x = -swing * 0.35;
+                ud.rightFoot.rotation.x = swing * 0.35;
+            }
+
+            // Sheep/Cow: wiggle legs lightly
+            if ((ud.type === 'sheep' || ud.type === 'cow') && ud.legs) {
+                const swing = Math.sin(ud.phase) * 0.35 * gait;
+                for (let i = 0; i < ud.legs.length; i++) {
+                    ud.legs[i].rotation.x = (i % 2 === 0 ? swing : -swing);
+                }
+                if (ud.feet) {
+                    for (let i = 0; i < ud.feet.length; i++) {
+                        ud.feet[i].rotation.x = (i % 2 === 0 ? -swing : swing) * 0.25;
+                    }
+                }
+            }
+        }
+
+        // Keep animals from stacking on each other
+        for (let i = 0; i < animals.length; i++) {
+            for (let j = i + 1; j < animals.length; j++) {
+                const a = animals[i], b = animals[j];
+                const ra = a.userData.radius || 1.0;
+                const rb = b.userData.radius || 1.0;
+                const dx = a.position.x - b.position.x;
+                const dz = a.position.z - b.position.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                const minD = ra + rb + 0.15;
+                if (dist < minD) {
+                    const nx = dist > 1e-6 ? dx / dist : 1;
+                    const nz = dist > 1e-6 ? dz / dist : 0;
+                    const push = (minD - dist) * 0.5;
+                    a.position.x += nx * push;
+                    a.position.z += nz * push;
+                    b.position.x -= nx * push;
+                    b.position.z -= nz * push;
+                    a.userData.vx += nx * 0.01;
+                    a.userData.vz += nz * 0.01;
+                    b.userData.vx -= nx * 0.01;
+                    b.userData.vz -= nz * 0.01;
+                }
+            }
+        }
+
+        for (const a of animals) {
+            enforceAnimalWaterRule(a);
+            applyAnimalVerticalPosition(a);
+        }
+    }
+
+    function resolveAnimalCollisions(entityPos, entityRadius) {
+        for (const a of animals) {
+            const r = a.userData.radius || 1.0;
+            const dx = entityPos.x - a.position.x;
+            const dz = entityPos.z - a.position.z;
+            const dist = Math.sqrt(dx*dx + dz*dz);
+            const minD = entityRadius + r;
+            if (dist < minD) {
+                const nx = dist > 1e-6 ? dx / dist : 1;
+                const nz = dist > 1e-6 ? dz / dist : 0;
+                const push = (minD - dist) + 0.001;
+
+                // Push entity out
+                entityPos.x += nx * push;
+                entityPos.z += nz * push;
+
+                // Push animal slightly away too (so it doesn't feel like a wall)
+                a.position.x -= nx * push * 0.6;
+                a.position.z -= nz * push * 0.6;
+
+                // Keep animal valid
+                const ar = a.userData.radius || 1.0;
+                a.position.x = Math.max(-PLAY_BOUNDS + ar, Math.min(PLAY_BOUNDS - ar, a.position.x));
+                a.position.z = Math.max(-PLAY_BOUNDS + ar, Math.min(PLAY_BOUNDS - ar, a.position.z));
+                if (a.userData.type !== 'duck') resolveTreeCollisions(a.position, ar);
+                enforceAnimalWaterRule(a);
+                applyAnimalVerticalPosition(a);
+            }
+        }
+        // Clamp entity after pushes
+        entityPos.x = Math.max(-PLAY_BOUNDS + entityRadius, Math.min(PLAY_BOUNDS - entityRadius, entityPos.x));
+        entityPos.z = Math.max(-PLAY_BOUNDS + entityRadius, Math.min(PLAY_BOUNDS - entityRadius, entityPos.z));
+    }
+
+
+    // ══════════════════════════════════════════
+    //  LEGO BRICK LASER PROJECTILES
+    // ══════════════════════════════════════════
+    const lasers = [];
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    window.__audioCtx = audioCtx;
+
+    // Audio buses: keep SFX crisp and make music sit underneath.
+    const masterGain = audioCtx.createGain();
+    const sfxBus = audioCtx.createGain();
+    const musicBus = audioCtx.createGain();
+    const comp = audioCtx.createDynamicsCompressor();
+
+    comp.threshold.setValueAtTime(-18, audioCtx.currentTime);
+    comp.knee.setValueAtTime(20, audioCtx.currentTime);
+    comp.ratio.setValueAtTime(6, audioCtx.currentTime);
+    comp.attack.setValueAtTime(0.003, audioCtx.currentTime);
+    comp.release.setValueAtTime(0.22, audioCtx.currentTime);
+
+    sfxBus.gain.value = 1.0;
+    musicBus.gain.value = 0.11;
+    masterGain.gain.value = 0.95;
+
+    sfxBus.connect(comp);
+    musicBus.connect(comp);
+    comp.connect(masterGain);
+    masterGain.connect(audioCtx.destination);
+
+    // Balloon notes: C major scale C3 → C4
+    const BALLOON_SCALE_FREQS = [130.81, 146.83, 164.81, 174.61, 196.00, 220.00, 246.94, 261.63]; // C3..C4
+
+    // ──────────────────────────────────────────
+    // Background music (multi-layer arpeggiated)
+    // ──────────────────────────────────────────
+    let musicOn = false;
+    let musicTimer = null;
+    let musicStep = 0;
+    let musicNextTime = 0;
+
+    const MUSIC_BPM = 126;
+    const MUSIC_STEP_SEC = (60 / MUSIC_BPM) / 4; // 16th-note engine
+    const CHORD_STEPS = 16; // one bar per chord
+
+    // Richer progression with extended/borrowed chords.
+    const MUSIC_CHORDS_MIDI = [
+        [60, 64, 67, 71, 74], // Cmaj9
+        [57, 60, 64, 67, 71], // Am9
+        [62, 65, 69, 72, 76], // Dm9
+        [67, 71, 74, 77, 81], // G13
+        [64, 67, 71, 74, 78], // Em9
+        [69, 73, 76, 79, 83], // A13
+        [62, 65, 69, 72, 76], // Dm9
+        [65, 69, 72, 76, 79], // Fmaj9
+        [60, 63, 67, 70, 74], // Cm9 (borrowed)
+        [67, 71, 74, 77, 81], // G13
+        [58, 62, 65, 69, 72], // Bbmaj9 (borrowed)
+        [60, 64, 67, 71, 74], // Cmaj9 resolve
+    ];
+    const arpLeadState = { idx: 0, octave: 0, dir: 1 };
+    const arpCounterState = { idx: 2, octave: 0, dir: -1 };
+
+    function midiToFreq(midi) {
+        return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    function resetArpState(state, chordSize) {
+        state.idx = Math.floor(Math.random() * chordSize);
+        state.octave = 0;
+        state.dir = Math.random() < 0.5 ? 1 : -1;
+    }
+
+    // Randomized up/down movement across a two-octave span (-12..+12 semitones).
+    function nextArpMidi(chord, state) {
+        if (Math.random() < 0.18) state.dir *= -1;
+        const hop = Math.random() < 0.24 ? 2 : 1;
+        state.idx += state.dir * hop;
+
+        while (state.idx < 0) {
+            state.idx += chord.length;
+            state.octave--;
+        }
+        while (state.idx >= chord.length) {
+            state.idx -= chord.length;
+            state.octave++;
+        }
+
+        if (state.octave < -1) { state.octave = -1; state.dir = 1; }
+        if (state.octave > 1) { state.octave = 1; state.dir = -1; }
+
+        if (Math.random() < 0.08) {
+            state.octave += Math.random() < 0.5 ? -1 : 1;
+            state.octave = Math.max(-1, Math.min(1, state.octave));
+        }
+
+        return chord[state.idx] + state.octave * 12;
+    }
+
+    function musicNote(freq, t, dur, gainVal = 0.06, type = 'triangle', filterHz = 1200, attack = 0.01) {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        const f = audioCtx.createBiquadFilter();
+
+        o.type = type;
+        o.frequency.setValueAtTime(freq, t);
+        o.detune.setValueAtTime((Math.random() - 0.5) * 8, t); // tiny analog wobble
+
+        // Gentle low-pass so it stays behind SFX
+        f.type = 'lowpass';
+        f.frequency.setValueAtTime(filterHz, t);
+        f.Q.setValueAtTime(0.7, t);
+
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(gainVal, t + attack);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.05, dur));
+
+        o.connect(f);
+        f.connect(g);
+        g.connect(musicBus);
+
+        o.start(t);
+        o.stop(t + dur + 0.04);
+    }
+
+    function musicHat(t, dur = 0.03, gainVal = 0.018) {
+        // Tiny filtered noise "tick"
+        const bufferSize = Math.floor(audioCtx.sampleRate * dur);
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+
+        const hp = audioCtx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.setValueAtTime(3000, t);
+        hp.Q.setValueAtTime(0.7, t);
+
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(gainVal, t + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+        src.connect(hp);
+        hp.connect(g);
+        g.connect(musicBus);
+
+        src.start(t);
+        src.stop(t + dur);
+    }
+
+    function startMusic() {
+        if (musicOn) return;
+        musicOn = true;
+        musicStep = 0;
+        musicNextTime = audioCtx.currentTime + 0.06;
+        resetArpState(arpLeadState, MUSIC_CHORDS_MIDI[0].length);
+        resetArpState(arpCounterState, MUSIC_CHORDS_MIDI[0].length);
+
+        if (musicTimer) clearInterval(musicTimer);
+        musicTimer = setInterval(() => {
+            if (!musicOn) return;
+            const ahead = 0.35;
+
+            while (musicNextTime < audioCtx.currentTime + ahead) {
+                const chord = MUSIC_CHORDS_MIDI[Math.floor(musicStep / CHORD_STEPS) % MUSIC_CHORDS_MIDI.length];
+                const t = musicNextTime;
+
+                // Primary arp
+                const leadMidi = nextArpMidi(chord, arpLeadState);
+                musicNote(midiToFreq(leadMidi), t, MUSIC_STEP_SEC * 0.9, 0.056, 'triangle', 1900, 0.006);
+
+                // Counter arp (offset and darker)
+                if (musicStep % 2 === 1) {
+                    const counterMidi = nextArpMidi(chord, arpCounterState) - 12;
+                    musicNote(midiToFreq(counterMidi), t + MUSIC_STEP_SEC * 0.12, MUSIC_STEP_SEC * 0.78, 0.03, 'sawtooth', 1500, 0.005);
+                }
+
+                // Bass pulse on beats
+                if (musicStep % 4 === 0) {
+                    const bassMidi = chord[0] - 24 + (musicStep % 16 === 12 ? 2 : 0);
+                    musicNote(midiToFreq(bassMidi), t, MUSIC_STEP_SEC * 3.2, 0.04, 'sine', 460, 0.012);
+                }
+
+                // Chord shimmer accents
+                if (musicStep % 8 === 0) {
+                    musicNote(midiToFreq(chord[1]), t, MUSIC_STEP_SEC * 7.0, 0.018, 'square', 980, 0.01);
+                    musicNote(midiToFreq(chord[3] - 12), t + MUSIC_STEP_SEC * 0.08, MUSIC_STEP_SEC * 6.6, 0.016, 'triangle', 1040, 0.01);
+                }
+
+                // Lightweight percussive motion
+                if (musicStep % 2 === 0 || Math.random() < 0.26) musicHat(t, 0.026, 0.016);
+                if (musicStep % 4 === 2 && Math.random() < 0.55) {
+                    musicHat(t + MUSIC_STEP_SEC * 0.25, 0.018, 0.01);
+                }
+
+                musicNextTime += MUSIC_STEP_SEC;
+                musicStep++;
+            }
+        }, 80);
+    }
+
+    function stopMusic() {
+        musicOn = false;
+        if (musicTimer) clearInterval(musicTimer);
+        musicTimer = null;
+    }
+
+// Robot "taunt" voice lines (random every 6–10s)
+const ROBOT_TAUNTS = [
+    "I'm coming to get you, Bray!",
+    "Beep boop. Your balloons are now MY balloons.",
+    "Initiating hug protocol. Warning: hugs are aggressive.",
+    "I have calculated your exact wiggle path. It is... wiggly.",
+    "Stop right there, birthday human!",
+    "My boots are squeaking at maximum intensity.",
+    "I am 73% LEGO, 27% pure mischief.",
+    "You cannot outrun my tiny robot knees!",
+    "I brought lasers to a balloon party. Classic me.",
+    "Please stand still for scanning. Scanning... scan complete: you are fast.",
+    "Error 404: your safety not found.",
+    "I'm not chasing you. I'm just... aggressively following.",
+    "Behold! My advanced strategy: walk toward you.",
+    "Your evasive maneuvers are inconveniencing my circuits.",
+    "I can smell victory. Or is that birthday cake?",
+    "I have upgraded to Turbo Mode. Just kidding. I'm still slow.",
+    "Surrender the balloons and nobody gets mildly bonked.",
+    "This is a very serious robot mission. Very serious. Beep.",
+    "My laser is set to: PEW PEW.",
+    "Recalculating… recalculating… ok yep, still chasing.",
+    "I will now do a dramatic villain laugh: ha… ha… ha… buffering…",
+    "I am not slow. I am energy efficient.",
+    "My knees are small but my determination is large.",
+    "I demand a balloon… for… uh… science.",
+    "I have a message for you: GIVE BALLOON. End of message.",
+    "My plan is flawless: Step 1: Walk. Step 2: Also walk.",
+    "I am scanning for balloons… detected: yours.",
+    "I am the birthday party security. Hand over the fun.",
+    "Error: I accidentally set my brain to SILLY again.",
+    "I am trained in advanced tactics like… turning left.",
+    "I can’t believe you’re making me use… SECOND GEAR.",
+    "I heard you like balloons. I also like balloons. We are now rivals.",
+    "I will trade you: one robot joke for one balloon.",
+    "I am activating Maximum Dramatic Music. Bum bum BUUUM.",
+    "I have locked onto your location: somewhere near me.",
+    "I’m not yelling. This is my indoors robot voice: BEEP!",
+    "I have come for the balloons… and also compliments.",
+    "Oh no. You used my weakness: moving away.",
+];
+
+let robotVoice = null;
+function selectRobotVoice() {
+    if (!('speechSynthesis' in window)) return;
+    const voices = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+    // macOS "Zarvox" is wonderfully robotic if present
+    robotVoice =
+        voices.find(v => /zarvox/i.test(v.name)) ||
+        voices.find(v => /robot/i.test(v.name)) ||
+        voices.find(v => /en/i.test(v.lang)) ||
+        voices[0] ||
+        null;
+}
+if ('speechSynthesis' in window) {
+    selectRobotVoice();
+    speechSynthesis.onvoiceschanged = selectRobotVoice;
+}
+
+function robotSay(text) {
+    if (!('speechSynthesis' in window)) return;
+    // Don't spam / overlap
+    if (speechSynthesis.speaking || speechSynthesis.pending) return;
+
+    const u = new SpeechSynthesisUtterance(text);
+    if (robotVoice) u.voice = robotVoice;
+    u.lang = (robotVoice && robotVoice.lang) ? robotVoice.lang : 'en-US';
+    u.rate = 1.03;
+    u.pitch = 0.55;
+    u.volume = 1.0;
+
+    // Tiny delay to avoid stepping on other audio in some browsers
+    setTimeout(() => speechSynthesis.speak(u), 30);
+}
+
+function randRange(min, max) { return min + Math.random() * (max - min); }
+let nextRobotTauntTime = Date.now() + randRange(6000, 10000);
+let tauntBag = [];
+
+function refillTauntBag() {
+    tauntBag = ROBOT_TAUNTS.map((_, i) => i);
+    for (let i = tauntBag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = tauntBag[i];
+        tauntBag[i] = tauntBag[j];
+        tauntBag[j] = tmp;
+    }
+}
+
+function nextRobotTauntLine() {
+    if (tauntBag.length === 0) refillTauntBag();
+    return ROBOT_TAUNTS[tauntBag.pop()];
+}
+
+function maybeRobotTaunt() {
+    if (gameEnded || !gameStarted) return;
+
+    const now = Date.now();
+    if (now < nextRobotTauntTime) return;
+
+    // Prefer taunts when at least one robot is near-ish
+    let nearest = null;
+    let best = Infinity;
+    for (let i = 0; i < robots.length; i++) {
+        const d = robots[i].position.distanceTo(player.position);
+        if (d < best) { best = d; nearest = robots[i]; }
+    }
+
+    if (nearest && best < 26) {
+        const line = nextRobotTauntLine();
+        robotSay(line);
+    }
+
+    nextRobotTauntTime = now + randRange(6000, 10000);
+}
+
+
+
+    function playLaserSound() {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(sfxBus);
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+    }
+
+    function playHitSound() {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(sfxBus);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        setTimeout(() => {
+            const o2 = audioCtx.createOscillator();
+            const g2 = audioCtx.createGain();
+            o2.connect(g2); g2.connect(sfxBus);
+            o2.frequency.value = 400;
+            g2.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            g2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            o2.start(); o2.stop(audioCtx.currentTime + 0.1);
+        }, 100);
+    }
+
+    function playSplashSound() {
+        const now = audioCtx.currentTime;
+
+        // Soft "splash" noise
+        const bufferSize = Math.floor(audioCtx.sampleRate * 0.22);
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            const t = i / bufferSize;
+            data[i] = (Math.random() * 2 - 1) * (1 - t) * 0.85;
+        }
+
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+
+        const lp = audioCtx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(1000, now);
+        lp.frequency.exponentialRampToValueAtTime(260, now + 0.18);
+
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(0.36, now + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+        src.connect(lp);
+        lp.connect(g);
+        g.connect(sfxBus);
+
+        src.start(now);
+        src.stop(now + 0.24);
+
+        // Little "blup" tone
+        const o = audioCtx.createOscillator();
+        const g2 = audioCtx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(220, now);
+        o.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+        g2.gain.setValueAtTime(0.0001, now);
+        g2.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+        g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+        o.connect(g2);
+        g2.connect(sfxBus);
+        o.start(now);
+        o.stop(now + 0.16);
+    }
+
+    function playWaterStepSplashSound() {
+        const now = audioCtx.currentTime;
+
+        const bufferSize = Math.floor(audioCtx.sampleRate * 0.1);
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            const t = i / bufferSize;
+            data[i] = (Math.random() * 2 - 1) * (1 - t) * 0.35;
+        }
+
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+
+        const bp = audioCtx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.setValueAtTime(780, now);
+        bp.Q.setValueAtTime(0.7, now);
+
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(0.14, now + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+
+        src.connect(bp);
+        bp.connect(g);
+        g.connect(sfxBus);
+
+        src.start(now);
+        src.stop(now + 0.1);
+    }
+
+
+
+function playRobotBumpSound() {
+    const now = audioCtx.currentTime;
+
+    // Low "thunk"
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.exponentialRampToValueAtTime(60, now + 0.12);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.45, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+    osc.connect(gain);
+    gain.connect(sfxBus);
+
+    osc.start(now);
+    osc.stop(now + 0.18);
+
+    // Metallic noise burst (robot clank)
+    const bufferSize = Math.floor(audioCtx.sampleRate * 0.085);
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        const env = 1 - (i / bufferSize);
+        data[i] = (Math.random() * 2 - 1) * env;
+    }
+
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+
+    const bp = audioCtx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(900, now);
+    bp.Q.setValueAtTime(6, now);
+
+    const nGain = audioCtx.createGain();
+    nGain.gain.setValueAtTime(0.28, now);
+    nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+
+    noise.connect(bp);
+    bp.connect(nGain);
+    nGain.connect(sfxBus);
+
+    noise.start(now);
+    noise.stop(now + 0.12);
+}
+
+    let winFanfarePlayed = false;
+    function playWinFanfare() {
+        if (winFanfarePlayed) return;
+        winFanfarePlayed = true;
+
+        try {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        } catch (e) {}
+
+        const now = audioCtx.currentTime + 0.02;
+
+        function tone(freq, t, dur, gainVal = 0.16, type = 'triangle') {
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            const f = audioCtx.createBiquadFilter();
+
+            o.type = type;
+            o.frequency.setValueAtTime(freq, t);
+            o.detune.setValueAtTime((Math.random() - 0.5) * 4, t);
+
+            f.type = 'lowpass';
+            f.frequency.setValueAtTime(2600, t);
+            f.Q.setValueAtTime(0.7, t);
+
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(gainVal, t + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+            o.connect(f);
+            f.connect(g);
+            g.connect(sfxBus);
+
+            o.start(t);
+            o.stop(t + dur + 0.04);
+        }
+
+        // Bright ascending celebration phrase.
+        const lead = [
+            [523.25, 0.00, 0.15], // C5
+            [659.25, 0.14, 0.15], // E5
+            [783.99, 0.28, 0.17], // G5
+            [1046.50, 0.45, 0.24], // C6
+            [1318.51, 0.68, 0.30], // E6
+        ];
+        for (const n of lead) {
+            tone(n[0], now + n[1], n[2], 0.16, 'triangle');
+            tone(n[0] / 2, now + n[1], n[2] * 0.95, 0.07, 'sine');
+        }
+
+        // Final big chord stab.
+        const finalChord = [523.25, 659.25, 783.99, 1046.50];
+        for (let i = 0; i < finalChord.length; i++) {
+            const type = i % 2 === 0 ? 'square' : 'triangle';
+            tone(finalChord[i], now + 1.00, 0.58, 0.11, type);
+        }
+    }
+
+    function playBalloonSound(noteIndex) {
+        const idx = Math.max(0, Math.min(BALLOON_SCALE_FREQS.length - 1, (noteIndex | 0)));
+        const base = BALLOON_SCALE_FREQS[idx];
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const now = audioCtx.currentTime;
+
+        osc.connect(gain); 
+        gain.connect(sfxBus);
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(base, now);
+        // Tiny "chirp" up for a LEGO-pop feel
+        osc.frequency.exponentialRampToValueAtTime(base * 1.06, now + 0.08);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.62, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
+
+        osc.start(now); 
+        osc.stop(now + 0.22);
+    }
+
+    function createLaser(robot) {
+        // Direction from robot → player (fixed at fire time)
+        const dir = new THREE.Vector3(
+            player.position.x - robot.position.x,
+            player.position.y + 1.2 - robot.position.y - 1.5,
+            player.position.z - robot.position.z
+        ).normalize();
+
+        const g = new THREE.Group();
+
+        // LEGO 1×1 brick projectile
+        const brickTex = makeLegoStudTexture('#FF2020', '#CC1010', 'rgba(255,255,255,0.3)', 32);
+        const brickMat = new THREE.MeshPhongMaterial({ map: brickTex, flatShading: true, shininess: 90, emissive: 0x440000, emissiveIntensity: 0.5 });
+
+        // Main brick body
+        const brick = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), brickMat);
+        g.add(brick);
+
+        // Stud on top of the brick
+        const studGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.1, 8);
+        const studMesh = new THREE.Mesh(studGeo, brickMat);
+        studMesh.position.y = 0.3;
+        g.add(studMesh);
+
+        // Glow trail
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0xFF4444, transparent: true, opacity: 0.4 });
+        const glow = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.8), glowMat);
+        glow.position.z = -0.5;
+        g.add(glow);
+
+        // Point the brick in travel direction
+        const angle = Math.atan2(dir.x, dir.z);
+        g.rotation.y = angle;
+
+        // Start from robot's chest area
+        g.position.set(
+            robot.position.x + dir.x * 1.2,
+            robot.position.y + 1.5,
+            robot.position.z + dir.z * 1.2
+        );
+
+        g.userData.velocity = dir.clone().multiplyScalar(gameLaserSpeed);
+        g.userData.lifetime = 0;
+
+        scene.add(g);
+        lasers.push(g);
+        playLaserSound();
+    }
+
+    function updateLasers() {
+        for (let i = lasers.length - 1; i >= 0; i--) {
+            const laser = lasers[i];
+            laser.position.add(laser.userData.velocity);
+            laser.userData.lifetime++;
+
+            // Spin the brick as it flies
+            laser.rotation.x += 0.15 * GLOBAL_SPEED_MULT;
+            laser.rotation.z += 0.1 * GLOBAL_SPEED_MULT;
+
+            // Terrain collision
+            const terrainTop = getTerrainTopY(laser.position.x, laser.position.z);
+            if (laser.position.y <= terrainTop + 0.3) {
+                scene.remove(laser);
+                lasers.splice(i, 1);
+                continue;
+            }
+
+            // Out of bounds / too old
+            if (Math.abs(laser.position.x) > PLAY_BOUNDS + 14 || Math.abs(laser.position.z) > PLAY_BOUNDS + 14 || laser.userData.lifetime > 200) {
+                scene.remove(laser);
+                lasers.splice(i, 1);
+                continue;
+            }
+
+            // Player collision
+            if (!invincible) {
+                const dist = laser.position.distanceTo(player.position);
+                if (dist < 1.5) {
+                    scene.remove(laser);
+                    lasers.splice(i, 1);
+                    hitPlayer('laser');
+                }
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════
+    //  CAMERA STATE
+    // ══════════════════════════════════════════
+    const cam = { cx: 0, cy: 0, cz: 0, lx: 0, ly: 0, lz: 0 };
+
+    // ══════════════════════════════════════════
+    //  HIT PLAYER
+    // ══════════════════════════════════════════
+    function hitPlayer(source = 'laser') {
+        lives--;
+        invincible = true;
+        if (source === 'robot') playRobotBumpSound(); else playHitSound();
+        updateHUD();
+
+        let flashCount = 0;
+        const flashInterval = setInterval(() => {
+            player.visible = !player.visible;
+            flashCount++;
+            if (flashCount > 6) {
+                clearInterval(flashInterval);
+                player.visible = true;
+                invincible = false;
+            }
+        }, 200);
+
+        if (lives <= 0) {
+            gameEnded = true;
+            showMessage('GAME OVER', 'Press R to restart!');
+        }
+    }
+
+    // ══════════════════════════════════════════
+    //  HUD UPDATES
+    // ══════════════════════════════════════════
+    function updateHUD() {
+        document.getElementById('score').textContent = score;
+        document.getElementById('progress').style.width = (score / totalBalloons * 100) + '%';
+
+        const hearts = document.getElementById('hearts');
+        hearts.innerHTML = '';
+        for (let i = 0; i < 3; i++) {
+            const div = document.createElement('div');
+            div.className = 'heart ' + (i < lives ? 'active' : 'lost');
+            div.textContent = i < lives ? '❤️' : '🖤';
+            hearts.appendChild(div);
+        }
+
+        const badge = document.getElementById('status-badge');
+        if (lives <= 1) {
+            badge.className = 'hud-badge danger';
+            badge.innerHTML = '<span style="font-size:8px">●</span> Critical';
+        } else {
+            badge.className = 'hud-badge';
+            badge.innerHTML = '<span style="font-size:8px">●</span> Operational';
+        }
+    }
+
+    function showMessage(text, sub) {
+        const msg = document.getElementById('message');
+        document.getElementById('msg-text').textContent = text;
+        document.getElementById('msg-sub').textContent = sub || '';
+        msg.style.display = 'block';
+    }
+
+    // ══════════════════════════════════════════
+    //  ROBOT PHYSICS HELPER
+    // ══════════════════════════════════════════
+    function updateRobotPhysics(robot) {
+        const ud = robot.userData;
+
+        // Apply gravity
+        if (!ud.isGrounded) {
+            ud.velocityY += (ud.velocityY < 0 ? FAST_FALL_GRAVITY : GRAVITY);
+        }
+        robot.position.y += ud.velocityY;
+
+        // Ground check
+        const topY = getTerrainTopY(robot.position.x, robot.position.z);
+        const groundLevel = topY + PLAYER_FOOT_OFFSET;
+
+        if (robot.position.y <= groundLevel) {
+            robot.position.y = groundLevel;
+            ud.velocityY = 0;
+            ud.isGrounded = true;
+        } else {
+            ud.isGrounded = false;
+        }
+
+        if (ud.jumpCooldown > 0) ud.jumpCooldown--;
+    }
+
+    function tryRobotJump(robot, targetX, targetZ) {
+        const ud = robot.userData;
+        if (!ud.isGrounded || ud.jumpCooldown > 0) return;
+
+        const currentTop = getTerrainTopY(robot.position.x, robot.position.z);
+        const targetTop = getTerrainTopY(targetX, targetZ);
+
+        if (targetTop - currentTop > MAX_STEP_HEIGHT) {
+            ud.velocityY = JUMP_VELOCITY * 0.9;
+            ud.isGrounded = false;
+            ud.jumpCooldown = 30;
+        }
+    }
+
+
+    // ══════════════════════════════════════════
+    //  COLLISION RESOLUTION (anti-stuck)
+    // ══════════════════════════════════════════
+    function resolveTreeCollisions(pos, radius = 0) {
+        for (const tp of window.treePositions) {
+            const cx = tp[0], cz = tp[1];
+            const dx = pos.x - cx;
+            const dz = pos.z - cz;
+            const dist = Math.sqrt(dx*dx + dz*dz);
+            if (dist < TREE_COLLISION_RADIUS) {
+                const nx = dist > 1e-6 ? dx / dist : 1;
+                const nz = dist > 1e-6 ? dz / dist : 0;
+                const push = (TREE_COLLISION_RADIUS - dist) + 0.001;
+                pos.x += nx * push;
+                pos.z += nz * push;
+            }
+        }
+        // Clamp after pushing (keeps you inside the terrain ring)
+        pos.x = Math.max(-PLAY_BOUNDS + radius, Math.min(PLAY_BOUNDS - radius, pos.x));
+        pos.z = Math.max(-PLAY_BOUNDS + radius, Math.min(PLAY_BOUNDS - radius, pos.z));
+    }
+
+    function resolveRobotRobotCollisions() {
+        const minD = ROBOT_COLLISION_RADIUS * 2 + 0.14;
+
+        for (let i = 0; i < robots.length; i++) {
+            for (let j = i + 1; j < robots.length; j++) {
+                const a = robots[i];
+                const b = robots[j];
+                const dx = a.position.x - b.position.x;
+                const dz = a.position.z - b.position.z;
+                const dist = Math.hypot(dx, dz);
+                if (dist < minD) {
+                    const nx = dist > 1e-6 ? dx / dist : 1;
+                    const nz = dist > 1e-6 ? dz / dist : 0;
+                    const push = (minD - dist) * 0.5;
+                    a.position.x += nx * push;
+                    a.position.z += nz * push;
+                    b.position.x -= nx * push;
+                    b.position.z -= nz * push;
+                }
+            }
+        }
+
+        for (const robot of robots) {
+            const ud = robot.userData || {};
+            robot.position.x = Math.max(-PLAY_BOUNDS + ROBOT_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - ROBOT_COLLISION_RADIUS, robot.position.x));
+            robot.position.z = Math.max(-PLAY_BOUNDS + ROBOT_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - ROBOT_COLLISION_RADIUS, robot.position.z));
+            resolveTreeCollisions(robot.position, ROBOT_COLLISION_RADIUS);
+
+            if (isInWater(robot.position.x, robot.position.z) !== -1) {
+                if (typeof ud.prevX === 'number' && typeof ud.prevZ === 'number') {
+                    robot.position.x = ud.prevX;
+                    robot.position.z = ud.prevZ;
+                }
+
+                if (isInWater(robot.position.x, robot.position.z) !== -1) {
+                    let moved = false;
+                    for (let dist = blockSize; dist <= 18 && !moved; dist += blockSize) {
+                        for (let k = 0; k < 16; k++) {
+                            const ang = (k / 16) * Math.PI * 2;
+                            const x = Math.max(-PLAY_BOUNDS + ROBOT_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - ROBOT_COLLISION_RADIUS, robot.position.x + Math.cos(ang) * dist));
+                            const z = Math.max(-PLAY_BOUNDS + ROBOT_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - ROBOT_COLLISION_RADIUS, robot.position.z + Math.sin(ang) * dist));
+                            if (isInWater(x, z) === -1) {
+                                robot.position.x = x;
+                                robot.position.z = z;
+                                moved = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════
+    //  MAIN GAME LOOP
+    // ══════════════════════════════════════════
+    function animate() {
+        requestAnimationFrame(animate);
+
+        // Animation delta (used only for limb smoothing; gameplay physics remain frame-based)
+        const now = performance.now();
+        const last = animate.__lastT || now;
+        const dt = Math.min(0.05, (now - last) / 1000);
+        animate.__lastT = now;
+        const dt60 = dt * 60;
+
+        // Don't run game logic until difficulty is chosen
+        if (!gameStarted) {
+            renderer.render(scene, camera);
+            return;
+        }
+
+        // Freeze game logic when finished
+        if (gameEnded) {
+            renderer.render(scene, camera);
+            updateConfetti();
+            return;
+        }
+
+        // ── Player movement ──
+        const moveDir = new THREE.Vector3();
+        let turnDirection = 0;
+
+        if (keys['w']) moveDir.z -= 1;
+        if (keys['s']) moveDir.z += 1;
+        if (keys['a']) moveDir.x -= 1;
+        if (keys['d']) moveDir.x += 1;
+
+        if (keys['arrowup']) {
+            moveDir.x += Math.sin(player.rotation.y);
+            moveDir.z += Math.cos(player.rotation.y);
+        }
+        if (keys['arrowdown']) {
+            moveDir.x -= Math.sin(player.rotation.y);
+            moveDir.z -= Math.cos(player.rotation.y);
+        }
+        if (keys['arrowleft']) turnDirection = 1;
+        if (keys['arrowright']) turnDirection = -1;
+
+        // ── Mario jump ──
+        if (isGrounded) coyoteTimer = COYOTE_TIME;
+        else coyoteTimer = Math.max(0, coyoteTimer - 1);
+
+        if (keys[' '] && coyoteTimer > 0 && playerVelocityY <= 0) {
+            playerVelocityY = JUMP_VELOCITY;
+            isGrounded = false;
+            coyoteTimer = 0;
+        }
+
+        // Variable jump height: cut velocity when space released (Mario feel)
+        if (!jumpHeld && playerVelocityY > 0.1) {
+            playerVelocityY *= 0.65;
+        }
+
+        if (turnDirection !== 0) player.rotation.y += turnDirection * 0.05 * GLOBAL_SPEED_MULT;
+
+        if (moveDir.length() > 0) {
+            const moveUnit = moveDir.clone().normalize();
+            let moveSpeed = gamePlayerSpeed;
+
+            // Water rule: 5x slower only while grounded (jumping keeps normal horizontal speed).
+            if (isGrounded) {
+                const probeX = player.position.x + moveUnit.x * gamePlayerSpeed;
+                const probeZ = player.position.z + moveUnit.z * gamePlayerSpeed;
+                const inWaterNow = isInWater(player.position.x, player.position.z) !== -1;
+                const inWaterAhead = isInWater(probeX, probeZ) !== -1;
+                if (inWaterNow || inWaterAhead) moveSpeed *= WATER_WALK_SPEED_MULT;
+            }
+
+            moveDir.copy(moveUnit.multiplyScalar(moveSpeed));
+
+            const newX = player.position.x + moveDir.x;
+            const newZ = player.position.z + moveDir.z;
+
+            // ── Terrain step check (prevent walking up) ──
+            const currentTopY = getTerrainTopY(player.position.x, player.position.z);
+            const nextTopY = getTerrainTopY(newX, newZ);
+            const heightDiff = nextTopY - currentTopY;
+
+            let canMove = true;
+
+            // Block horizontal movement if terrain is too high AND player is grounded
+            if (heightDiff > MAX_STEP_HEIGHT && isGrounded) {
+                canMove = false;
+            }
+            // Also block if in air but feet would clip into terrain
+            if (!isGrounded && nextTopY + PLAYER_FOOT_OFFSET > player.position.y + 0.2) {
+                canMove = false;
+            }
+
+            if (canMove) {
+                player.position.x = newX;
+                player.position.z = newZ;
+            }
+
+            player.position.x = Math.max(-PLAY_BOUNDS + PLAYER_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - PLAYER_COLLISION_RADIUS, player.position.x));
+            player.position.z = Math.max(-PLAY_BOUNDS + PLAYER_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - PLAYER_COLLISION_RADIUS, player.position.z));
+            resolveTreeCollisions(player.position, PLAYER_COLLISION_RADIUS);
+            resolveAnimalCollisions(player.position, PLAYER_COLLISION_RADIUS);
+            resolveTreeCollisions(player.position, PLAYER_COLLISION_RADIUS);
+
+            if (keys['w'] || keys['s'] || keys['a'] || keys['d']) {
+                player.rotation.y = Math.atan2(moveDir.x, moveDir.z);
+            }
+        }
+
+        // Always resolve any slight overlaps with trees (prevents rare stuck/jitter cases)
+        resolveTreeCollisions(player.position, PLAYER_COLLISION_RADIUS);
+        resolveAnimalCollisions(player.position, PLAYER_COLLISION_RADIUS);
+        resolveTreeCollisions(player.position, PLAYER_COLLISION_RADIUS);
+
+        // ── Gravity (Mario-style: faster fall) ──
+        const currentGravity = (playerVelocityY < 0 || !jumpHeld) ? FAST_FALL_GRAVITY : GRAVITY;
+        playerVelocityY += currentGravity;
+        player.position.y += playerVelocityY;
+
+        const terrainTop = getTerrainTopY(player.position.x, player.position.z);
+        const groundLevel = terrainTop + PLAYER_FOOT_OFFSET;
+
+        if (player.position.y <= groundLevel) {
+            player.position.y = groundLevel;
+            playerVelocityY = 0;
+            isGrounded = true;
+        } else {
+            isGrounded = false;
+        }
+
+        const inWaterNow = isInWater(player.position.x, player.position.z) !== -1;
+        if (inWaterNow && !wasPlayerInWater && isGrounded) {
+            playSplashSound();
+            waterStepSfxCooldown = 10;
+        }
+
+        const wantsWalkSplash = inWaterNow && isGrounded && moveDir.lengthSq() > 1e-6;
+        if (wantsWalkSplash) {
+            waterStepSfxCooldown -= dt60;
+            if (waterStepSfxCooldown <= 0) {
+                playWaterStepSplashSound();
+                waterStepSfxCooldown = 12;
+            }
+        } else if (!inWaterNow) {
+            waterStepSfxCooldown = 0;
+        }
+        wasPlayerInWater = inWaterNow;
+
+
+        // ── Walk animation (player legs) ──
+        const pw = player.userData.walk;
+        if (pw) {
+            // Drive gait from intent (prevents jitter/flicker when movement is blocked by walls/trees)
+            const wantsMove = (moveDir.lengthSq() > 1e-6);
+            if (pw.gait === undefined) pw.gait = 0;
+
+            const targetGait = (isGrounded && wantsMove) ? 1 : 0;
+            pw.gait += (targetGait - pw.gait) * (0.18 * dt60);
+
+            // Slower, smoother cadence; scales a bit with speed
+            const cadence = 0.55 * (gamePlayerSpeed / BASE_PLAYER_SPEED);
+            pw.phase += pw.gait * cadence * dt60;
+
+            const swing = Math.sin(pw.phase) * 0.75 * pw.gait;
+            const footSwing = Math.sin(pw.phase + Math.PI / 8) * 0.35 * pw.gait;
+
+            // Smooth toward targets (no snap)
+            const lerpAmt = Math.min(1, 0.45 * dt60);
+            pw.leftLeg.rotation.x += (swing * 0.95 - pw.leftLeg.rotation.x) * lerpAmt;
+            pw.rightLeg.rotation.x += (-swing * 0.95 - pw.rightLeg.rotation.x) * lerpAmt;
+            pw.leftFoot.rotation.x += (footSwing - pw.leftFoot.rotation.x) * lerpAmt;
+            pw.rightFoot.rotation.x += (-footSwing - pw.rightFoot.rotation.x) * lerpAmt;
+        }
+
+
+        // ── Camera ──
+        const camDist = 12;
+        const camH = 6;
+        const camAngle = player.rotation.y;
+        const tx = player.position.x - Math.sin(camAngle) * camDist;
+        const ty = player.position.y + camH;
+        const tz = player.position.z - Math.cos(camAngle) * camDist;
+        const sm = 0.2 * GLOBAL_SPEED_MULT;
+        cam.cx += (tx - cam.cx) * sm;
+        cam.cy += (ty - cam.cy) * sm;
+        cam.cz += (tz - cam.cz) * sm;
+        cam.cy = Math.min(cam.cy, player.position.y + 10);
+        camera.position.set(cam.cx, cam.cy, cam.cz);
+        cam.lx += (player.position.x - cam.lx) * sm;
+        cam.ly += (player.position.y + 1 - cam.ly) * sm;
+        cam.lz += (player.position.z - cam.lz) * sm;
+        camera.lookAt(cam.lx, cam.ly, cam.lz);
+
+        // ── Balloons (hover above terrain) ──
+        const time = Date.now() * 0.001 * GLOBAL_SPEED_MULT;
+        for (let i = balloons.length - 1; i >= 0; i--) {
+            const b = balloons[i];
+
+            // Magnet pickup: if you're close, the balloon drifts into you (much easier to grab).
+            const dxBase = player.position.x - b.userData.baseX;
+            const dzBase = player.position.z - b.userData.baseZ;
+            const horizDistBase = Math.sqrt(dxBase*dxBase + dzBase*dzBase);
+
+            if (horizDistBase < BALLOON_MAGNET_RADIUS) {
+                const pull = (1 - horizDistBase / BALLOON_MAGNET_RADIUS);
+                const step = pull * BALLOON_MAGNET_STRENGTH * GLOBAL_SPEED_MULT;
+                b.userData.baseX += dxBase * step;
+                b.userData.baseZ += dzBase * step;
+                b.userData.baseX = Math.max(-PLAY_BOUNDS + 1, Math.min(PLAY_BOUNDS - 1, b.userData.baseX));
+                b.userData.baseZ = Math.max(-PLAY_BOUNDS + 1, Math.min(PLAY_BOUNDS - 1, b.userData.baseZ));
+            }
+
+            const bTopY = getTerrainTopY(b.userData.baseX, b.userData.baseZ);
+            b.position.set(
+                b.userData.baseX,
+                bTopY + 2.5 + Math.sin(time * 2 + b.userData.floatOffset) * 0.3,
+                b.userData.baseZ
+            );
+            b.rotation.y += 0.02 * GLOBAL_SPEED_MULT;
+
+            const dx = player.position.x - b.position.x;
+            const dz = player.position.z - b.position.z;
+            const dy = player.position.y - b.position.y;
+            const horizDist = Math.sqrt(dx*dx + dz*dz);
+
+            if (horizDist < BALLOON_PICKUP_RADIUS && Math.abs(dy) < BALLOON_PICKUP_Y_TOL) {
+                scene.remove(b);
+                balloons.splice(i, 1);
+                score++;
+                updateHUD();
+                playBalloonSound(score - 1);
+                if (score >= totalBalloons) {
+                    gameEnded = true;
+                    startConfetti();
+                    updateConfetti();
+                    playWinFanfare();
+                    showMessage('🎉 YOU WIN!', 'Happy Birthday Bray! Press R to play again!');
+                }
+            }
+}
+
+        // ── Animals ──
+        updateAnimals(dt60);
+
+        // ── Robot AI with jump physics ──
+        robots.forEach(robot => {
+            const ud = robot.userData;
+            const distToPlayer = robot.position.distanceTo(player.position);
+            ud.prevX = robot.position.x;
+            ud.prevZ = robot.position.z;
+
+            // Physics first
+            updateRobotPhysics(robot);
+
+            if (distToPlayer < ud.detectionRadius) ud.chasing = true;
+            else if (distToPlayer > ud.detectionRadius + 5) ud.chasing = false;
+
+            if (ud.chasing) {
+                const dir = new THREE.Vector3(
+                    player.position.x - robot.position.x, 0,
+                    player.position.z - robot.position.z
+                ).normalize();
+
+                const speed = gameRobotSpeed;
+                const newX = robot.position.x + dir.x * speed;
+                const newZ = robot.position.z + dir.z * speed;
+
+                // Try to jump if terrain ahead is higher
+                tryRobotJump(robot, newX, newZ);
+
+                // Check if can move (terrain + tree collision)
+                const currentTop = getTerrainTopY(robot.position.x, robot.position.z);
+                const nextTop = getTerrainTopY(newX, newZ);
+                let canMove = true;
+
+                // Block if too steep AND grounded
+                if (nextTop - currentTop > MAX_STEP_HEIGHT && ud.isGrounded) canMove = false;
+                if (!ud.isGrounded && nextTop + PLAYER_FOOT_OFFSET > robot.position.y + 0.2) canMove = false;
+
+                // Robots are never allowed in water.
+                if (canMove && isInWater(newX, newZ) !== -1) canMove = false;
+
+                const wouldBeDist = Math.sqrt((newX-player.position.x)**2 + (newZ-player.position.z)**2);
+                if (canMove && wouldBeDist > 2.5) {
+                    robot.position.x = newX;
+                    robot.position.z = newZ;
+                }
+
+                robot.rotation.y = Math.atan2(dir.x, dir.z);
+
+                // Fire laser
+                if (!ud.lastLaserTime || Date.now() - ud.lastLaserTime > gameLaserInterval) {
+                    createLaser(robot);
+                    ud.lastLaserTime = Date.now();
+                }
+            } else {
+                // Wander
+                ud.wanderTimer++;
+                if (ud.wanderTimer > 120) {
+                    ud.velocity.set((Math.random()-.5)*gameRobotWander, 0, (Math.random()-.5)*gameRobotWander);
+                    ud.wanderTimer = 0;
+                }
+
+                const newX = robot.position.x + ud.velocity.x;
+                const newZ = robot.position.z + ud.velocity.z;
+
+                tryRobotJump(robot, newX, newZ);
+
+                const currentTop = getTerrainTopY(robot.position.x, robot.position.z);
+                const nextTop = getTerrainTopY(newX, newZ);
+                let canMove = true;
+                if (nextTop - currentTop > MAX_STEP_HEIGHT && ud.isGrounded) canMove = false;
+
+                // Robots are never allowed in water.
+                if (canMove && isInWater(newX, newZ) !== -1) canMove = false;
+
+                if (canMove) {
+                    robot.position.x = newX;
+                    robot.position.z = newZ;
+                }
+            }
+
+            robot.position.x = Math.max(-PLAY_BOUNDS + ROBOT_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - ROBOT_COLLISION_RADIUS, robot.position.x));
+            robot.position.z = Math.max(-PLAY_BOUNDS + ROBOT_COLLISION_RADIUS, Math.min(PLAY_BOUNDS - ROBOT_COLLISION_RADIUS, robot.position.z));
+            resolveTreeCollisions(robot.position, ROBOT_COLLISION_RADIUS);
+            resolveAnimalCollisions(robot.position, ROBOT_COLLISION_RADIUS);
+            resolveTreeCollisions(robot.position, ROBOT_COLLISION_RADIUS);
+            if (isInWater(robot.position.x, robot.position.z) !== -1) {
+                robot.position.x = ud.prevX;
+                robot.position.z = ud.prevZ;
+            }
+
+
+            // ── Walk animation (robot legs) ──
+            if (ud.leftLeg) {
+                // Drive gait from intent rather than tiny per-frame movement (prevents flicker near obstacles)
+                const wantsMove = ud.chasing || (ud.velocity && (Math.abs(ud.velocity.x) + Math.abs(ud.velocity.z) > 0.00005));
+                if (ud.gait === undefined) ud.gait = 0;
+
+                const targetGait = (ud.isGrounded && wantsMove) ? 1 : 0;
+                ud.gait += (targetGait - ud.gait) * (0.18 * dt60);
+
+                const cadence = 0.6 * (gameRobotSpeed / BASE_ROBOT_SPEED);
+                ud.walkPhase += ud.gait * cadence * dt60;
+
+                const swing = Math.sin(ud.walkPhase) * 0.75 * ud.gait;
+                const footSwing = Math.sin(ud.walkPhase + Math.PI / 10) * 0.32 * ud.gait;
+
+                const lerpAmt = Math.min(1, 0.45 * dt60);
+                ud.leftLeg.rotation.x += (swing * 0.95 - ud.leftLeg.rotation.x) * lerpAmt;
+                ud.rightLeg.rotation.x += (-swing * 0.95 - ud.rightLeg.rotation.x) * lerpAmt;
+                ud.leftFoot.rotation.x += (footSwing - ud.leftFoot.rotation.x) * lerpAmt;
+                ud.rightFoot.rotation.x += (-footSwing - ud.rightFoot.rotation.x) * lerpAmt;
+            }
+
+            // Contact damage
+            const heightDiff = Math.abs(robot.position.y - player.position.y);
+            if (!invincible && distToPlayer < 2.2 && heightDiff < 2.5) {
+                hitPlayer('robot');
+            }
+        });
+
+        resolveRobotRobotCollisions();
+
+        // ── Robot voice taunts ──
+        maybeRobotTaunt();
+
+        // ── Lasers ──
+        updateLasers();
+
+        updateStaticCulling();
+        renderer.render(scene, camera);
+        updateConfetti();
+    }
+
+    // ══════════════════════════════════════════
+    //  RESIZE
+    // ══════════════════════════════════════════
+    window.addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+        resizeConfettiCanvas();
+        if (!confettiActive) confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    });
+
+    updateHUD();
+    animate();
+    </script>
+</body>
+</html>

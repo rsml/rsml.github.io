@@ -1,0 +1,31 @@
+{
+  "name": "rossmiller-dev",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "editor": "node tools/editor/server.ts",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "test": "vitest run",
+    "optimize": "node tools/optimize-portfolio.mjs"
+  },
+  "dependencies": {
+    "astro": "^6.4.4",
+    "js-yaml": "^4.2.0",
+    "plyr": "^3.8.4",
+    "swiper": "^12.2.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.9.2",
+    "sharp": "^0.35.0",
+    "sortablejs": "^1.15.7",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8",
+    "yaml": "^2.9.0"
+  }
+}

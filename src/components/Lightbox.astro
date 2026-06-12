@@ -1,0 +1,1020 @@
+---
+/**
+ * Full-screen gallery lightbox for the home work rows.
+ *
+ * Two nested Swipers:
+ *   - vertical  (one slide per project) — touch-locked; move between projects
+ *     only with the "Previous/Next project" controls (or ↑/↓ keys). Each project
+ *     slide carries its OWN header (logo + title + role) and counter, so the
+ *     header/counter travel WITH the image during the vertical transition.
+ *   - horizontal (one slide per asset: image, gif, video, or web-view embed),
+ *     momentum swipe / ◀ ▶ / ← →.
+ *
+ * Fixed chrome (does not move): close ✕, ◀ ▶ image arrows, and the Next-project
+ * control. The Previous-project control matches it visually but is rendered PER
+ * SLIDE, centred between the header and the image: being in flow, it can never
+ * overlap the variable-height header, and .lb-dragging-y fades it during
+ * vertical moves so it animates exactly like the fixed pill. Everything else
+ * lives inside the slide.
+ */
+import { youtubeId, type Project } from '../data/work';
+import ActionLinks from './ActionLinks.astro';
+interface Props { projects: Project[]; }
+const { projects } = Astro.props;
+const galleries = projects.filter((p) => p.assets.length > 0);
+
+// The same link list as the home row (deepDive + platform links), with
+// internal/external derived from the href. The home row shows these inline as
+// "destination" links; in the lightbox the SAME list (same ActionLinks
+// component, `menu` variant) tucks behind a per-project "Links" dropdown,
+// rendered as an iOS-style list-picker.
+const linksFor = (p: Project) => [
+  ...(p.deepDive ? [{ label: 'Deep dive', href: `/work/${p.slug}/` }] : []),
+  ...p.links,
+].map((a) => ({ ...a, external: /^https?:/.test(a.href) }));
+---
+<div class="lb" id="lightbox" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="Project gallery">
+  <div class="lb-backdrop"></div>
+
+  <!-- fixed chrome -->
+  <button class="lb-btn lb-close" type="button" aria-label="Close gallery">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <button class="lb-pjump lb-down" type="button" aria-label="Next project">
+    <span>Next project</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg>
+  </button>
+  <button class="lb-btn lb-arrow lb-prev" type="button" aria-label="Previous image">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+  </button>
+  <button class="lb-btn lb-arrow lb-next" type="button" aria-label="Next image">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+  </button>
+
+  <div class="lb-vert swiper">
+    <div class="swiper-wrapper">
+      {galleries.map((p, i) => {
+        const actions = linksFor(p);
+        return (
+        <div class="swiper-slide lb-project" data-slug={p.slug} data-device={p.device}>
+          <div class="lb-stage">
+            <header class="lb-phead">
+              {p.thumbImage && (
+                <span class:list={['lb-plogo', p.thumbClass]}>
+                  <img src={p.thumbImage} alt="" />
+                </span>
+              )}
+              <div class="lb-phead-text">
+                <p class="lb-prole">{p.role}</p>
+                <p class="lb-ptitle">
+                  <span class="lb-pname">{p.cardTitle}</span>
+                  <span class="lb-psub">{p.subtitle}</span>
+                </p>
+                {actions.length > 0 && (
+                  <details class="lb-links">
+                    <summary class="lb-links-summary">
+                      <span>Links</span>
+                      <svg class="lb-links-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                    </summary>
+                    <div class="lb-links-panel">
+                      <ActionLinks actions={actions} label={`${p.cardTitle} links`} menu />
+                    </div>
+                  </details>
+                )}
+              </div>
+            </header>
+
+            {i > 0 && (
+              <button class="lb-pjump lb-up" type="button" aria-label="Previous project">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 15l7-7 7 7"/></svg>
+                <span>Previous project</span>
+              </button>
+            )}
+
+            <div class:list={['lb-horiz', 'swiper', `lb-horiz--${p.assets[0].orientation}`]}>
+              <div class="swiper-wrapper">
+                {p.assets.map((s) => (
+                  <div class:list={['swiper-slide', 'lb-shot', `lb-shot--${s.type}`]} data-orientation={s.orientation}>
+                    {s.type === 'video' ? (
+                      // Plyr enhances this <video> on first open (see script). `controls`
+                      // is kept as the no-JS fallback; Plyr removes it when it takes over.
+                      // Cold start: preload="none" plus a deferred poster (syncMedia moves
+                      // data-poster onto the element once its project is the open slide),
+                      // so a plain page visit fetches zero bytes for the hidden gallery.
+                      // The strip thumbnails already display these poster URLs, so the
+                      // deferred apply is normally an HTTP-cache hit.
+                      <video class="lb-media lb-video" src={s.src} data-poster={s.poster} controls playsinline preload="none"></video>
+                    ) : s.type === 'youtube' ? (
+                      // YouTube, played through the SAME Plyr player as local video (so it
+                      // gets the themed controls, not YouTube's chrome). Plyr builds the
+                      // iframe from these data-attrs on first open and fetches the poster.
+                      <div class="lb-media lb-youtube" data-plyr-provider="youtube" data-plyr-embed-id={youtubeId(s.src)}></div>
+                    ) : s.type === 'embed' || s.type === 'pdf' ? (
+                      // Web view OR PDF (the browser's native viewer): lazy. `data-src`
+                      // becomes `src` only while this project is the open slide (and is
+                      // cleared on leave/close) so embeds never load or play off-screen.
+                      <iframe class="lb-media lb-embed" data-src={s.src} title={s.alt}
+                        loading="lazy" allow="autoplay; fullscreen; clipboard-write; encrypted-media"
+                        allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+                    ) : (
+                      // image + gif (a GIF is just an <img> that animates).
+                      <img class="lb-media" src={s.src} alt={s.alt} loading="lazy" decoding="async" draggable="false" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <p class="lb-pcount"></p>
+          </div>
+        </div>
+        );
+      })}
+    </div>
+  </div>
+
+  <div class="lb-grain"></div>
+</div>
+
+<style is:global>
+  html.lb-open { overflow: hidden; }
+
+  /* No author `display` on .lb, so the [hidden] attribute can hide it. */
+  .lb {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 240ms ease;
+  }
+  .lb.is-open { opacity: 1; }
+
+  .lb-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    /* Near-opaque so the busy page behind doesn't show through as blurred,
+       banding rectangles. A light blur keeps a hint of depth. */
+    background: rgba(11, 11, 13, 0.95);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+  /* Fine grain dithers the dark gradients (backdrop + image shadow) so 8-bit
+     colour quantisation can't band. Above the slide, below the controls. */
+  .lb-grain {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .lb-vert.swiper { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
+  .lb-vert > .swiper-wrapper > .lb-project { width: 100%; height: 100%; }
+
+  /* Each project slide: header (top) · image (fills) · counter (below image). */
+  .lb-stage {
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 18px 22px 44px;   /* bottom clears the counter + "Next project" */
+  }
+
+  /* Header — top-left, icon column + text column, vertically centred. The icon is
+     sized (below) to match the text column's height so they read as equal-height
+     columns; with the text box trimmed to hug its ink (see .lb-links-summary),
+     centring now lands the icon on the ink's optical centre. Capped width so a
+     long role/title can't crowd the close ✕ or sprawl across the stage. */
+  .lb-phead {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: min(70%, 560px);
+  }
+  /* Square app-icon tile: the inner <img> fills it edge-to-edge and the tile's
+     overflow:hidden + border-radius clip every source icon to one silhouette.
+     Sized to match the text column's height (role + title + Links ≈ 52px) so the
+     icon and the text read as the same height. (A fixed px, not flex-stretch: the
+     1024px source <img> makes stretch+aspect-ratio blow the tile up to its
+     intrinsic size.) */
+  .lb-plogo {
+    flex: none;
+    width: 52px;
+    height: 52px;
+    border-radius: 22%;
+    overflow: hidden;
+    /* No fill plate behind the icon. The icons are mostly dark app-icon tiles,
+       so on the near-black backdrop they'd dissolve into it. A hairline rim
+       defines the edge and a soft ambient shadow lifts the tile; the .lb-grain
+       overlay dithers that shadow so it can't band. (A light outer glow was
+       rejected — on an app icon it reads as a selected/notification state.) */
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.08),
+      0 6px 18px rgba(0, 0, 0, 0.55);
+  }
+  .lb-plogo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* Tutor's source icon draws the book with extra macOS-style padding, so its
+     artwork reads smaller than the others (~63% vs ~80% for Chord). Zoom it to
+     match their visual weight — same compensation as Thumb.astro. */
+  .lb-plogo.thumb-tutor img { transform: scale(1.25); }
+  .lb-phead-text { min-width: 0; }
+  /* Title + subtitle share a baseline with a gap, the same pairing as the home
+     row (.row-id); when the two can't fit on one line the subtitle drops to its
+     own line (and wraps) rather than truncating. */
+  .lb-ptitle {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 8px;
+    row-gap: 1px;
+    font-size: 15px;
+    line-height: 1.3;
+    letter-spacing: -0.012em;
+  }
+  .lb-pname { font-weight: 600; color: #fff; }
+  .lb-psub { font-weight: 460; color: rgba(255, 255, 255, 0.55); }
+  /* Role as a quiet eyebrow ABOVE the title — same arrangement + tracking as the
+     home row (.row-role), so the lightbox header reads in the same order. It
+     LABELS the title, so it belongs to the title/subtitle cluster: line-height:1.1
+     strips the leading and a tight margin hugs it to the title, leaving a clearly
+     larger gap down to the separate "Links" affordance (proximity = grouping). */
+  .lb-prole {
+    margin: 0 0 2px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  /* The home row shows its links inline; here the SAME list tucks behind a
+     per-project "Links" dropdown (a native <details> — declarative + keyboard-
+     accessible, no extra JS) and renders as an iOS-style list-picker menu. The
+     header sits above the carousel so the open panel overlays the image instead
+     of being clipped by it. */
+  .lb-phead { position: relative; z-index: 3; }
+  /* position:relative makes the details itself the panel's containing block, so the
+     panel anchors just under the "Links" summary (not under the whole header). */
+  .lb-links { position: relative; margin: 2px 0 0; }
+  /* The trigger is a word, not a button: flush-left under the title/role column
+     (no horizontal padding, no hover box), carrying a quiet underline that fills
+     to full white on hover and clears once the menu is open — the chevron alone
+     then signals the open state. */
+  .lb-links-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 0;             /* symmetric + tight: keeps the text box hugging the ink (no bottom-heavy bias that pulls the icon low), no L/R padding or box */
+    list-style: none;           /* drop the default disclosure triangle */
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    opacity: 0.62;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 180ms ease;
+  }
+  .lb-links-summary::-webkit-details-marker { display: none; }
+  /* underline rides the word only (not the chevron), so it tracks "Links". */
+  .lb-links-summary span {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    text-decoration-color: rgba(255, 255, 255, 0.32);
+    transition: text-decoration-color 200ms ease;
+  }
+  .lb-links-summary:hover { opacity: 1; }
+  .lb-links-summary:hover span { text-decoration-color: #fff; }
+  .lb-links[open] .lb-links-summary { opacity: 1; }
+  .lb-links[open] .lb-links-summary span { text-decoration-color: transparent; }
+  .lb-links-summary:focus-visible { opacity: 1; outline: 2px solid #fff; outline-offset: 2px; }
+  .lb-links-chev {
+    width: 13px;
+    height: 13px;
+    opacity: 0.8;
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .lb-links[open] .lb-links-chev { transform: rotate(180deg); }
+
+  /* Floating menu: absolutely positioned so opening it overlays the image rather
+     than shoving the carousel down. Near-opaque dark plate + blur reads as a menu
+     on the busy gallery. It sizes to its widest cell (the ActionLinks `menu`
+     variant owns the cell padding + hairline dividers), so the panel is only as
+     wide as its content — no fixed width. overflow:hidden clips the cell hover/
+     press fills to the rounded corners. */
+  .lb-links-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 2;
+    width: max-content;
+    max-width: min(280px, 72vw);
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.92);
+    background: rgba(22, 22, 25, 0.92);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
+  }
+  /* Explicit hide when closed: the absolutely-positioned panel anchors to .lb-phead's
+     stacking context, which sits outside the native <details> hide subtree, so we
+     can't rely on the UA mechanism to collapse it — toggle it on [open] ourselves. */
+  .lb-links:not([open]) .lb-links-panel { display: none; }
+  .lb-links[open] .lb-links-panel { animation: lb-links-in 160ms cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes lb-links-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Image carousel fills the space between header/pill and counter. */
+  .lb-horiz.swiper { flex: 1; min-height: 0; width: 100%; margin-top: 6px; }
+  .lb-horiz .lb-shot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 6px 56px;   /* side padding clears the ◀ ▶ arrows */
+  }
+  .lb-media {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    background: #0c0c0e;
+    /* Tight, lower-contrast shadow, avoids the wide soft gradient that bands. */
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+  }
+  /* Round the enlarged image like the device it was captured on. Same tokens as
+     the home-row thumbnails (global.css); percentages scale to the fit size. */
+  .lb-project[data-device="iphone"] .lb-media { border-radius: var(--corner-iphone); }
+  .lb-project[data-device="desktop"] .lb-media { border-radius: var(--corner-desktop); }
+  .lb-project[data-device="ipad"] .lb-media { border-radius: var(--corner-ipad); }
+  /* Exception, mirrored from WorkRow.astro: a landscape asset in a phone project
+     is a desktop capture, so it gets the Mac-window radius (the iPhone token's
+     percentages only stay circular on a portrait box). */
+  .lb-project[data-device="iphone"] .lb-shot[data-orientation="landscape"] .lb-media { border-radius: var(--corner-desktop); }
+
+  /* ── Video (Plyr) ──────────────────────────────────────────────────────────
+     Plyr wraps the <video> in a .plyr container that takes an <img>'s place, so
+     it gets the same fit (cap to the stage), the same lift shadow, and the same
+     device rounding (below). Controls are themed to the lightbox: white glyphs,
+     an Apple-blue progress/volume fill (matches the page focus ring), near-black
+     field. */
+  .lb .plyr {
+    --plyr-color-main: var(--focus, #0a84ff);
+    --plyr-video-background: #0c0c0e;
+    --plyr-video-control-color: rgba(255, 255, 255, 0.86);
+    --plyr-video-control-color-hover: #fff;
+    --plyr-range-thumb-background: #fff;
+    --plyr-range-track-height: 4px;
+    --plyr-control-radius: 8px;
+    --plyr-font-family: inherit;
+    --plyr-font-size-base: 13px;
+    --plyr-font-size-small: 12px;
+    --plyr-control-spacing: 9px;
+  }
+  /* Fit the player to the stage exactly like .lb-media images: capped by BOTH
+     max-width and max-height so the whole clip is always visible (contain), never
+     cropped, with the box hugging the clip so the lift shadow + device rounding
+     sit on the video, not on a full-stage panel. */
+  .lb-shot .plyr {
+    max-width: 100%;
+    max-height: 100%;
+    background: #0c0c0e;
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+  }
+  /* Landscape clips can't simply be width-bound: on a wide desktop the stage is
+     often proportionally WIDER than the clip, so width:100% derives a height taller
+     than the stage and overflow:hidden crops the bottom (the "only the top shows"
+     bug). Instead the box takes the clip's OWN aspect ratio (--plyr-ar, set from the
+     video's intrinsic size in the script below), and auto width/height + the dual
+     max above let it shrink on whichever axis binds, the same contain the <img> gets.
+     min-width:0 overrides Plyr's 200px floor so a narrow fit still hugs. In
+     fullscreen the dedicated :fullscreen block below overrides this, restoring
+     Plyr's own fill-the-screen sizing. */
+  .lb-horiz--landscape .lb-shot .plyr--html5 {
+    aspect-ratio: var(--plyr-ar, 16 / 9);
+    width: auto;
+    height: auto;
+    min-width: 0;
+  }
+  /* contain guarantees no crop even before --plyr-ar is known (the 16/9 fallback
+     box), and letterboxes rather than stretches a clip when full-screen. */
+  .lb-shot .plyr--html5 video { object-fit: contain; }
+  .lb-horiz--portrait  .lb-shot .plyr { width: auto; height: 100%; }
+  .lb-horiz--portrait  .lb-shot .plyr video { width: auto; height: 100%; max-height: 100%; }
+
+  /* ── Fullscreen ─────────────────────────────────────────────────────────────
+     Plyr requests NATIVE fullscreen on its .plyr container (hence the browser's
+     "press esc to exit" chrome), so the UA's :fullscreen rules — Plyr ships
+     width/height:100% for them — should fill the screen, and object-fit:contain
+     (above) then centres the clip inside it: pillarbox for a portrait clip,
+     letterbox for landscape, centred on BOTH axes. The per-orientation sizing
+     above outranks Plyr's :fullscreen on specificity, though, so without this it
+     LEAKS into fullscreen — the player keeps the clip's own width (portrait's
+     width:auto) and the browser pins that narrow box to the LEFT. Re-assert
+     fill + contain past that specificity, for either orientation. (Plyr 3.8.4 has
+     no .plyr--fullscreen-active class, only the :fullscreen pseudo-class and the
+     .plyr--fullscreen-fallback class, so we key off the real pseudo-class.) The
+     unprefixed and -webkit- forms are SEPARATE rules on purpose: a browser that
+     doesn't recognise one selector discards the whole rule it sits in, so a
+     combined comma list would break both. */
+  .lb .lb-horiz .lb-shot .plyr:fullscreen { width: 100%; height: 100%; }
+  .lb .lb-horiz .lb-shot .plyr:-webkit-full-screen { width: 100%; height: 100%; }
+  .lb .lb-horiz .lb-shot .plyr:fullscreen video { width: 100%; height: 100%; object-fit: contain; }
+  .lb .lb-horiz .lb-shot .plyr:-webkit-full-screen video { width: 100%; height: 100%; object-fit: contain; }
+
+  /* YouTube (a Plyr embed) is always 16:9 and lays itself out from its width, so
+     cap the width to whatever keeps a 16:9 height within the stage (viewport minus
+     the header / Previous-project pill / counter / padding chrome) and never wider
+     than the stage itself. With that, Plyr's responsive wrapper fills the box
+     exactly, no clipping. */
+  .lb-shot .lb-youtube.plyr { width: min(100%, calc((100vh - 230px) * 16 / 9)); }
+
+  /* ── Embed / web view ──────────────────────────────────────────────────────
+     An <iframe> has no intrinsic size (unlike an image), so it must be told one:
+     fill the stage, capped to a phone-width column when portrait and a comfortable
+     max when landscape so a live demo doesn't sprawl on wide screens. */
+  .lb-media.lb-embed {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #0c0c0e;
+  }
+  .lb-horiz--portrait  .lb-media.lb-embed { max-width: 440px; }
+  .lb-horiz--landscape .lb-media.lb-embed { max-width: 1100px; }
+
+  /* Round the player + embed like the device, same tokens as the images above. */
+  .lb-project[data-device="iphone"]  .plyr,
+  .lb-project[data-device="iphone"]  .lb-embed { border-radius: var(--corner-iphone); overflow: hidden; }
+  .lb-project[data-device="desktop"] .plyr,
+  .lb-project[data-device="desktop"] .lb-embed { border-radius: var(--corner-desktop); overflow: hidden; }
+  .lb-project[data-device="ipad"]    .plyr,
+  .lb-project[data-device="ipad"]    .lb-embed { border-radius: var(--corner-ipad); overflow: hidden; }
+  /* Same landscape-in-a-phone-project exception as .lb-media above. */
+  .lb-project[data-device="iphone"] .lb-shot[data-orientation="landscape"] .plyr,
+  .lb-project[data-device="iphone"] .lb-shot[data-orientation="landscape"] .lb-embed { border-radius: var(--corner-desktop); }
+
+  .lb-pcount {
+    flex: none;
+    margin: 7px 0 0;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  /* Round controls: circular hit target; fill/emphasis set per control below. */
+  .lb-btn {
+    position: absolute;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    transition: background 160ms ease, opacity 160ms ease, visibility 200ms ease;
+  }
+  .lb-btn:focus-visible { opacity: 1; outline: 2px solid #fff; outline-offset: 3px; }
+  .lb-btn svg { width: 22px; height: 22px; }
+
+  /* Image arrows: clearly tappable by default — a solid translucent disc with a
+     hairline rim at high opacity. They're the primary in-gallery action, so
+     they read as buttons rather than ghosting in only on hover. */
+  .lb-arrow {
+    opacity: 0.92;
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    -webkit-backdrop-filter: blur(7px);
+    backdrop-filter: blur(7px);
+  }
+  .lb-arrow:hover { opacity: 1; background: rgba(255, 255, 255, 0.27); }
+
+  /* Close: de-emphasised window chrome. Just the ✕ glyph by default; the disc
+     materialises only on hover/focus so it's discoverable without competing.
+     Position: pinned to the top-right CORNER of the content frame, NOT centred on
+     the header. A close control is chrome, not content — centring it on the tall
+     header dragged it to mid-header and left it adrift (tied to the header's axis
+     yet split from it by a void). Here its glyph sits at the SAME top inset as the
+     content (the stage padding-top) and the same right inset as the logo's left
+     gutter, mirroring the logo's top-left position into the top-right corner.
+     top:7px = stage-top(18) − the 42px button's 11px glyph-pad. */
+  .lb-close {
+    top: 7px; right: 11px;
+    width: 42px; height: 42px;
+    opacity: 0.5;
+    z-index: 8;   /* above the slide content even while it's lifted mid-swipe (see .lb-dragging .lb-vert) */
+  }
+  .lb-close svg { width: 20px; height: 20px; }
+  /* Disc on hover only — the user asked for the circle to appear on hover, not
+     at rest. Keyboard focus is still signalled by the base .lb-btn outline ring
+     (and opacity:1), so the control stays accessible without the disc. */
+  .lb-close:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.18);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+
+  .lb-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+  .lb-next { right: 16px; top: 50%; transform: translateY(-50%); }
+
+  /* Project jump: the same quiet text pill twice. "Next project" is fixed chrome
+     at bottom centre. "Previous project" is IN-SLIDE: centred in the stage between
+     the header and the image, so it reads as the gallery's control (not part of
+     the top-left text cluster) and, being in flow, can never overlap the header no
+     matter how the role line wraps. It fades on vertical moves via the same
+     .lb-dragging-y rule as the fixed pill, so the two animate identically; the
+     first project simply renders none (nothing above it to jump to). */
+  .lb-pjump {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 160ms ease, visibility 200ms ease, background 160ms ease;
+  }
+  .lb-pjump:hover { opacity: 1; background: rgba(255, 255, 255, 0.1); }
+  .lb-pjump:focus-visible { opacity: 1; outline: 2px solid #fff; outline-offset: 3px; }
+  .lb-pjump svg { width: 15px; height: 15px; opacity: 0.85; }
+  .lb-down { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: 10px; }
+  .lb-up { flex: none; align-self: center; margin: 10px 0 0; }
+
+  /* Hidden control = at the first/last image, or the last project (the first
+     project's "Previous project" control is simply not rendered). */
+  .lb-btn.is-hidden,
+  .lb-pjump.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+  /* While a slide transition is in flight, the fixed directional nav fades out so
+     it isn't left pinned over the moving content, then fades back in as the slide
+     settles. The ◀ ▶ image arrows fade on any move; the project pills (fixed Next,
+     in-slide Previous) fade only on a vertical (between-projects) move
+     (.lb-dragging-y), whether swiped or driven by the project controls and ↑/↓
+     keys (see goProject), since a left/right page stays within one project and
+     keeps them relevant. The header and counter sit inside the slide and keep
+     travelling with it, so only this global chrome dims; close ✕ stays put as an
+     always-available escape.
+       Timing: the fade-OUT is fast and immediate (50ms, fired on the swiper's
+     sliderMove or the instant a project jump starts) so the chrome clears as soon
+     as the content moves. The fade-IN rides the slide's deceleration tail: the
+     classes come off 160ms (FADE_IN_MS in the script) before the transition lands,
+     on every path (goProject's timer for button/key jumps, dragRelease's timer for
+     released swipes), so the 160ms base opacity transition above finishes right as
+     the slide stops. The chrome is never pinned over fast-moving content and never
+     pops in abruptly. */
+  .lb-dragging .lb-arrow { opacity: 0; transition: opacity 50ms ease; }
+  .lb-dragging-y .lb-pjump { opacity: 0; transition: opacity 50ms ease; }
+
+  /* During the swipe, lift the slide content (image + header + counter) above the
+     fixed pills and arrows so it slides OVER them, not under. Drag-only: at rest the
+     pills/arrows sit above the slide so they stay clickable, and the chrome is faded
+     while dragging anyway. Close ✕ (z-index 8) stays above even this lifted content. */
+  .lb-dragging .lb-vert.swiper { z-index: 7; }
+
+  @media (max-width: 600px) {
+    .lb-stage { padding: 14px 12px 46px; }
+    .lb-down { bottom: 8px; }   /* taller pill on mobile needs more clearance */
+    .lb-phead { max-width: calc(100% - 56px); gap: 10px; }
+    .lb-ptitle { font-size: 14px; }   /* slightly smaller title; the 52px icon still matches the text column */
+    .lb-horiz .lb-shot { padding: 4px 8px; }   /* tight, but ◀ ▶ sit at the edges */
+    .lb-btn { width: 40px; height: 40px; }
+    .lb-btn svg { width: 19px; height: 19px; }
+    /* Re-centre on the shorter mobile header (centre ~43px) and mirror the 12px
+       mobile gutter: 40px button around a 19px glyph → right:2px lands the glyph
+       edge ~12px from the screen edge. */
+    .lb-close { top: 4px; right: 2px; }   /* top:4 = stage-top(14) − the 40px button's 10.5px glyph-pad → glyph at the content top inset */
+    .lb-prev { left: 4px; }
+    .lb-next { right: 4px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lb, .lb-btn, .lb-pjump, .lb-dragging .lb-arrow, .lb-dragging-y .lb-pjump, .lb-links-summary, .lb-links-summary span, .lb-links-chev { transition: none; }
+    .lb-links[open] .lb-links-chev { transform: rotate(180deg); }
+    .lb-links[open] .lb-links-panel { animation: none; }
+  }
+</style>
+
+<script>
+  import Swiper from 'swiper';
+  import 'swiper/css';
+  import Plyr from 'plyr';
+  import 'plyr/dist/plyr.css';
+
+  type Controller = {
+    el: HTMLElement;
+    open: (slug: string, index: number) => void;
+    close: () => void;
+    nav: (key: string) => void;
+  };
+
+  // Live Swipers + Plyr players for the current page's lightbox, tracked at module
+  // scope so we can destroy them before an Astro view-transition swaps the DOM.
+  let instances: Swiper[] = [];
+  // Each Plyr is stored with the .lb-shot it lives in (captured at creation), so
+  // syncMedia can pause off-screen players without poking at Plyr internals.
+  let players: { plyr: Plyr; shot: HTMLElement | null }[] = [];
+  let current: Controller | null = null;
+
+  function destroyInstances() {
+    for (const s of instances) { try { s.destroy(true, true); } catch {} }
+    for (const { plyr } of players) { try { plyr.destroy(); } catch {} }
+    instances = [];
+    players = [];
+  }
+
+  function setupLightbox() {
+    const lb = document.getElementById('lightbox') as HTMLElement | null;
+    if (!lb) { current = null; return; }
+    if (lb.dataset.ready === '1' && current && current.el === lb) return;
+    lb.dataset.ready = '1';
+
+    const vertEl = lb.querySelector('.lb-vert') as HTMLElement;
+    const prevBtn = lb.querySelector('.lb-prev') as HTMLElement;
+    const nextBtn = lb.querySelector('.lb-next') as HTMLElement;
+    const downBtn = lb.querySelector('.lb-down') as HTMLElement;
+    const closeBtn = lb.querySelector('.lb-close') as HTMLElement;
+
+    let vert: Swiper | null = null;
+    let horiz: Swiper[] = [];
+    let built = false;
+    let lastFocus: HTMLElement | null = null;
+    // The shot we last autoplayed. syncMedia restarts a clip only when this changes,
+    // so a project-change's double syncMedia (or any re-sync that doesn't move the
+    // slide) can't restart a clip mid-play. Reset on close so a reopen replays.
+    let lastActiveShot: HTMLElement | null = null;
+
+    const projects = () => Array.from(vertEl.querySelectorAll('.lb-project')) as HTMLElement[];
+    const activeHoriz = () => horiz[vert ? vert.activeIndex : 0];
+    const show = (el: HTMLElement, on: boolean) => el.classList.toggle('is-hidden', !on);
+
+    // Per-project counter lives inside the slide, so it travels with the image.
+    function updateCount(h: Swiper) {
+      const slide = (h.el as HTMLElement).closest('.lb-project');
+      const c = slide?.querySelector('.lb-pcount');
+      if (c) c.textContent = `${h.activeIndex + 1} / ${h.slides.length}`;
+    }
+
+    function syncUI() {
+      if (!built || !vert) return;
+      const h = activeHoriz();
+      if (!h) return;
+      show(prevBtn, !h.isBeginning);
+      show(nextBtn, !h.isEnd);
+      show(downBtn, !vert.isEnd);
+    }
+
+    // Media follows the active slide: the active project's embeds load (data-src →
+    // src) while every other embed is blanked, and any video that isn't the active
+    // shot of the active project is paused, so nothing loads or plays off-screen.
+    function syncMedia() {
+      if (!vert) return;
+      const ap = vert.activeIndex;
+      projects().forEach((slide, pi) => {
+        const projActive = pi === ap;
+        slide.querySelectorAll('iframe.lb-embed').forEach((node) => {
+          const f = node as HTMLIFrameElement;
+          const ds = f.dataset.src || '';
+          if (projActive && ds) {
+            if (f.getAttribute('src') !== ds) f.setAttribute('src', ds);
+          } else if (f.getAttribute('src')) {
+            f.removeAttribute('src');   // blank off-screen embeds: stops their audio/video
+          }
+        });
+      });
+      // The visible slide drives playback: pause any Plyr player (local <video> OR
+      // youtube embed) that isn't the active shot of the active project. A youtube
+      // player has no <video> element, so we pause through the Plyr instance, which
+      // covers both kinds uniformly.
+      const ah = activeHoriz();
+      const activeShot = ah ? (ah.slides[ah.activeIndex] as HTMLElement) : null;
+      for (const { plyr, shot } of players) {
+        if (plyr.playing && shot !== activeShot) {
+          try { plyr.pause(); } catch {}
+        }
+      }
+      // ...and autoplay the one that IS, from the start, with sound. Guarded by
+      // lastActiveShot so this fires once each time a shot becomes active (not on a
+      // project-change's double syncMedia, nor any re-sync that leaves the slide put,
+      // which would restart a clip mid-play). syncMedia only runs for the OPEN
+      // lightbox's active slide, so "visible AND in the lightbox" is implicit. The
+      // click / swipe / arrow that got here is a user gesture, so the unmuted play()
+      // sits inside a user-activation window; a browser that still refuses it just
+      // leaves the poster + play-large button (the catch swallows the rejection).
+      if (activeShot !== lastActiveShot) {
+        lastActiveShot = activeShot;
+        const entry = players.find((p) => p.shot === activeShot);
+        if (entry) {
+          try { entry.plyr.currentTime = 0; Promise.resolve(entry.plyr.play()).catch(() => {}); } catch {}
+        }
+      }
+
+      // Deferred video loading, the counterpart of the cold-start markup above:
+      // when a project becomes the open slide, apply its videos' posters (to the
+      // <video> AND through Plyr so its UI shows them), and upgrade only the shot
+      // being looked at from preload="none" to "metadata" so pressing play starts
+      // fast. Everything off-screen stays cold; nothing video-related is fetched
+      // until the gallery actually shows it.
+      const activeSlide = projects()[ap];
+      for (const { plyr, shot } of players) {
+        if (!shot || !activeSlide || !activeSlide.contains(shot)) continue;
+        const video = shot.querySelector('video') as HTMLVideoElement | null;   // null for youtube
+        if (!video) continue;
+        const poster = video.dataset.poster;
+        if (poster && !video.getAttribute('poster')) {
+          video.setAttribute('poster', poster);
+          try { plyr.poster = poster; } catch {}
+        }
+        if (shot === activeShot && video.preload === 'none') video.preload = 'metadata';
+      }
+    }
+
+    // Hard stop for close(): pause every player (video + youtube) and blank every embed.
+    function stopAllMedia() {
+      for (const { plyr } of players) { try { plyr.pause(); } catch {} }
+      projects().forEach((slide) => {
+        slide.querySelectorAll('iframe.lb-embed').forEach((f) => { if (f.getAttribute('src')) f.removeAttribute('src'); });
+      });
+    }
+
+    // While a swipe is in flight, dim the fixed directional nav so it isn't left
+    // pinned over the moving content; it fades back in once the slide settles. The
+    // image arrows dim on any swipe; the project pills dim only on a vertical
+    // (between-projects) swipe, since a horizontal page stays within one project and
+    // keeps the pills relevant. The header and counter live inside the slide, so they
+    // keep travelling with it; only this global chrome dims. We remember the swiper
+    // that's actually dragging so the OTHER (perpendicular, nested) swiper's touch-end,
+    // which also fires on the shared pointer release, can't clear the dim mid-settle.
+    // sliderMove (not touchStart) gates on a real drag, so taps never dim.
+    // Button/keyboard project jumps reuse the same classes (goProject); fadeTimer
+    // is the single pending fade-in for either path, so every new gesture (drag or
+    // jump) cancels the previous one before taking over.
+    // FADE_IN_MS is how long the chrome takes to fade back in (must match the
+    // 160ms base .lb-pjump/.lb-btn opacity transitions in the CSS above). The
+    // fade-in is scheduled to START this long before a slide transition lands, so
+    // it completes right at settle instead of popping in after it.
+    const FADE_IN_MS = 160;
+    let dragSwiper: Swiper | null = null;
+    let fadeTimer: ReturnType<typeof setTimeout> | undefined;
+    const dragStart = (sw: Swiper) => {
+      dragSwiper = sw;
+      clearTimeout(fadeTimer);
+      lb!.classList.add('lb-dragging');                                            // arrows: any axis
+      if (sw.params.direction === 'vertical') lb!.classList.add('lb-dragging-y');  // pills: up/down only
+    };
+    const dragSettle = (sw: Swiper) => {
+      if (sw !== dragSwiper) return;
+      dragSwiper = null;
+      clearTimeout(fadeTimer);
+      lb!.classList.remove('lb-dragging', 'lb-dragging-y');
+    };
+    // On release, Swiper emits touchEnd BEFORE it computes the post-release snap,
+    // so sw.animating is still false at this instant even when a snap is about to
+    // run (and an immediate settle would fade the chrome back in OVER the still-
+    // moving content). Check one tick later, once it's truthful: no snap means
+    // settle now; a running snap animates at params.speed, so schedule the fade-in
+    // to complete as it lands. transitionEnd keeps dragSettle armed as the backstop
+    // in case the timer misjudges the snap's duration.
+    const dragRelease = (sw: Swiper) => {
+      if (sw !== dragSwiper) return;
+      setTimeout(() => {
+        if (sw !== dragSwiper) return;
+        if (!sw.animating) { dragSettle(sw); return; }
+        clearTimeout(fadeTimer);
+        fadeTimer = setTimeout(() => dragSettle(sw), Math.max(0, (sw.params.speed ?? 0) - FADE_IN_MS));
+      }, 0);
+    };
+
+    // Init Swipers lazily on first open — the overlay has real layout by then,
+    // so Swiper measures correct sizes (a hidden container measures 0).
+    function build() {
+      if (built) return;
+      horiz = projects().map((slide) => new Swiper(slide.querySelector('.lb-horiz') as HTMLElement, {
+        slidesPerView: 1,
+        speed: 340,
+        threshold: 4,
+        touchAngle: 45,          // only near-horizontal drags page assets (axis-lock — see vert)
+        resistanceRatio: 0.72,
+        // A touch starting on the Plyr controls (scrubber, buttons) or inside a live
+        // web-view embed must NOT swipe the carousel; let those elements own the
+        // gesture; the ◀ ▶ arrows / ← → keys still page between assets.
+        noSwipingSelector: '.plyr__controls, .lb-embed',
+        on: {
+          init(sw) { updateCount(sw); },
+          slideChange(sw) { updateCount(sw); syncUI(); syncMedia(); },
+          sliderMove: dragStart,
+          touchEnd: dragRelease,
+          transitionEnd: dragSettle,
+        },
+      }));
+      vert = new Swiper(vertEl, {
+        direction: 'vertical',
+        slidesPerView: 1,
+        // Swipe up/down moves between projects, mirroring the horizontal
+        // screenshot swipe (the ↑/↓ keys and Previous/Next-project controls still
+        // drive it too). touchAngle (45°) axis-locks the gesture: this swiper only
+        // engages when a drag is closer to vertical than horizontal, and the inner
+        // horizontal swiper only engages on the opposite half — so a diagonal drag
+        // moves exactly one axis, never both. You swipe up, down, left, or right,
+        // never diagonally. preventClicks now stays at its default (true): with
+        // touch enabled, Swiper only blocks the trailing click AFTER a real drag,
+        // so a swipe can't fall through to close the gallery while taps (the header
+        // "Links" dropdown) still pass through untouched.
+        touchAngle: 45,
+        threshold: 4,
+        speed: 480,
+        on: {
+          slideChange(sw) {
+            syncUI();
+            // Incoming project starts on its first shot (both swipe + button paths).
+            const h = horiz[sw.activeIndex];
+            if (h) h.slideTo(0, 0);
+            // Load the new project's embeds; stop the old project's video/embed.
+            syncMedia();
+          },
+          sliderMove: dragStart,
+          touchEnd: dragRelease,
+          transitionEnd: dragSettle,
+        },
+      });
+
+      // Enhance every local <video> AND every YouTube embed with Plyr, so both wear
+      // the same custom controls on mobile + web. `keyboard` is OFF so the lightbox
+      // keeps sole ownership of ← → ↑ ↓ / Esc (no seek-vs-navigate conflict). Players
+      // are destroyed in destroyInstances() before any view-transition swaps the DOM.
+      players = (Array.from(vertEl.querySelectorAll('.lb-video, .lb-youtube')) as HTMLElement[]).map((el) => ({
+        shot: el.closest('.lb-shot') as HTMLElement | null,   // captured before Plyr wraps el
+        plyr: new Plyr(el, {
+          // No mute/volume controls: playback is pinned to full volume (below), so a
+          // sound UI would only offer a way to break that. play-large stays as the
+          // fallback affordance if a browser refuses the unmuted autoplay.
+          controls: ['play-large', 'play', 'progress', 'current-time', 'fullscreen'],
+          // Sound always on, always max. storage is disabled (below), so this is the
+          // state on every open; a prior session can't leave it muted or quiet.
+          volume: 1,
+          muted: false,
+          clickToPlay: true,
+          keyboard: { focused: false, global: false },
+          tooltips: { controls: false, seek: true },
+          storage: { enabled: false },
+          ratio: undefined,
+          // Applies to youtube players only: privacy domain, no related videos from
+          // other channels, hidden annotations + minimal branding.
+          youtube: { noCookie: true, rel: 0, modestbranding: 1, iv_load_policy: 3 },
+        }),
+      }));
+
+      // Size each local video's player box to the clip's own aspect ratio: set
+      // --plyr-ar (read by the landscape CSS above) from the video's intrinsic
+      // dimensions so a clip proportionally taller than the stage shrinks to fit
+      // instead of being cropped. Seed it from the poster (already cached by the
+      // strip thumbnail) so the box is right before the slide animates in, then
+      // confirm from the video's true size once metadata loads. YouTube players
+      // have no <video> and stay 16:9, so they're skipped.
+      for (const { shot } of players) {
+        const video = shot?.querySelector('video') as HTMLVideoElement | null;
+        if (!shot || !video) continue;
+        const setAR = (w: number, h: number) => { if (w > 0 && h > 0) shot.style.setProperty('--plyr-ar', `${w} / ${h}`); };
+        const poster = video.dataset.poster;
+        if (poster) { const img = new Image(); img.onload = () => setAR(img.naturalWidth, img.naturalHeight); img.src = poster; }
+        video.addEventListener('loadedmetadata', () => setAR(video.videoWidth, video.videoHeight));
+      }
+
+      instances = [vert, ...horiz];
+      built = true;
+    }
+
+    // Previous/Next-project controls + ↑/↓ keys. The slide animates exactly like a
+    // vertical swipe, so it gets the same chrome fade, driven by a timer instead of
+    // touch events: the dim classes go on the instant the jump starts (50ms
+    // fade-out) and come off FADE_IN_MS before the slide settles, so the fade-in
+    // completes right as the animation does.
+    function goProject(dir: number) {
+      if (!vert) return;
+      const t = vert.activeIndex + dir;
+      if (t < 0 || t > horiz.length - 1) return;
+      clearTimeout(fadeTimer);
+      lb!.classList.add('lb-dragging', 'lb-dragging-y');
+      fadeTimer = setTimeout(() => {
+        // A drag begun mid-jump owns the classes now; dragSettle clears them instead.
+        if (!dragSwiper) lb!.classList.remove('lb-dragging', 'lb-dragging-y');
+      }, Math.max(0, (vert.params.speed ?? 0) - FADE_IN_MS));
+      // vert's slideChange resets the incoming project to its first shot.
+      if (dir > 0) vert.slideNext(); else vert.slidePrev();
+    }
+
+    function open(slug: string, index: number) {
+      lastFocus = document.activeElement as HTMLElement;
+      lb!.hidden = false;
+      lb!.setAttribute('aria-hidden', 'false');
+      document.documentElement.classList.add('lb-open');
+      build();
+      let p = projects().findIndex((s) => s.dataset.slug === slug);
+      if (p < 0) p = 0;
+      vert!.slideTo(p, 0);
+      horiz[p].slideTo(index || 0, 0);
+      syncUI();
+      syncMedia();
+      requestAnimationFrame(() => lb!.classList.add('is-open'));
+      closeBtn.focus({ preventScroll: true });
+    }
+
+    function close() {
+      stopAllMedia();
+      lastActiveShot = null;   // a reopen replays the shown clip from the top
+      lb!.classList.remove('is-open');
+      document.documentElement.classList.remove('lb-open');
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        lb!.removeEventListener('transitionend', onEnd);
+        lb!.hidden = true;
+        lb!.setAttribute('aria-hidden', 'true');
+      };
+      const onEnd = (e: TransitionEvent) => { if (e.target === lb) finish(); };
+      lb!.addEventListener('transitionend', onEnd);
+      setTimeout(finish, 320);
+      if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
+    }
+
+    function nav(key: string) {
+      const h = activeHoriz();
+      if (key === 'Escape') close();
+      else if (key === 'ArrowLeft') h && h.slidePrev();
+      else if (key === 'ArrowRight') h && h.slideNext();
+      else if (key === 'ArrowUp') goProject(-1);
+      else if (key === 'ArrowDown') goProject(1);
+    }
+
+    closeBtn.addEventListener('click', close);
+    prevBtn.addEventListener('click', () => { const h = activeHoriz(); h && h.slidePrev(); });
+    nextBtn.addEventListener('click', () => { const h = activeHoriz(); h && h.slideNext(); });
+    // One Previous-project control per slide (all but the first project), centred
+    // above that slide's image; they all drive the same jump.
+    lb.querySelectorAll('.lb-up').forEach((b) => b.addEventListener('click', () => goProject(-1)));
+    downBtn.addEventListener('click', () => goProject(1));
+
+    // Click on empty space closes; media (incl. the Plyr player chrome), header,
+    // counter, and controls don't.
+    lb.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('.lb-media, .plyr, .lb-phead, .lb-pcount, button')) return;
+      close();
+    });
+
+    current = { el: lb, open, close, nav };
+  }
+
+  // ── Document-level wiring (bound once; persists across view transitions) ──
+  let docBound = false;
+  function bindDoc() {
+    if (docBound) return;
+    docBound = true;
+
+    document.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('.shot') as HTMLElement | null;
+      if (!btn || !current) return;
+      e.preventDefault();
+      current.open(btn.dataset.project || '', parseInt(btn.dataset.index || '0', 10));
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (!current || current.el.hidden) return;
+      // While a video is fullscreen, the browser/Plyr owns the keyboard (Esc exits
+      // fullscreen, not the gallery; arrows seek). Stand down until it exits.
+      if (document.fullscreenElement) return;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Escape'].includes(e.key)) {
+        e.preventDefault();
+        current.nav(e.key);
+      }
+    });
+  }
+
+  document.addEventListener('astro:before-swap', destroyInstances);
+  document.addEventListener('astro:page-load', () => { bindDoc(); setupLightbox(); });
+  bindDoc();
+  setupLightbox();
+</script>

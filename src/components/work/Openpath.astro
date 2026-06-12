@@ -1,0 +1,65 @@
+---
+import Lede from '../content/Lede.astro';
+import Section from '../content/Section.astro';
+import PhoneFrame from '../content/PhoneFrame.astro';
+import Screen from '../content/Screen.astro';
+import Caption from '../content/Caption.astro';
+import StackTrailer from '../content/StackTrailer.astro';
+---
+
+<Lede>Openpath Security was a premier cloud-based access control company. Mobile credentials, Bluetooth unlock at the door, cards and fobs and PIN codes for the rest. Motorola Solutions acquired it in 2021 for nearly $300 million and rebranded the app as Avigilon Alta Open.</Lede>
+<Lede>I was the second employee. For five years I was the sole React Native engineer. I built the mobile app, the provisioning app, the admin dashboard, and the shared component library the rest of the product suite ran on.</Lede>
+
+<Section title="Day one">
+  <p>August 2017. Employee number two, an empty Xcode project, and a hardware team down the hall soldering prototype readers. The founders wanted iOS and Android on day one with one engineer, not two, so I built it in React Native.</p>
+  <p>Bluetooth Low Energy, background unlock, and secure enclave credentials all needed native bridges. In exchange, one codebase shipped to two stores at feature parity and saved roughly two years of headcount at the moment a startup can least afford it.</p>
+</Section>
+
+<Section title="Unlock">
+  <p>Triple Unlock is the patented redundancy that opens the door when the network does not cooperate. Bluetooth runs the local path, WiFi runs the cloud path, mobile data is the fallback. The app races all three and takes whichever wins, targeting 99.9 percent reliability in under a second from a cold pocket.</p>
+  <p>The moment a user approaches a door is the entire product.</p>
+  <PhoneFrame>
+    <Screen theme="op-unlock" label="unlock.mp4" />
+  </PhoneFrame>
+  <Caption>Wave-to-unlock at the reader. Bluetooth wins the race most of the time.</Caption>
+</Section>
+
+<Section title="Two apps">
+  <p>Alta Open is the end-user app. Tenant walks up, phone unlocks the door, app goes back in the pocket. Alta Access is the installer app, used by field techs to pair readers, configure schedules, and run diagnostics on a ladder for two hours at a time.</p>
+  <p>Same React Native foundation, different audience, different shape. One optimizes for the second at the door, the other for the morning of the install.</p>
+  <PhoneFrame>
+    <Screen theme="op-provision" label="provisioning.mp4" />
+  </PhoneFrame>
+  <Caption>Provisioning a reader in the field. Bluetooth pairing, firmware check, network config.</Caption>
+</Section>
+
+<Section title="The design system">
+  <p>The admin dashboard came next: a React web app for property managers and security admins to provision users, manage schedules, and audit access. I designed it, built it, then factored the pieces into a shared component library and style guide the rest of the product suite picked up.</p>
+  <p>It was the first time I owned a design system end to end. Every later feature got cheaper because the primitives were already right.</p>
+  <PhoneFrame>
+    <Screen theme="op-dashboard" label="dashboard.mp4" />
+  </PhoneFrame>
+  <Caption>Admin dashboard. Users, schedules, audit logs, video review.</Caption>
+</Section>
+
+<Section title="Video intercom">
+  <p>A visitor presses the call button at the door. The tenant's phone rings, they answer, see live video, talk, and unlock from the call screen.</p>
+  <p>WebRTC carries the live call. HLS handles clip playback when the tenant misses it. CallKit makes the ring feel like a real phone call on iOS. The state machine across ringing, connecting, talking, unlocking, ending, and reviewing was the most state I had ever held in one screen.</p>
+  <PhoneFrame>
+    <Screen theme="op-intercom" label="intercom.mp4" />
+  </PhoneFrame>
+  <Caption>Visitor at the door. Live video, two-way audio, unlock from the call screen.</Caption>
+</Section>
+
+<Section title="Acquired">
+  <p>Motorola Solutions acquired Openpath in 2021 and slotted us in next to Avigilon, an existing subsidiary. The app got renamed to Avigilon Alta Open with a new icon and palette over the same code that still had to unlock the door in under a second.</p>
+</Section>
+
+<Section title="Reflections">
+  <p>Five years as the sole mobile engineer at a company going from zero to hundreds of thousands of deployed readers is a particular kind of pressure. Every outage was eventually my pager, every release cycle mine to navigate, every new feature a negotiation against the unlock path.</p>
+  <p>The work was mostly unglamorous. Battery drain from the Bluetooth scan loop, cold start TTI, rare Sentry crashes, scroll jank in the audit log. In 2022 I moved into management and learned that one good code review across three engineers beats anything I could ship by hand.</p>
+  <p>The one thing I would change: end-to-end mobile test infrastructure, built two years earlier. Retrofitting coverage over four years of features cost much more than building it as I went.</p>
+  <p>The product is now <a href="https://www.avigilon.com/access-control">Avigilon Alta Access Control</a>.</p>
+</Section>
+
+<StackTrailer items={["React Native", "WebRTC", "HLS", "iOS", "Android", "Bluetooth Low Energy"]} />

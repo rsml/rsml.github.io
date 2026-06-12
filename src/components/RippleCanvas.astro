@@ -1,0 +1,37 @@
+---
+/**
+ * Persisted full-viewport WebGL overlay for the Chord Colors ripple (Phase 3).
+ *
+ * `transition:persist` keeps this canvas — and the WebGL context booted on it by
+ * `ripple.ts` — alive across every ClientRouter swap, so the ripple can start on
+ * the home page and keep painting while the destination page is swapped in
+ * underneath it. Mounted once, as the last child of <body> in PortfolioLayout.
+ *
+ * Styles ported from the prototype's `.transition-canvas` (z-index raised above
+ * site content; pointer-events none; transparent until a ripple makes it visible).
+ */
+---
+<canvas class="ripple-canvas" data-ripple-canvas transition:persist></canvas>
+<style is:global>
+  .ripple-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+  .ripple-canvas.visible {
+    opacity: 1;
+    transition: opacity 0ms;
+  }
+</style>
+<script>
+  // Boot WebGL on the persisted canvas and wire Chord Colors clicks. ripple-nav
+  // imports ripple.ts transitively; importing both makes the dependency explicit
+  // and is harmless (ES modules dedupe).
+  import '../scripts/ripple.ts';
+  import '../scripts/ripple-nav.ts';
+</script>

@@ -1,0 +1,962 @@
+---
+import BaseHead from '../../components/BaseHead.astro';
+---
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <BaseHead
+      title="Tutor | AI Books"
+      description="AI-generated books that adapt chapter by chapter to your feedback, quiz results, and learning style. Open source desktop app for macOS."
+    />
+    <meta name="color-scheme" content="dark" />
+
+    <meta property="og:title" content="Tutor — Books That Learn How You Learn" />
+    <meta property="og:description" content="AI-generated adaptive learning books. Open source." />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <script is:inline src="https://cdn.tailwindcss.com"></script>
+    <script is:inline>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              bg: "#07080e",
+              surface: "#0d0f18",
+              ink: "#d8d5d0",
+              muted: "rgba(255, 255, 255, 0.42)",
+              faint: "rgba(255, 255, 255, 0.22)",
+              hair: "rgba(255, 255, 255, 0.06)",
+              "hair-hover": "rgba(255, 255, 255, 0.12)",
+              accent: "#7c6aef",
+              "accent-light": "#a78bfa",
+            },
+            fontFamily: {
+              sans: ['"Instrument Sans"', "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
+              mono: ['"IBM Plex Mono"', "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+            },
+            maxWidth: {
+              container: "1100px",
+            },
+          },
+        },
+      };
+    </script>
+
+    <style is:global>
+      html {
+        background: #07080e;
+        overflow-x: clip;
+      }
+      body {
+        overflow-x: clip;
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+
+      /* Background dot grid */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 32px 32px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Noise grain */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        opacity: 0.3;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Hero radial glow */
+      .hero-glow {
+        overflow: hidden;
+      }
+      .hero-glow::before {
+        content: "";
+        position: absolute;
+        top: -40%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 140%;
+        height: 140%;
+        background: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 30%, transparent 65%);
+        pointer-events: none;
+      }
+
+      /* Screenshot glow */
+      .screenshot-glow {
+        overflow: hidden;
+      }
+      .screenshot-glow::before {
+        content: "";
+        position: absolute;
+        inset: -20%;
+        background: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.06) 35%, transparent 60%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Screenshot bottom fade */
+      .screenshot-fade::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 30%;
+        background: linear-gradient(to bottom, transparent, #07080e);
+        pointer-events: none;
+      }
+
+      /* Entrance animations */
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .animate { animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+      .animate-d1 { animation-delay: 0.08s; }
+      .animate-d2 { animation-delay: 0.16s; }
+      .animate-d3 { animation-delay: 0.24s; }
+      .animate-d4 { animation-delay: 0.32s; }
+
+      /* Scroll-triggered (JS required) */
+      html.js .reveal {
+        opacity: 0;
+        transform: translateY(24px);
+        transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      html.js .reveal.in-view {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Lightbox */
+      .lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(7, 8, 14, 0.95);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s;
+        overflow: hidden;
+        touch-action: none;
+      }
+      .lightbox.open {
+        opacity: 1;
+        visibility: visible;
+      }
+      .lightbox-track {
+        display: flex;
+        align-items: center;
+        position: absolute;
+        top: 50%;
+        left: 0;
+        pointer-events: none;
+      }
+      .lightbox-slide {
+        flex: 0 0 90vw;
+        max-height: 85vh;
+        object-fit: contain;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        pointer-events: auto;
+      }
+      .lightbox-btn {
+        position: absolute;
+        z-index: 2;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lightbox-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #a78bfa;
+      }
+      .lightbox-close {
+        top: 16px;
+        right: 16px;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        font-size: 20px;
+        line-height: 1;
+      }
+      .lightbox-prev,
+      .lightbox-next {
+        top: 50%;
+        transform: translateY(-50%);
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        font-size: 18px;
+      }
+      .lightbox-prev { left: 16px; }
+      .lightbox-next { right: 16px; }
+      .lightbox-dots {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        z-index: 1;
+      }
+      .lightbox-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.25);
+        transition: background 0.2s;
+      }
+
+      /* Screenshot clickability */
+      img[data-lightbox] { cursor: pointer; }
+
+      /* Nav safe-area */
+      nav > div {
+        padding-left: max(1.25rem, env(safe-area-inset-left));
+        padding-right: max(1.25rem, env(safe-area-inset-right));
+      }
+
+      /* Footer safe-area + browser chrome padding */
+      footer > div {
+        padding-left: max(1.25rem, env(safe-area-inset-left));
+        padding-right: max(1.25rem, env(safe-area-inset-right));
+      }
+      footer {
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+      }
+
+      /* Mobile lightbox */
+      @media (max-width: 768px) {
+        .lightbox-slide {
+          flex: 0 0 100vw;
+          width: 100vw;
+          max-height: 100vh;
+          object-fit: contain;
+          border-radius: 0;
+          border: none;
+        }
+        .lightbox-prev,
+        .lightbox-next {
+          display: none;
+        }
+      }
+
+      @media (min-width: 769px) {
+        #lb-prev, #lb-next { display: none; }
+        .lightbox-track {
+          width: 100%;
+          justify-content: center;
+        }
+        .lightbox-slide {
+          flex: none;
+          width: auto;
+          max-width: 80vw;
+          max-height: 85vh;
+        }
+      }
+
+      /* Gradient text */
+      .gradient-text {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #c084fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+    </style>
+  </head>
+  <body class="bg-bg text-ink antialiased">
+    <!-- NAV -->
+    <nav class="sticky top-0 z-50 bg-bg/80 backdrop-blur-xl border-b border-hair">
+      <div class="max-w-container mx-auto px-5 sm:px-8 py-4 flex justify-between items-center relative z-10">
+        <a href="/tutor/" class="font-semibold tracking-tight text-[17px] no-underline text-ink">
+          Tutor
+        </a>
+        <div class="flex items-center gap-7">
+          <a href="#how-it-works" class="hidden sm:inline text-muted text-[13.5px] font-medium no-underline hover:text-ink transition-colors">How it works</a>
+          <a href="#features" class="hidden sm:inline text-muted text-[13.5px] font-medium no-underline hover:text-ink transition-colors">Features</a>
+          <a
+            href="https://github.com/rsml/tutor"
+            class="font-mono text-accent-light text-[12.5px] tracking-wide px-3.5 py-1.5 rounded-lg bg-accent/[0.12] border border-accent/20 no-underline hover:bg-accent/[0.2] hover:border-accent/30 transition"
+          ><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="inline-block" style="vertical-align: -0.275em"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>&ensp;GitHub</a>
+        </div>
+      </div>
+    </nav>
+
+    <main>
+      <!-- HERO -->
+      <section class="hero-glow relative pt-[clamp(64px,10vw,112px)] text-center">
+        <div class="max-w-container mx-auto px-5 sm:px-8 relative z-10">
+          <!-- Badge -->
+          <a href="https://github.com/rsml/tutor" class="animate inline-flex items-center gap-1.5 bg-accent/[0.08] border border-accent/[0.15] rounded-full px-4 py-1.5 font-mono text-xs text-accent-light tracking-wide no-underline hover:bg-accent/[0.14] transition-colors">
+            Free &amp; Open Source&ensp;·&ensp;GPLv3
+          </a>
+
+          <!-- Headline -->
+          <h1 class="animate animate-d1 mt-6 text-[clamp(2.6rem,6vw,4.2rem)] font-bold tracking-[-0.04em] leading-[1.02]">
+            Read Smarter
+          </h1>
+          <p class="animate animate-d1 mt-3 text-[clamp(1.4rem,3.2vw,2.2rem)] font-semibold tracking-[-0.03em] leading-tight gradient-text">
+            Personal tutors disguised as books
+          </p>
+
+          <!-- Subtitle -->
+          <p class="animate animate-d2 mt-5 text-muted text-[clamp(1rem,1.8vw,1.12rem)] max-w-[520px] mx-auto leading-relaxed">
+            Books suggested and generated just for you based on your
+            feedback, quiz results, and unique learning style
+          </p>
+
+          <!-- CTAs -->
+          <div class="animate animate-d3 mt-8 flex gap-3 justify-center flex-wrap">
+            <a
+              href="https://github.com/rsml/tutor/releases"
+              class="inline-flex items-center gap-2 px-6 py-3 rounded-[10px] font-semibold text-[14.5px] text-white no-underline
+                     bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-400
+                     shadow-[0_4px_24px_rgba(99,102,241,0.25)]
+                     hover:shadow-[0_6px_32px_rgba(99,102,241,0.35)] hover:-translate-y-px transition-all"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download for macOS
+            </a>
+            <a
+              href="https://github.com/rsml/tutor"
+              class="inline-flex items-center gap-2 px-6 py-3 rounded-[10px] font-medium text-[14.5px] text-ink no-underline
+                     bg-white/[0.05] border border-hair hover:bg-white/[0.08] hover:border-hair-hover hover:-translate-y-px transition-all"
+            >
+              View on GitHub
+            </a>
+          </div>
+        </div>
+
+        <!-- Hero screenshot -->
+        <div class="max-w-container mx-auto px-5 sm:px-8 relative z-10">
+          <div class="screenshot-glow relative mt-[clamp(40px,6vw,64px)] max-w-[960px] mx-auto">
+            <div class="screenshot-fade relative z-10 rounded-xl border border-white/[0.08] overflow-hidden bg-surface
+                        shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_80px_rgba(0,0,0,0.5),0_0_120px_rgba(99,102,241,0.06)]">
+              <img
+                src="/tutor/screenshots/library.webp"
+                alt="Tutor library showing AI-generated books with custom covers"
+                data-lightbox
+                class="block w-full h-auto animate animate-d4"
+                width="2560"
+                height="1600"
+                decoding="async"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HOW IT WORKS -->
+      <section class="py-[clamp(64px,10vw,100px)]" id="how-it-works">
+        <div class="max-w-container mx-auto px-5 sm:px-8 relative z-10">
+          <div class="font-mono text-[11.5px] font-medium tracking-[0.14em] uppercase text-accent mb-2.5 text-center">How it works</div>
+          <h2 class="text-[clamp(1.8rem,4vw,2.8rem)] font-bold tracking-[-0.035em] leading-tight mb-[clamp(48px,6vw,72px)] max-w-[520px] mx-auto text-center">
+            Five steps to mastery
+          </h2>
+
+          <div class="flex flex-col gap-[clamp(48px,6vw,72px)]">
+            <!-- Step 1: text left, screenshot right -->
+            <div class="reveal flex flex-col md:flex-row items-center gap-8 md:gap-12">
+              <div class="md:w-[42%] shrink-0">
+                <div class="font-mono text-2xl font-medium text-accent tracking-wide mb-3">01</div>
+                <h3 class="text-4xl font-bold tracking-tight mb-3 text-white/90">Personalize</h3>
+                <p class="text-muted text-[17px] leading-relaxed">
+                  Share a brief profile about how you learn, your preferences,
+                  and your prior skills. Or just have the AI interview you and
+                  it will fill those out by itself.
+                </p>
+              </div>
+              <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
+                <img
+                  src="/tutor/screenshots/personalize.webp"
+                  alt="Personalization interview screen"
+                  data-lightbox
+                  class="block w-full h-auto"
+                  width="2560" height="1600"
+                  loading="lazy" decoding="async"
+                />
+              </div>
+            </div>
+
+            <!-- Step 2: screenshot left, text right -->
+            <div class="reveal flex flex-col md:flex-row-reverse items-center gap-8 md:gap-12">
+              <div class="md:w-[42%] shrink-0">
+                <div class="font-mono text-2xl font-medium text-accent tracking-wide mb-3">02</div>
+                <h3 class="text-4xl font-bold tracking-tight mb-3 text-white/90">Create</h3>
+                <p class="text-muted text-[17px] leading-relaxed">
+                  Enter any topic and a learning prompt, or let the AI suggest
+                  your next book based on your learning profile, preferences,
+                  and skills. Tutor generates a table of contents and your
+                  first chapter.
+                </p>
+              </div>
+              <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
+                <img
+                  src="/tutor/screenshots/new-book.webp"
+                  alt="New book creation dialog"
+                  data-lightbox
+                  class="block w-full h-auto"
+                  width="2560" height="1600"
+                  loading="lazy" decoding="async"
+                />
+              </div>
+            </div>
+
+            <!-- Step 3: text left, screenshot right -->
+            <div class="reveal flex flex-col md:flex-row items-center gap-8 md:gap-12">
+              <div class="md:w-[42%] shrink-0">
+                <div class="font-mono text-2xl font-medium text-accent tracking-wide mb-3">03</div>
+                <h3 class="text-4xl font-bold tracking-tight mb-3 text-white/90">Read</h3>
+                <p class="text-muted text-[17px] leading-relaxed">
+                  ~1,500-word chapters, 5&ndash;10 min each. Select any text to
+                  open an inline AI chat for deeper explanation.
+                </p>
+              </div>
+              <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
+                <img
+                  src="/tutor/screenshots/inline-chat.webp"
+                  alt="Inline chat panel alongside chapter text"
+                  data-lightbox
+                  class="block w-full h-auto"
+                  width="2560" height="1600"
+                  loading="lazy" decoding="async"
+                />
+              </div>
+            </div>
+
+            <!-- Step 4: screenshot left, text right -->
+            <div class="reveal flex flex-col md:flex-row-reverse items-center gap-8 md:gap-12">
+              <div class="md:w-[42%] shrink-0">
+                <div class="font-mono text-2xl font-medium text-accent tracking-wide mb-3">04</div>
+                <h3 class="text-4xl font-bold tracking-tight mb-3 text-white/90">Quiz</h3>
+                <p class="text-muted text-[17px] leading-relaxed">
+                  Post-chapter quizzes reinforce retention. A longer quiz at the
+                  end of the book synthesizes everything across all chapters.
+                </p>
+              </div>
+              <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
+                <img
+                  src="/tutor/screenshots/quiz.webp"
+                  alt="Multiple choice quiz interface"
+                  data-lightbox
+                  class="block w-full h-auto"
+                  width="2560" height="1600"
+                  loading="lazy" decoding="async"
+                />
+              </div>
+            </div>
+
+            <!-- Step 5: text left, screenshot right -->
+            <div class="reveal flex flex-col md:flex-row items-center gap-8 md:gap-12">
+              <div class="md:w-[42%] shrink-0">
+                <div class="font-mono text-2xl font-medium text-accent tracking-wide mb-3">05</div>
+                <h3 class="text-4xl font-bold tracking-tight mb-3 text-white/90">Adapt</h3>
+                <p class="text-muted text-[17px] leading-relaxed">
+                  Give feedback on each chapter. The next one adapts to your
+                  quiz results and learning profile. After you finish a book,
+                  the AI recommends updates to your skills, preferences, and
+                  profile based on your progress.
+                </p>
+              </div>
+              <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
+                <img
+                  src="/tutor/screenshots/feedback.webp"
+                  alt="Feedback form for chapter content"
+                  data-lightbox
+                  class="block w-full h-auto"
+                  width="2560" height="1600"
+                  loading="lazy" decoding="async"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FEATURES -->
+      <section class="py-[clamp(64px,10vw,100px)] border-t border-hair" id="features">
+        <div class="max-w-container mx-auto px-5 sm:px-8 relative z-10">
+          <div class="font-mono text-[11.5px] font-medium tracking-[0.14em] uppercase text-accent mb-2.5">Features</div>
+          <h2 class="text-[clamp(1.8rem,4vw,2.8rem)] font-bold tracking-[-0.035em] leading-tight mb-[clamp(36px,5vw,56px)] max-w-[520px]">
+            A better way to learn
+          </h2>
+
+          <div class="flex flex-col gap-[clamp(36px,5vw,56px)]">
+
+            <!-- Adaptive Learning -->
+            <div class="reveal">
+              <h3 class="font-mono text-[10.5px] font-medium tracking-[0.16em] uppercase text-accent/75 mb-5">Adaptive Learning</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+                  <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="23 4 23 10 17 10" />
+                      <polyline points="1 20 1 14 7 14" />
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+                      <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+                    </svg>
+                  </div>
+                  <h4 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">Evolving Chapters</h4>
+                  <p class="text-sm text-muted leading-relaxed">
+                    Quiz results and feedback shape how future chapters are written
+                  </p>
+                </div>
+
+                <div class="group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+                  <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <circle cx="12" cy="12" r="6" />
+                      <circle cx="12" cy="12" r="2" />
+                    </svg>
+                  </div>
+                  <h4 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">Smart Review</h4>
+                  <p class="text-sm text-muted leading-relaxed">
+                    Spaced-repetition queue re-quizzes you on questions you missed
+                  </p>
+                </div>
+
+                <div class="group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+                  <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="20" x2="18" y2="10" />
+                      <line x1="12" y1="20" x2="12" y2="4" />
+                      <line x1="6" y1="20" x2="6" y2="14" />
+                    </svg>
+                  </div>
+                  <h4 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">Skill Tracking</h4>
+                  <p class="text-sm text-muted leading-relaxed">
+                    Automatically track progress and update your learning profile
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Reading & Listening -->
+            <div class="reveal">
+              <h3 class="font-mono text-[10.5px] font-medium tracking-[0.16em] uppercase text-accent/75 mb-5">Reading &amp; Listening</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+                  <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+                      <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
+                      <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">Audiobook Narration</h4>
+                  <p class="text-sm text-muted leading-relaxed">
+                    Generate offline audiobooks with chapter markers, multiple voices, and speed control. Export to Apple Books.
+                  </p>
+                </div>
+
+                <div class="group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+                  <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">Inline Chat</h4>
+                  <p class="text-sm text-muted leading-relaxed">
+                    Select any text for a deeper AI-powered explanation
+                  </p>
+                </div>
+
+                <div class="group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+                  <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="16 18 22 12 16 6" />
+                      <polyline points="8 6 2 12 8 18" />
+                      <line x1="14" y1="4" x2="10" y2="20" />
+                    </svg>
+                  </div>
+                  <h4 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">Rich Content</h4>
+                  <p class="text-sm text-muted leading-relaxed">
+                    Mermaid diagrams, KaTeX math, and syntax-highlighted code
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Library -->
+            <div class="reveal">
+              <h3 class="font-mono text-[10.5px] font-medium tracking-[0.16em] uppercase text-accent/75 mb-5">Library</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+                  <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                    </svg>
+                  </div>
+                  <h4 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">Organized Library</h4>
+                  <p class="text-sm text-muted leading-relaxed">
+                    Search, filter, sort, tag, group into series, and drag to reorder
+                  </p>
+                </div>
+
+                <div class="group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+                  <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">EPUB Import &amp; Export</h4>
+                  <p class="text-sm text-muted leading-relaxed">
+                    Read in your favorite e-reader or import books others created
+                  </p>
+                </div>
+
+                <div class="group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+                  <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="13.5" cy="6.5" r="2.5" />
+                      <path d="M17.5 21.5l1-1.5-4.5-7-3 4.5-2.5-2L4 21.5h13.5z" />
+                      <rect x="2" y="2" width="20" height="20" rx="2" />
+                    </svg>
+                  </div>
+                  <h4 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">AI Covers</h4>
+                  <p class="text-sm text-muted leading-relaxed">
+                    Generate a unique AI cover for any book
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Open & Yours -->
+            <div class="reveal">
+              <h3 class="font-mono text-[10.5px] font-medium tracking-[0.16em] uppercase text-accent/75 mb-5">Open &amp; Yours</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+                  <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">GPLv3 Open Source</h4>
+                  <p class="text-sm text-muted leading-relaxed">
+                    Inspect and modify the source on GitHub
+                  </p>
+                </div>
+
+                <div class="group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+                  <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </div>
+                  <h4 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">BYOK</h4>
+                  <p class="text-sm text-muted leading-relaxed">
+                    Bring your own API keys and choose your preferred model
+                  </p>
+                </div>
+
+                <div class="group bg-white/[0.015] border border-hair rounded-xl p-6 sm:p-7 transition-all hover:border-hair-hover hover:bg-white/[0.03] hover:-translate-y-0.5">
+                  <div class="w-10 h-10 bg-accent/[0.12] border border-accent/[0.12] rounded-[10px] grid place-items-center mb-4">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="5" />
+                      <line x1="12" y1="1" x2="12" y2="3" />
+                      <line x1="12" y1="21" x2="12" y2="23" />
+                      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                      <line x1="1" y1="12" x2="3" y2="12" />
+                      <line x1="21" y1="12" x2="23" y2="12" />
+                      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" opacity="0.4" />
+                    </svg>
+                  </div>
+                  <h4 class="text-base font-semibold tracking-tight mb-1.5 text-white/90">Light &amp; Dark Themes</h4>
+                  <p class="text-sm text-muted leading-relaxed">
+                    Switch themes across the entire app
+                  </p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-hair py-9 relative z-10">
+      <div class="max-w-container mx-auto px-5 sm:px-8 flex flex-col sm:flex-row justify-between items-center gap-3">
+        <p class="text-[13px] text-faint">
+          GPLv3. Made by <a href="https://rossmiller.dev" class="text-muted no-underline hover:text-accent-light transition-colors">Ross Miller</a>
+        </p>
+        <div class="flex gap-5">
+          <a href="https://github.com/rsml/tutor" class="text-[13px] font-medium text-muted no-underline hover:text-accent-light transition-colors">GitHub</a>
+          <a href="https://github.com/rsml/tutor/releases" class="text-[13px] font-medium text-muted no-underline hover:text-accent-light transition-colors">Releases</a>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+      <button class="lightbox-btn lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>
+      <button class="lightbox-btn lightbox-prev" id="lightbox-prev" aria-label="Previous">&#8249;</button>
+      <button class="lightbox-btn lightbox-next" id="lightbox-next" aria-label="Next">&#8250;</button>
+      <div class="lightbox-track" id="lightbox-track">
+        <img class="lightbox-slide" id="lb-prev" src="" alt="" />
+        <img class="lightbox-slide" id="lb-current" src="" alt="" />
+        <img class="lightbox-slide" id="lb-next" src="" alt="" />
+      </div>
+      <div class="lightbox-dots" id="lightbox-dots"></div>
+    </div>
+
+    <script is:inline>
+      {
+        document.documentElement.classList.add("js");
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("in-view");
+                observer.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.1 }
+        );
+        document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+
+        // Lightbox
+        const lightbox = document.getElementById("lightbox");
+        const track = document.getElementById("lightbox-track");
+        const lbPrev = document.getElementById("lb-prev");
+        const lbCurrent = document.getElementById("lb-current");
+        const lbNext = document.getElementById("lb-next");
+        const dotsContainer = document.getElementById("lightbox-dots");
+        const screenshots = Array.from(document.querySelectorAll('img[data-lightbox]'));
+        let currentIndex = 0;
+        const GAP = 18;
+        let dots = [];
+
+        screenshots.forEach((img, i) => {
+          img.addEventListener("click", () => openLightbox(i));
+        });
+
+        function slideW() { return window.innerWidth <= 768 ? window.innerWidth : window.innerWidth * 0.9; }
+        function baseOffset() {
+          return window.innerWidth <= 768
+            ? -(slideW() + GAP)
+            : 0;
+        }
+
+        function updateSlides() {
+          const len = screenshots.length;
+          const prev = screenshots[(currentIndex - 1 + len) % len];
+          const cur = screenshots[currentIndex];
+          const next = screenshots[(currentIndex + 1) % len];
+          lbPrev.src = prev.src; lbPrev.alt = prev.alt;
+          lbCurrent.src = cur.src; lbCurrent.alt = cur.alt;
+          lbNext.src = next.src; lbNext.alt = next.alt;
+          updateDots(currentIndex, -1, 0);
+        }
+
+        function buildDots() {
+          while (dotsContainer.firstChild) dotsContainer.removeChild(dotsContainer.firstChild);
+          dots = [];
+          for (let i = 0; i < screenshots.length; i++) {
+            const dot = document.createElement("span");
+            dot.className = "lightbox-dot";
+            dotsContainer.appendChild(dot);
+            dots.push(dot);
+          }
+        }
+
+        function updateDots(activeIdx, targetIdx, progress) {
+          for (let i = 0; i < dots.length; i++) {
+            if (i === activeIdx) {
+              const alpha = 0.25 + 0.65 * (1 - progress);
+              dots[i].style.background = "rgba(255,255,255," + alpha + ")";
+            } else if (i === targetIdx && targetIdx >= 0) {
+              const alpha = 0.25 + 0.65 * progress;
+              dots[i].style.background = "rgba(255,255,255," + alpha + ")";
+            } else {
+              dots[i].style.background = "";
+            }
+          }
+        }
+
+        function setTrack(dragX) {
+          track.style.transform = "translate3d(" + (baseOffset() + dragX) + "px, -50%, 0)";
+        }
+
+        function openLightbox(index) {
+          currentIndex = index;
+          track.style.gap = GAP + "px";
+          buildDots();
+          updateSlides();
+          setTrack(0);
+          lightbox.classList.add("open");
+          document.body.style.overflow = "hidden";
+        }
+
+        function closeLightbox() {
+          lightbox.classList.remove("open");
+          document.body.style.overflow = "";
+        }
+
+        function navigate(delta) {
+          currentIndex = (currentIndex + delta + screenshots.length) % screenshots.length;
+          updateSlides();
+          setTrack(0);
+        }
+
+        document.getElementById("lightbox-close").addEventListener("click", closeLightbox);
+        document.getElementById("lightbox-prev").addEventListener("click", () => navigate(-1));
+        document.getElementById("lightbox-next").addEventListener("click", () => navigate(1));
+
+        lightbox.addEventListener("click", (e) => {
+          if (e.target === lightbox) closeLightbox();
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (!lightbox.classList.contains("open")) return;
+          if (e.key === "Escape") closeLightbox();
+          if (e.key === "ArrowLeft") navigate(-1);
+          if (e.key === "ArrowRight") navigate(1);
+        });
+
+        // Spring-physics swipe gesture (mobile)
+        {
+          let dragging = false;
+          let startX = 0;
+          let tx = 0;
+          let springId = null;
+          const pts = [];
+
+          function cancelSpring() {
+            if (springId) { cancelAnimationFrame(springId); springId = null; }
+          }
+
+          function setLb(x) {
+            setTrack(x);
+            // Interpolate dots during drag
+            const sw = slideW() + GAP;
+            const p = Math.min(Math.abs(x) / sw, 1);
+            const len = screenshots.length;
+            if (p > 0) {
+              const targetIdx = x < 0
+                ? (currentIndex + 1) % len
+                : (currentIndex - 1 + len) % len;
+              updateDots(currentIndex, targetIdx, p);
+            } else {
+              updateDots(currentIndex, -1, 0);
+            }
+          }
+
+          function clearLb() {
+            track.style.willChange = "";
+            setTrack(0);
+            updateDots(currentIndex, -1, 0);
+          }
+
+          function vel() {
+            const now = performance.now();
+            const r = pts.filter(p => now - p.t < 80);
+            if (r.length < 2) return 0;
+            return (r[r.length - 1].x - r[0].x) / (r[r.length - 1].t - r[0].t);
+          }
+
+          function spring(from, to, v0, stiff, damp, done, setter) {
+            let pos = from, v = v0, last = performance.now();
+            const update = setter || setLb;
+            cancelSpring();
+            (function tick(now) {
+              if (!lightbox.classList.contains("open")) { clearLb(); springId = null; return; }
+              const dt = Math.min((now - last) / 1000, 0.032);
+              last = now;
+              for (let i = 0; i < 4; i++) {
+                const s = dt / 4;
+                v += (-stiff * (pos - to) - damp * v) * s;
+                pos += v * s;
+              }
+              update(pos);
+              if (Math.abs(pos - to) < 0.5 && Math.abs(v) < 50) {
+                springId = null;
+                done && done();
+              } else {
+                springId = requestAnimationFrame(tick);
+              }
+            })(performance.now());
+          }
+
+          lightbox.addEventListener("touchstart", (e) => {
+            if (!lightbox.classList.contains("open")) return;
+            cancelSpring();
+            dragging = true;
+            startX = e.touches[0].clientX;
+            tx = 0;
+            pts.length = 0;
+            pts.push({ x: startX, t: performance.now() });
+            track.style.willChange = "transform";
+          }, { passive: true });
+
+          lightbox.addEventListener("touchmove", (e) => {
+            if (!dragging) return;
+            const x = e.touches[0].clientX;
+            pts.push({ x, t: performance.now() });
+            if (pts.length > 20) pts.splice(0, pts.length - 20);
+            let dx = x - startX;
+            tx = dx;
+            setLb(dx);
+          }, { passive: true });
+
+          lightbox.addEventListener("touchend", () => {
+            if (!dragging) return;
+            dragging = false;
+            const dx = tx;
+            const v = vel() * 1000;
+            const sw = slideW() + GAP;
+            const commit =
+              Math.abs(dx) > sw * 0.35 ||
+              (Math.abs(v) > 400 && Math.sign(dx) === Math.sign(v));
+
+            if (commit) {
+              const dir = dx < 0 ? 1 : -1;
+              currentIndex = (currentIndex + dir + screenshots.length) % screenshots.length;
+              updateSlides();
+              spring(dx + dir * sw, 0, v, 300, 38, clearLb, setTrack);
+            } else {
+              spring(dx, 0, v, 500, 46, clearLb);
+            }
+          }, { passive: true });
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,27 @@
+---
+import InstrumentPicker from './InstrumentPicker.astro';
+import KeyPicker from './KeyPicker.astro';
+import ThemePicker from './ThemePicker.astro';
+import ResetButton from './ResetButton.astro';
+import '../../styles/sim-controls.css';
+import type { InstrumentValue, ThemeValue } from '../../scripts/sim-controls-core';
+
+interface Props {
+  defaultKey?: string;
+  defaultInstrument?: InstrumentValue;
+  defaultTheme?: ThemeValue;
+}
+
+const { defaultKey = 'C', defaultInstrument = 'keyboard', defaultTheme = 'light' } = Astro.props;
+---
+
+<div class="sim-controls">
+  <InstrumentPicker defaultInstrument={defaultInstrument} />
+  <KeyPicker defaultKey={defaultKey} />
+  <ThemePicker defaultTheme={defaultTheme} />
+  <ResetButton />
+</div>
+
+<script>
+  import '../../scripts/sim-controls.ts';
+</script>

@@ -1,0 +1,228 @@
+/* Composite demo controls for embedded Chord Colors demos: instrument + key
+   dropdowns and a reset button, laid out as one flex row pinned to the top-right
+   of each .phone-demo. Imported once by SimControls.astro (global, not scoped).
+   CSS variables (--bg, --ink, --muted, --text, --hair, --hairHigh) come from
+   src/styles/global.css. */
+
+.sim-controls {
+  /* relative + z-index so the open dropdown menus stack above the phone frame
+     (which comes later in the DOM and would otherwise paint over them). */
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  max-width: 100%;
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+/* Reset button (icon). Now a flex item in the row, no longer self-positioned. */
+.sim-reset {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--hair);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 120ms ease;
+}
+.sim-reset:hover {
+  background: oklch(95% 0 0);
+}
+.sim-reset:active {
+  transform: rotate(180deg);
+  transition: transform 240ms ease;
+}
+
+/* Theme toggle (icon button). Both icons render; we show the moon in light mode
+   (click -> dark) and the sun in dark mode (click -> light), driven by the
+   demo's data-theme. */
+.theme-toggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--hair);
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 120ms ease;
+}
+.theme-toggle:hover {
+  background: oklch(95% 0 0);
+}
+.theme-icon {
+  width: 17px;
+  height: 17px;
+  display: block;
+}
+.theme-icon--sun {
+  display: none;
+}
+.phone-demo[data-theme='dark'] .theme-icon--moon {
+  display: none;
+}
+.phone-demo[data-theme='dark'] .theme-icon--sun {
+  display: block;
+}
+
+/* Shared dropdown shell for the key + instrument pickers. position:relative so
+   each menu anchors to its own trigger. */
+.key-picker,
+.instrument-picker {
+  --current-hue: #ff0000;
+  position: relative;
+}
+
+.key-picker-trigger,
+.instrument-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px;
+  margin: 0;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.05px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.key-picker-trigger:hover,
+.instrument-picker-trigger:hover {
+  background: oklch(96.5% 0 0);
+}
+.key-picker[data-open='true'] .key-picker-trigger {
+  border-color: color-mix(in oklab, var(--current-hue) 35%, var(--hairHigh) 65%);
+  background: color-mix(in oklab, var(--current-hue) 5%, var(--bg) 95%);
+}
+.instrument-picker[data-open='true'] .instrument-picker-trigger {
+  border-color: var(--hairHigh);
+  background: oklch(96.5% 0 0);
+}
+
+.key-picker-trigger-label,
+.instrument-picker-trigger-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.key-picker-swatch {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--swatch-color, currentColor);
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12);
+}
+
+.key-picker-value,
+.instrument-picker-value {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  text-align: left;
+  color: var(--ink);
+}
+.key-picker-value {
+  min-width: 14px;
+}
+
+.key-picker-caret,
+.instrument-picker-caret {
+  width: 9px;
+  height: 6px;
+  color: var(--muted);
+  transition: transform 220ms ease;
+}
+.key-picker[data-open='true'] .key-picker-caret,
+.instrument-picker[data-open='true'] .instrument-picker-caret {
+  transform: rotate(180deg);
+}
+
+/* Shared dropdown menu. */
+.key-picker-menu,
+.instrument-picker-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 144px;
+  max-height: 360px;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.04);
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+  list-style: none;
+  margin: 0;
+}
+.key-picker[data-open='true'] .key-picker-menu,
+.instrument-picker[data-open='true'] .instrument-picker-menu {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.key-picker-option,
+.instrument-picker-option {
+  --swatch-color: #ff0000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  margin: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.1px;
+  cursor: pointer;
+  text-align: left;
+}
+.key-picker-option:hover {
+  background: color-mix(in oklab, var(--swatch-color) 8%, var(--bg) 92%);
+}
+.key-picker-option[aria-selected='true'] {
+  background: color-mix(in oklab, var(--swatch-color) 16%, var(--bg) 84%);
+}
+.instrument-picker-option:hover {
+  background: oklch(96.5% 0 0);
+}
+.instrument-picker-option[aria-selected='true'] {
+  background: oklch(93% 0 0);
+}
+.key-picker-option-letter,
+.instrument-picker-option-letter {
+  flex: 1;
+}

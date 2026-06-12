@@ -1,0 +1,88 @@
+:root {
+  --bg: #ffffff;
+  --ink: rgb(17, 17, 17);
+  --muted: rgb(120, 120, 120);
+  --hair: rgba(17, 17, 17, 0.10);
+  --hairHigh: rgba(17, 17, 17, 0.30);
+  --container: 706px;
+  --gutter: 24px;
+  /* Keyboard focus ring (Apple system blue). Reads clearly on the white page. */
+  --focus: #0a84ff;
+  /* Device screen / window corner radius, written as horizontal% / vertical% of
+     a screenshot. Percentages (not pixels) keep the corner circular AND let it
+     scale with whatever size the image renders at, so the SAME token works for
+     the small home-row thumbnail and the large lightbox image.
+       iPhone: the literal display radius is ~14% of width (iPhone 15/16 is 55pt
+         ÷ 393pt), but on these frameless, edge-to-edge captures that reads too
+         round and bites into the UI (worst scaled up in the lightbox), so it is
+         dialed to a tasteful 7%. V% = 7% × 804/1748 keeps the corner circular.
+       Mac window (Big Sur–Sequoia): ~10pt ÷ 1280pt = 0.78%, ÷ 800pt = 1.25%.
+       iPad Pro 12.9" (landscape):    18pt ÷ 1366pt = 1.32%, ÷ 1024pt = 1.76%.
+     Sources: kylebshr/ScreenCorners (_displayCornerRadius). Tune --corner-iphone
+     to taste: 5% subtler, 9% rounder. */
+  --corner-iphone: 7% / 3.22%;
+  --corner-desktop: 0.78% / 1.25%;
+  --corner-ipad: 1.32% / 1.76%;
+  /* ripple runtime vars (used in Phase 3) */
+  --cx: 50%;
+  --cy: 50%;
+  --r: 0px;
+}
+* { box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body {
+  margin: 0;
+  /* Lets the work-row carousels bleed off the right page edge (negative margin)
+     without spawning a horizontal scrollbar. `clip` (not `hidden`) avoids
+     creating a scroll container, so it won't trap a fixed/sticky overlay. */
+  overflow-x: clip;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 460;
+  line-height: 20px;
+  letter-spacing: -0.09px;
+}
+@supports (font-variation-settings: normal) {
+  body { font-family: "Inter var", ui-sans-serif, system-ui, -apple-system, sans-serif; }
+}
+/* Full-bleed page by default: no max-width, one consistent gutter on every side. */
+.container { padding: var(--gutter); }
+/* Deep-dive case studies keep a readable, centred column. */
+.container.dive { max-width: var(--container); margin: 0 auto; padding: 80px 24px 96px; }
+
+/* ── Phase 2: staggered fade + slide-up reveal ── */
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/*
+  Children of [data-rise] start invisible.
+  The .rise-ready class is toggled by a script on every astro:page-load
+  so the animation re-fires after each ClientRouter swap, not just on hard load.
+*/
+[data-rise] > * {
+  opacity: 0;
+}
+
+[data-rise].rise-ready > * {
+  animation: riseIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(var(--rise-i, 0) * 80ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-rise] > *,
+  [data-rise].rise-ready > * {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}

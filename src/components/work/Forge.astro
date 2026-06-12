@@ -1,0 +1,60 @@
+---
+import Lede from '../content/Lede.astro';
+import Section from '../content/Section.astro';
+import DesktopFrame from '../content/DesktopFrame.astro';
+import Screen from '../content/Screen.astro';
+import Caption from '../content/Caption.astro';
+import StackTrailer from '../content/StackTrailer.astro';
+import Footnotes from '../content/Footnotes.astro';
+import Ref from '../content/Ref.astro';
+---
+
+<Lede>Forge is a native macOS terminal manager for AI coding agents. Swift and SwiftUI on top of libghostty, embedded directly in the app process.</Lede>
+<Lede>Every existing tool failed at one of two things. Tmux works, but its control-mode protocol re-encodes escape sequences through a multiplexer, so modern terminal features arrive secondhand or not at all. iTerm and Terminal.app are fine for one shell, but quit them and your agent conversations are gone.</Lede>
+<Lede>Persistence and attention turned out to be the actual problem. The terminal was already solved.</Lede>
+
+<Section title="Two modes">
+  <p>Overseeing many parallel agents is two jobs. List Mode organizes: a sidebar of projects, tabs, splits, everything visible at once. Stack Mode triages: one agent fills the screen and you cycle through whoever is ready.</p>
+  <DesktopFrame>
+    <Screen kind="desktop" theme="forge-list" src="/forge/screenshots/list-mode.webp" alt="Forge in List Mode: projects and their tabs in the sidebar, the active terminal beside them" width={2658} height={1810} />
+  </DesktopFrame>
+  <Caption>List Mode. Projects and their tabs in the sidebar, the active terminal beside them.</Caption>
+  <DesktopFrame>
+    <Screen kind="desktop" theme="forge-stack" src="/forge/screenshots/stack-mode.webp" alt="Forge in Stack Mode: one terminal fills the window, with done, mute, and skip actions in the bottom toolbar" width={2658} height={1810} />
+  </DesktopFrame>
+  <Caption>Stack Mode. One terminal fills the window; mark done, mute, or skip from the toolbar.</Caption>
+</Section>
+
+<Section title="Persistence">
+  <p>A sidecar daemon called forged holds the PTY master file descriptors and hands them to the app over a Unix-domain socket.<Ref id="fn-forge-1" n={1} /> Quit Forge, reopen later, every shell, split, and AI conversation is right where you left it.</p>
+  <p>Libghostty is embedded directly in the app process rather than spawned as a subprocess. Direct PTY ownership, no escape-sequence re-encoding, no control-mode middleman between the agent and the screen.</p>
+  <p>Quit, relaunch, scroll back. The agent kept running while the app was closed.</p>
+</Section>
+
+<Section title="Attention">
+  <p>Five signals tell Forge an agent needs you: silence past a threshold, bell and OSC 777 escape sequences, shell-integration command completion, prompt detection on the active line, and native macOS notifications. All five layered, not one chosen.</p>
+  <p>When you're running ten agents, the one that finished three minutes ago doesn't sit silently waiting for you to notice. A bell fires, the pane lights up in the sidebar, a notification surfaces in Notification Center.</p>
+</Section>
+
+<Section title="Customization">
+  <p>Thirty-one bundled color themes including Catppuccin, Tokyo Night, Dracula, and Gruvbox, attribution preserved. Themes preview live, no relaunch. Keyboard shortcuts route through the Kitty progressive enhancement protocol so modifier combinations actually reach the agent. Command palette, arbitrary pane nesting, workspace state in plain JSON at <code>~/.config/forge/workspace.json</code> so you can diff it or hand-edit it.</p>
+  <p>Native macOS throughout: sidebars, traffic lights, vibrancy, the keyboard model people already know.</p>
+</Section>
+
+<Section title="Built on Ghostty">
+  <p>Forge would not exist without Ghostty. Credit to Mitchell Hashimoto and the Ghostty contributors for libghostty, the embedding API, and a renderer faster than anything I would have written.</p>
+  <p>Embedding means Ghostty's input handling, GPU rendering, font shaping, and escape-sequence parsing all run in the Forge process, against the real PTY, with no translation layer in between.</p>
+</Section>
+
+<Section title="Reflections">
+  <p>Attention detection is the part I have never been fully satisfied with. Silent-waiting works well for Claude Code and Aider, but agents that stream tokens in long pauses can trip the ready signal mid-thought, and prompt detection still gets confused by REPLs that draw their own prompt characters inside a TUI.<Ref id="fn-forge-2" n={2} /></p>
+  <p>Stack Mode also feels cramped past fifteen or twenty agents. The triage queue is linear, and there's no good way to weight one agent's readiness against another's. Both are fixable. Neither is fixed yet.</p>
+  <p>Forge is open source on <a href="https://github.com/rsml/forge">GitHub</a> and downloadable at <a href="https://rossmiller.dev/forge/">rossmiller.dev/forge</a>.</p>
+</Section>
+
+<StackTrailer items={["Swift", "SwiftUI", "libghostty", "macOS 14+", "GPLv3"]} />
+
+<Footnotes>
+  <li id="fn-forge-1">The forged daemon passes PTY master file descriptors to the app using SCM_RIGHTS ancillary messages over a Unix-domain socket. The kernel duplicates the descriptor into the receiving process's file table, so the app and daemon both hold a valid handle to the same PTY. When the app quits, the daemon's handle keeps the PTY open and the child process keeps running. When the app relaunches, it reconnects to the socket and receives the descriptors back.</li>
+  <li id="fn-forge-2">Prompt detection currently matches on a small set of common prompt shapes (trailing $, &gt;, %, and a few framework-specific patterns). Agents that render a custom prompt inside a full-screen TUI, like some neovim plugins or REPLs that draw their own input line, can read as ready when they are still waiting on the user. The honest fix is shell integration via OSC 133 everywhere, which not every agent emits.</li>
+</Footnotes>

@@ -1,0 +1,24 @@
+---
+---
+<p class="feature-caption"><slot /></p>
+<style>
+  .feature-caption {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 6px 0 28px;
+    max-width: 62ch;
+  }
+  .feature-caption a {
+    color: inherit;
+    text-decoration: none;
+    background-image: linear-gradient(var(--hairHigh), var(--hairHigh));
+    background-size: 100% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    padding-bottom: 1px;
+    transition: background-image 200ms ease;
+  }
+  .feature-caption a:hover {
+    background-image: linear-gradient(var(--ink), var(--ink));
+  }
+</style>

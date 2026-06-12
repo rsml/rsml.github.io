@@ -1,0 +1,148 @@
+---
+import Section from '../content/Section.astro';
+import PhoneFrame from '../content/PhoneFrame.astro';
+import Screen from '../content/Screen.astro';
+import Caption from '../content/Caption.astro';
+import StackTrailer from '../content/StackTrailer.astro';
+import Footnotes from '../content/Footnotes.astro';
+import EmbeddedDemo from '../content/EmbeddedDemo.astro';
+import ColorWheel from '../content/ColorWheel.astro';
+---
+
+<p>
+  Chord Colors is the first music theory exploration app of it's kind to not use sheet music.
+</p>
+<p>
+  The app is built around a color system that maps notes to colors in a way that reflects how we hear music, making it easier to understand and experiment with musical concepts.
+</p>
+
+<Section title="Why Chord Colors?">
+  <p>
+    Traditional music theory education relies heavily on special notation, making it overwhelming and boring for many musicians. It's also inaccessible for a lot of non-english speakers and kids.
+  </p>
+  <p>
+    A huge number of famous musicians never learned to read sheet music, and many consider traditional music theory education to be creatively stifling.
+  </p>
+  <p>
+    I created Chord Colors so that anyone can explore what sounds good to them in a way that they can immediately translate to their instrument, without needing to learn a whole new language first.
+  </p>
+  <p>
+    By connecting the visual and auditory aspects of music directly, without going through the abstract route of notation, Chord Colors makes it easier for anyone to explore music theory and discover new musical ideas.
+  </p>
+</Section>
+
+<h2 class="try-it-h">Turn your volume on</h2>
+<p class="try-it-sub">Here you can try the full Chord Colors app.</p>
+<p class="try-it-sub">There are so many features, so once you are ready, keep scrolling for a breakdown of all the features and the color system.</p>
+
+<EmbeddedDemo base="/" defaultKey="C" title="Chord Colors interactive demo" eager bare />
+
+<Section title="Color">
+  <p>I assigned a unique color to each note by overlaying a color wheel on top of the "Circle of Fifths", which you can think of as the periodic table of music theory. Each note gets a hue according to its position in the circle, so notes that look related sound related.</p><p>The result is a color-coded system that matches how we hear music, not how we write it.</p>
+
+  <ColorWheel />
+</Section>
+
+<Section title="Piano and guitar">
+  <p>Chord Colors uses the same color system for both piano and guitar.</p>
+  <p>On a piano, notes are arranged by pitch. This makes chords relatively easy to figure out once you know the "scale degrees" that make up that chord. In Chord Colors, those scale degrees are the numbers that you see on the chords page, such as 1, 3, and 5.</p>
+    <p>
+    On a guitar, chords can be difficult to figure out on your own because notes are spread out across 6 strings, with each string having it's own tuning. To make things more complicated, each guitar chord can be played in many different ways on a guitar, each with a slightly different sound.</p><p>Chord Colors let's you explore all of these different guitar chord positions. In addition, you can easily see what note and "scale degree" each string in a chord represents.
+  </p>
+
+  </p>
+  <EmbeddedDemo base="/chords" defaultKey="C" title="Chord Colors piano and guitar" />
+  <Caption>Try switching the instrument via the sidebar menu, or via the dropdown above the demo.</Caption>
+</Section>
+
+<Section title="Progressions">
+  <p>I compiled 470 progressions browsable by genre or length.</p>
+  <p>Tap any one to hear what it sounds like. Tap the arrow on the right to see how to play it.</p>
+  <EmbeddedDemo base="/progressions" defaultKey="C" title="Chord Colors progressions" />
+  <Caption>470 progressions browsable by genre and length.</Caption>
+</Section>
+
+<Section title="Color wheel">
+  <p>On the wheel page you can find all of the basic three note chords that sound good in a particular key.</p>
+  <p>This is a great place to just experiment and hear how different chords interact, there's no wrong answer!</p>
+  <p>Tap on the gear icon at the top right of wheel page to explore an advanced music theory technique called "modal mixture" or "borrowed chords". This is a very powerful feature for discovering your own striking chord progressions!</p>
+  <EmbeddedDemo base="/wheel" defaultKey="C" title="Chord Colors wheel" />
+</Section>
+
+<Section title="Pin scales">
+  <p>Writing or practicing in a specific key? You can tap and hold on any scale name to pin it to the bottom so it's easy to refer back to while deciding on which chords to play. In the app below, we've already pinned a C major scale.</p>
+  <EmbeddedDemo base="/chords" defaultKey="C" pinnedScale="C:Major" title="Chord Colors pin scales" />
+  <Caption>C major is pinned here.</Caption>
+</Section>
+
+<Section title="Find matching chords">
+  <p>Once a scale is pinned, a new "matching" section appears on the chords page. All of the chords that sound good with that scale will appear in the "matching" section, and the names of the chords will appear "filled in", meaning they have a solid background color.</p>
+  <p>A chord is considered "matching" if every note in that chord is also found in the pinned scale.</p>
+  <EmbeddedDemo
+    base="/chords"
+    defaultKey="G"
+    pinnedScale="C:Major"
+    title="Chord Colors matching chords"
+  />
+  <Caption>C major is pinned while browsing chords in G. The chords that fit are filled in on the left.</Caption>
+</Section>
+
+<Section title="Find matching scales">
+  <p>You can tap and hold on any chord to add it to your saved chords. Similar to a pinned scale, they will appear on the bottom of the screen.</p>
+  <p>Let's say you've saved a couple of chords and you want to solo or write a vocal melody over them. Typically it's hard to know what scales you can use.</p>
+  <p>With Chord Colors, all the scales that match your pinned chords will appear in a new "matching" section on the scales page, so it's easy to know which scales you can use. Matching scales will also be filled in. A scale is considered "matching" if it contains every note of the chords you've saved.</p>
+  <EmbeddedDemo
+    base="/scales"
+    defaultKey="C"
+    savedChords={[
+      { key: 'C', suffix: 'M' },
+      { key: 'G', suffix: 'sus4' },
+    ]}
+    title="Chord Colors matching scales"
+  />
+  <Caption>C and Gsus4 are saved below. Above you can see all of the scales in the key of C that match both those chords.</Caption>
+</Section>
+
+<Section title="Saved chords">
+  <p>Save chords as you write. The saved screen holds the progression you're building.</p>
+  <p>With Chord Colors you can easily transpose to a different key. Tap the header where it says "Saved Chords in C", then tap a different note, such as F or A, and you'll see the whole chord progression change to the new key.</p>
+  <EmbeddedDemo
+    base="/saved"
+    defaultKey="C"
+    savedChords={[
+      { key: 'C', suffix: 'm9' },
+      { key: 'Eb', suffix: '9' },
+      { key: 'Ab', suffix: '9' },
+      { key: 'G', suffix: '7b5#9' },
+    ]}
+    title="Chord Colors saved chords"
+  />
+  <Caption>A saved funk progression: Cm9, E♭9, A♭9, G7♭5♯9.</Caption>
+</Section>
+
+<Section title="Holding the system">
+  <p>To make Chord Colors work I had to build out a comprehensive design system and style guide that worked in both dark and light mode, where any color could be the primary color.</p>
+  <p>For each primary color I needed different shades depending on the context where it was used, all while preserving high contrast ratios and accessibility at every point.</p>
+  <p>I also carefully solved for the app needing to work on various screen sizes and orientations, as well as various accessibility font sizes and settings.</p>
+</Section>
+
+<Section title="Reflections">
+  <p>Chord Colors is a labor of love. It took extreme focus on performance optimization, user experience, user testing, user research, a sophisticated design system, and a driving vision.</p><p>I'm most proud of the fact that the same product can be used by nearly anybody, regardless of language, age, or skill level.</p>
+  <p>Chord Colors is on the <a href="https://apps.apple.com/us/app/chord-colors-piano-and-guitar/id1422598441">App Store</a> and on the <a href="https://chordcolors.com/">web</a>. It also has a nice <a href="https://chordcolors.app/">marketing website</a>.</p>
+</Section>
+
+<StackTrailer items={["React Native", "Expo"]} />
+
+<style>
+  /* "Try it out" is the hero CTA heading; give it a little more breathing room
+     above than the in-page section titles, and a muted lead-in line. */
+  .try-it-h {
+    margin: 36px 0 10px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.09px;
+  }
+  .try-it-sub {
+    color: var(--muted);
+  }
+</style>

@@ -1,0 +1,33 @@
+---
+import { INSTRUMENT_LABELS } from '../../scripts/sim-controls-core';
+import type { InstrumentValue } from '../../scripts/sim-controls-core';
+
+interface Props {
+  defaultInstrument?: InstrumentValue;
+}
+
+const { defaultInstrument = 'keyboard' } = Astro.props;
+---
+
+<div class="instrument-picker" data-open="false">
+  <button
+    class="instrument-picker-trigger"
+    type="button"
+    aria-haspopup="listbox"
+    aria-expanded="false"
+    aria-label="Choose instrument"
+  >
+    <span class="instrument-picker-trigger-label">Instrument</span>
+    <span class="instrument-picker-value">{INSTRUMENT_LABELS[defaultInstrument]}</span>
+    <svg
+      class="instrument-picker-caret"
+      viewBox="0 0 10 6"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.6"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"><path d="M1 1l4 4 4-4" /></svg>
+  </button>
+  <div class="instrument-picker-menu" role="listbox" aria-label="Instrument"></div>
+</div>

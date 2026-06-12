@@ -1,0 +1,179 @@
+---
+/**
+ * ActionLinks — a project's links as borderless *destinations*, not buttons.
+ *
+ * There is no pill and no box at rest; the affordance is behaviour, not chrome:
+ *   · Rest  — a whisper underline (≈22% ink) + a directional arrow. This is the
+ *             honest signal on touch, where there is no hover to lean on.
+ *   · Hover — the arrow slides the way it'll take you (→ right for an internal
+ *             page, ↗ up-and-out for an external link) and the underline fills to
+ *             full ink. The motion *is* the affordance.
+ *   · Focus — the one place a box earns its keep: a keyboard focus ring. Plus an
+ *             invisible larger hit area (padding, no border) and a press that dips
+ *             the opacity for tactile confirmation.
+ *
+ * Colour comes entirely from `currentColor`, so the same component reads correctly
+ * on the light home page (ink) and inside the dark lightbox (white) with no props —
+ * set `color` on the parent and the label, underline, and arrow all follow.
+ *
+ * One token, --action-px, drives BOTH the touch hit-padding AND the optical
+ * outdent (margin-left: -action-px), so labels stay pinned to the title column at
+ * any value: set it to 0 for a flush stack inside a padded panel, raise it for
+ * fatter targets and the alignment self-corrects. It defaults to 8px; parents may
+ * override it by setting --action-px on any ancestor. --action-py independently
+ * sets the vertical hit-padding (default 10px); the home row trims it for a
+ * tighter stack.
+ *
+ * The `menu` variant re-skins the SAME links as an iOS-style list-picker —
+ * full-width cells, a hairline between each, the directional arrow pushed to the
+ * right by a flex spacer, and the whole cell as the tap target — for the lightbox
+ * "Links" dropdown. Only the framing differs; the arrow logic stays shared.
+ *
+ * `external` is derived by the caller from the href (http… → external), keeping
+ * links.ts the single source of truth for internal-vs-external.
+ */
+export interface ActionItem {
+  label: string;
+  href: string;
+  external: boolean;
+}
+interface Props {
+  actions: ActionItem[];
+  /** aria-label for the nav landmark. */
+  label?: string;
+  /** Render as an iOS-style list-picker menu (lightbox "Links" dropdown) instead
+   *  of the default inline "destination" row. */
+  menu?: boolean;
+}
+const { actions, label = 'Project links', menu = false } = Astro.props;
+---
+{actions.length > 0 && (
+  <nav class:list={['actions', { menu }]} aria-label={label}>
+    {actions.map((a) => (
+      <a
+        class="action"
+        href={a.href}
+        {...(a.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+      >
+        <span class="label">{a.label}</span>
+        {a.external ? (
+          <svg class="arrow arrow-ext" width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7 17 17 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M11 7h6v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        ) : (
+          <svg class="arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="m13 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        )}
+        {a.external && <span class="sr-only">(opens in a new tab)</span>}
+      </a>
+    ))}
+  </nav>
+)}
+
+<style>
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 4px;
+    /* optical outdent: pulls the row left by exactly the hit-padding, so the first
+       label hangs flush with the title column while the target still extends left. */
+    margin-left: calc(-1 * var(--action-px, 8px));
+  }
+  /* iOS-style list-picker (the lightbox "Links" dropdown). The SAME links, but
+     framed as menu cells instead of inline destinations: each cell fills the
+     panel width, a hairline divides adjacent cells, the label sits left and the
+     directional arrow is pushed to the right by the space-between spacer, and the
+     whole cell — not just the text — is the tap target. The list hugs its widest
+     cell (no fixed width); narrower cells let space-between pin their arrow to the
+     right edge. */
+  .actions.menu {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+    margin-left: 0;          /* no optical outdent; the panel frames the list */
+    width: 100%;
+  }
+  .actions.menu .action {
+    justify-content: space-between;   /* label left · arrow right */
+    gap: 24px;                        /* minimum breathing room on the widest cell */
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 0;
+  }
+  /* hairline divider between adjacent cells (never above the first) */
+  .actions.menu .action + .action {
+    border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  }
+  /* a list cell, not an underlined link: drop the underline; highlight the whole
+     row on hover/press like a native list picker. */
+  .actions.menu .label,
+  .actions.menu .action:hover .label { text-decoration: none; }
+  @media (hover: hover) {
+    .actions.menu .action:hover {
+      background: color-mix(in srgb, currentColor 8%, transparent);
+    }
+  }
+
+  .action {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    /* the invisible part: a generous touch target via padding, no border. */
+    padding: var(--action-py, 10px) var(--action-px, 8px);
+    color: inherit; /* colour flows from the parent context (ink on page, white in lightbox) */
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: -0.006em;
+    text-decoration: none;
+    border-radius: 7px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .label {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    /* whisper-quiet at rest (carries "destination" on touch), full ink on hover. */
+    text-decoration-color: color-mix(in srgb, currentColor 22%, transparent);
+    transition: text-decoration-color 200ms ease;
+  }
+  .action:hover .label { text-decoration-color: currentColor; }
+
+  .arrow { flex: none; transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
+  /* the arrow moves the way it'll take you */
+  .action:hover .arrow { transform: translateX(3px); }
+  .action:hover .arrow-ext { transform: translate(2px, -2px); }
+
+  /* tactile press confirmation */
+  .action:active { opacity: 0.55; }
+
+  /* the only place a box comes back: keyboard focus */
+  .action:focus-visible {
+    outline: 2px solid var(--focus, #0a84ff);
+    outline-offset: 2px;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .arrow { transition: none; }
+    .action:hover .arrow,
+    .action:hover .arrow-ext { transform: none; }
+  }
+</style>

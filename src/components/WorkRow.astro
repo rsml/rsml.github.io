@@ -1,0 +1,218 @@
+---
+import { youtubePoster, type Project } from '../data/work';
+import ActionLinks from './ActionLinks.astro';
+interface Props { project: Project; }
+const { project } = Astro.props;
+const assets = project.assets;
+
+// Links: an optional "Deep dive" (always an internal page) followed by the
+// project's platform/store links. Internal ("/…") links render "→"; external
+// ("http…") links render "↗" and open in a new tab, both derived from the
+// href so work.yaml stays the single source of truth. ActionLinks renders them
+// as borderless destinations (see ActionLinks.astro); the same list, the same
+// look, also feeds the lightbox's "Links" dropdown.
+const actions = [
+  ...(project.deepDive ? [{ label: 'Deep dive', href: `/work/${project.slug}/` }] : []),
+  ...project.links,
+].map((a) => ({ ...a, external: /^https?:/.test(a.href) }));
+---
+<section class="row">
+  <header class="row-head">
+    <p class="row-role">{project.role}{project.date ? ` · ${project.date}` : ''}</p>
+    <p class="row-id">
+      <span class="row-name">{project.cardTitle}</span>
+      <span class="row-sub">{project.subtitle}</span>
+    </p>
+    {actions.length > 0 && (
+      <div class="row-actions">
+        <ActionLinks actions={actions} label={`${project.cardTitle} links`} />
+      </div>
+    )}
+  </header>
+
+  {assets.length > 0 && (
+    <div class="row-shots" data-device={project.device} style={`--shot-h: ${project.shotHeight}px`}>
+      {assets.map((s, i) => (
+        <button
+          class="shot"
+          type="button"
+          data-project={project.slug}
+          data-index={i}
+          data-orientation={s.orientation}
+          aria-label={`Open ${project.cardTitle} ${i + 1} of ${assets.length}: ${s.alt}`}
+        >
+          {/* Every type shows a still in the strip: video + embed carry a required
+              `poster`; youtube derives one from its id; image/gif fall back to
+              their own `src` (a GIF animates). */}
+          <img src={s.poster ?? (s.type === 'youtube' ? youtubePoster(s.src) : s.src)} alt={s.alt} loading="lazy" decoding="async" draggable="false" />
+          {(s.type === 'video' || s.type === 'youtube') && <span class="shot-play" aria-hidden="true"></span>}
+          {(s.type === 'embed' || s.type === 'pdf') && (
+            <span class="shot-embed" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  )}
+</section>
+
+<style>
+  .row {
+    padding: 20px 0 22px;
+    border-top: 1px solid var(--hair);
+  }
+
+  /* A vertical label cluster: role eyebrow · title + subtitle · destination
+     links — sitting above the screenshot strip. */
+  .row-head {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  /* Role as a quiet eyebrow on top: small, lightly tracked, muted. It LABELS the
+     title, so it hugs the title/subtitle cluster — line-height:1.1 strips the
+     leading and a tight margin pulls it close, leaving a clearly larger gap down
+     to the separate links below (proximity = grouping). */
+  .row-role {
+    margin: 0 0 2px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  /* Title + subtitle share a baseline with a gap (no colon); the subtitle wraps
+     under the title only if the two can't fit. */
+  .row-id {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 8px;
+    row-gap: 1px;
+    font-size: 15px;
+    line-height: 1.3;
+    letter-spacing: -0.012em;
+  }
+  .row-name { font-weight: 600; color: var(--ink); }
+  .row-sub { font-weight: 460; color: var(--muted); }
+
+  /* Destination links (ActionLinks). The wrapper owns only the gap to the title;
+     the links' own optical outdent hangs their hit-padding into the page gutter,
+     so the first label stays flush with the title above. --action-py trims the
+     links' vertical hit-padding here so the stack reads tight and precise. */
+  .row-actions { margin-top: 6px; --action-py: 7px; }
+
+  /* Horizontal screenshot strip: native momentum scroll, scrollbar hidden,
+     scroll-snap so flicks settle cleanly. Height per orientation; widths follow
+     each image's aspect ratio. */
+  .row-shots {
+    /* ┌──────────────────────────────────────────────────────────────────────┐
+       │ THUMBNAIL HEIGHT — per project, from work.yaml's `shotHeight`          │
+       │ (default 200, set inline above as --shot-h). Every shot in a row is    │
+       │ exactly that tall; widths follow each asset's native aspect. The       │
+       │ corner radii are percentages (--corner-* in global.css), so they       │
+       │ rescale on their own with the height.                                  │
+       └──────────────────────────────────────────────────────────────────────┘ */
+
+    display: flex;
+    align-items: flex-start;   /* each shot hugs its image, no stretch to row height */
+    gap: 12px;
+    /* Full-bleed BOTH edges so a shot can scroll clean off either side of the
+       screen. The negative margins cancel the page gutter (.container padding)
+       to reach the viewport edges; the matching internal padding re-insets the
+       first/last shot to the gutter; scroll-padding keeps snap aligned to that
+       inset. Vertical padding leaves room for the focus ring and hover lift
+       before the overflow clip. */
+    margin: 10px calc(-1 * var(--gutter)) 0;
+    padding: 8px var(--gutter);
+    scroll-padding-left: var(--gutter);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .row-shots::-webkit-scrollbar { display: none; }
+  /* Round each shot like the device it was captured on (radii in global.css). */
+  .row-shots[data-device="iphone"] .shot { border-radius: var(--corner-iphone); }
+  .row-shots[data-device="desktop"] .shot { border-radius: var(--corner-desktop); }
+  .row-shots[data-device="ipad"] .shot { border-radius: var(--corner-ipad); }
+  /* Exception: a LANDSCAPE asset inside a phone project (e.g. Openpath's web
+     Control Center clips) is a desktop capture, not a phone screen. The iPhone
+     token's percentages are calibrated to a portrait box, so on a landscape one
+     they smear into a wide flat ellipse; round those like a Mac window instead. */
+  .row-shots[data-device="iphone"] .shot[data-orientation="landscape"] { border-radius: var(--corner-desktop); }
+
+  .shot {
+    flex: 0 0 auto;
+    padding: 0;
+    border: 0;
+    background: #f1f1f1;
+    overflow: hidden;
+    position: relative;
+    cursor: zoom-in;
+    scroll-snap-align: start;
+    box-shadow: 0 1px 2px rgba(17, 17, 17, 0.06), 0 0 0 1px var(--hair) inset;
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 220ms ease;
+  }
+  /* Every image renders at the row's --shot-h at its native aspect; the button
+     shrinks to wrap it, and overflow:hidden clips it to the rounded corners. */
+  .shot img {
+    display: block;
+    height: var(--shot-h, 200px);
+    width: auto;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+  @media (hover: hover) {
+    .shot:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 26px rgba(17, 17, 17, 0.13), 0 0 0 1px var(--hairHigh) inset;
+    }
+  }
+  .shot:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .shot-play {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: rgba(17, 17, 17, 0.55);
+    backdrop-filter: blur(2px);
+    pointer-events: none;
+  }
+  .shot-play::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 54%;
+    transform: translate(-50%, -50%);
+    border-style: solid;
+    border-width: 8px 0 8px 13px;
+    border-color: transparent transparent transparent #fff;
+  }
+
+  /* Embed (web view) badge: a corner "launch" glyph, not the centred play disc,
+     so a live demo reads as "opens an interactive view" rather than "plays". */
+  .shot-embed {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(17, 17, 17, 0.55);
+    backdrop-filter: blur(2px);
+    color: #fff;
+    pointer-events: none;
+  }
+  .shot-embed svg { width: 15px; height: 15px; }
+</style>

@@ -1,0 +1,37 @@
+---
+// Light/dark theme toggle. Both icons render; sim-controls.css shows the one
+// for the current .phone-demo[data-theme]. Clicks are handled by the adapter
+// (delegated), which flips data-theme, repaints aria-pressed, and posts { theme }.
+import type { ThemeValue } from '../../scripts/sim-controls-core';
+
+interface Props {
+  defaultTheme?: ThemeValue;
+}
+
+const { defaultTheme = 'light' } = Astro.props;
+---
+
+<button
+  class="theme-toggle"
+  type="button"
+  aria-pressed={defaultTheme === 'dark' ? 'true' : 'false'}
+  aria-label="Toggle dark mode"
+  title="Toggle dark mode"
+>
+  <svg
+    class="theme-icon theme-icon--moon"
+    viewBox="0 0 16 16"
+    fill="currentColor"
+    aria-hidden="true"><path d="M6 1.5A6.5 6.5 0 1 0 14.5 10 5 5 0 0 1 6 1.5z" /></svg>
+  <svg
+    class="theme-icon theme-icon--sun"
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.4"
+    stroke-linecap="round"
+    aria-hidden="true">
+    <circle cx="8" cy="8" r="3.2" />
+    <path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3 3l1.1 1.1M11.9 11.9 13 13M13 3l-1.1 1.1M4.1 11.9 3 13" />
+  </svg>
+</button>

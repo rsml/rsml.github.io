@@ -1,0 +1,168 @@
+---
+interface Props {
+  theme?: string;
+  label?: string;
+  kind?: 'phone' | 'desktop';
+  src?: string;       // real screenshot; replaces the placeholder gradient
+  alt?: string;
+  width?: number;     // intrinsic px, reserves layout space before the lazy image loads
+  height?: number;
+}
+const { theme, label, kind = 'phone', src, alt = '', width, height } = Astro.props;
+const base = kind === 'desktop' ? 'desktop-screen' : 'phone-screen';
+---
+<div class:list={[base, theme, src && 'has-img']} data-label={label}>
+  {src && <img class="screen-img" src={src} alt={alt} width={width} height={height} loading="lazy" decoding="async" />}
+  <slot />
+</div>
+<style is:global>
+  .phone-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    background: linear-gradient(135deg, oklch(85% 0.10 250) 0%, oklch(82% 0.10 30) 100%);
+  }
+  .phone-screen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(to right, rgba(17,17,17,0.04) 1px, transparent 1px) 0 0 / 18px 18px,
+      linear-gradient(to bottom, rgba(17,17,17,0.04) 1px, transparent 1px) 0 0 / 18px 18px;
+  }
+  .phone-screen[data-label]::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: 14%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--hair);
+    padding: 2px 6px;
+    font-family: ui-monospace, monospace;
+    white-space: nowrap;
+  }
+  .desktop-screen {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    aspect-ratio: 16 / 10;
+    background: #1e1e22;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .desktop-screen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px) 0 0 / 24px 24px,
+      linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px) 0 0 / 24px 24px;
+    pointer-events: none;
+  }
+  .desktop-screen[data-label]::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.55);
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 2px 6px;
+    font-family: ui-monospace, monospace;
+    z-index: 1;
+  }
+
+  /* Real screenshots: the screen adopts the image's natural aspect ratio
+     and the placeholder grid is hidden. */
+  .desktop-screen.has-img { aspect-ratio: auto; }
+  .desktop-screen.has-img::before { display: none; }
+  .screen-img { display: block; width: 100%; height: auto; }
+
+  /* Themed phone screens for Chord Colors */
+  .phone-screen.color-system { background: conic-gradient(from 0deg, oklch(75% 0.18 0), oklch(75% 0.18 30), oklch(75% 0.18 60), oklch(75% 0.18 90), oklch(75% 0.18 120), oklch(75% 0.18 150), oklch(75% 0.18 180), oklch(75% 0.18 210), oklch(75% 0.18 240), oklch(75% 0.18 270), oklch(75% 0.18 300), oklch(75% 0.18 330), oklch(75% 0.18 360)); }
+  .phone-screen.chord-library { background: linear-gradient(180deg, oklch(88% 0.05 250) 0%, oklch(78% 0.10 280) 100%); }
+  .phone-screen.dual-instr { background: linear-gradient(180deg, oklch(86% 0.08 60) 0%, oklch(82% 0.12 30) 100%); }
+  .phone-screen.progressions { background: linear-gradient(135deg, oklch(82% 0.13 150) 0%, oklch(78% 0.15 200) 100%); }
+  .phone-screen.wheel { background: radial-gradient(circle at center, oklch(80% 0.14 90) 0%, oklch(70% 0.18 270) 100%); }
+  .phone-screen.toolkit { background: linear-gradient(135deg, oklch(85% 0.08 30) 0%, oklch(80% 0.12 320) 100%); }
+  .phone-screen.matching-chords { background: linear-gradient(135deg, oklch(86% 0.10 80) 0%, oklch(78% 0.14 40) 100%); }
+  .phone-screen.matching-scales { background: linear-gradient(135deg, oklch(84% 0.10 200) 0%, oklch(76% 0.14 230) 100%); }
+  .phone-screen.pin-scales { background: linear-gradient(180deg, oklch(86% 0.10 160) 0%, oklch(78% 0.14 190) 100%); }
+  .phone-screen.saved-chords { background: linear-gradient(180deg, oklch(86% 0.10 320) 0%, oklch(78% 0.14 280) 100%); }
+  .phone-screen.ear { background: linear-gradient(180deg, oklch(86% 0.08 280) 0%, oklch(78% 0.12 260) 100%); }
+  .phone-screen.a11y { background: linear-gradient(180deg, oklch(96% 0.005 240) 0%, oklch(20% 0.005 240) 100%); }
+
+  /* Themed phone screens for Vivy */
+  .phone-screen.vivy-goals     { background: linear-gradient(180deg, oklch(94% 0.05 45) 0%, oklch(85% 0.11 35) 100%); }
+  .phone-screen.vivy-meal      { background: linear-gradient(180deg, oklch(94% 0.05 70) 0%, oklch(86% 0.11 55) 100%); }
+  .phone-screen.vivy-community { background: linear-gradient(180deg, oklch(93% 0.05 30) 0%, oklch(84% 0.10 20) 100%); }
+  .phone-screen.vivy-widgets   { background: linear-gradient(180deg, oklch(93% 0.06 55) 0%, oklch(83% 0.12 40) 100%); }
+  .phone-screen.vivy-coach     { background: linear-gradient(180deg, oklch(40% 0.07 35) 0%, oklch(22% 0.04 30) 100%); }
+  .phone-screen.vivy-coach::after { color: oklch(90% 0.02 40); background: rgba(20,12,10,0.55); border-color: rgba(255,255,255,0.18); }
+  .phone-screen.vivy-curve     { background: linear-gradient(180deg, oklch(94% 0.04 25) 0%, oklch(86% 0.09 50) 100%); }
+  .phone-screen.vivy-lessons   { background: linear-gradient(180deg, oklch(95% 0.03 60) 0%, oklch(88% 0.07 45) 100%); }
+
+  /* Themed phone screens for Symphony Pro */
+  .phone-screen.sp-launch      { background: linear-gradient(180deg, oklch(82% 0.08 60) 0%, oklch(72% 0.14 30) 100%); }
+  .phone-screen.sp-notation    { background: #faf6ef; }
+  .phone-screen.sp-feature     { background: linear-gradient(180deg, oklch(85% 0.06 80) 0%, oklch(76% 0.12 60) 100%); }
+  .phone-screen.sp-features    { background: #f5f0e6; }
+
+  /* Themed phone screens for Openpath */
+  .phone-screen.op-unlock      { background: linear-gradient(180deg, oklch(88% 0.04 250) 0%, oklch(70% 0.16 250) 100%); }
+  .phone-screen.op-provision   { background: linear-gradient(180deg, oklch(85% 0.06 250) 0%, oklch(68% 0.12 250) 100%); }
+  .phone-screen.op-dashboard   { background: linear-gradient(180deg, oklch(90% 0.03 250) 0%, oklch(80% 0.06 250) 100%); }
+  .phone-screen.op-intercom    { background: #1a1a1a; }
+  .phone-screen.op-perf        { background: linear-gradient(180deg, oklch(86% 0.04 250) 0%, oklch(74% 0.08 250) 100%); }
+
+  /* Themed phone screens for SMS */
+  .phone-screen.sms-customer   { background: linear-gradient(180deg, oklch(94% 0.02 80) 0%, oklch(86% 0.06 60) 100%); }
+
+  /* Themed desktop screens for Tutor */
+  .desktop-screen.tutor-personalize { background: linear-gradient(135deg, oklch(35% 0.13 280) 0%, oklch(22% 0.08 290) 100%); }
+  .desktop-screen.tutor-create      { background: linear-gradient(135deg, oklch(32% 0.12 250) 0%, oklch(20% 0.07 260) 100%); }
+  .desktop-screen.tutor-chat        { background: linear-gradient(135deg, oklch(36% 0.13 270) 0%, oklch(24% 0.08 280) 100%); }
+  .desktop-screen.tutor-quiz        { background: linear-gradient(135deg, oklch(33% 0.14 240) 0%, oklch(22% 0.09 260) 100%); }
+  .desktop-screen.tutor-adapt       { background: linear-gradient(135deg, oklch(36% 0.15 220) 0%, oklch(24% 0.10 240) 100%); }
+  .desktop-screen.tutor-library     { background: linear-gradient(135deg, oklch(34% 0.10 260) 0%, oklch(22% 0.06 280) 100%); }
+  .desktop-screen.tutor-rich        { background: linear-gradient(135deg, oklch(34% 0.14 205) 0%, oklch(22% 0.09 220) 100%); }
+  .desktop-screen.tutor-profile     { background: linear-gradient(135deg, oklch(36% 0.14 290) 0%, oklch(23% 0.09 295) 100%); }
+
+  /* Tutor demos break out of the column */
+  .desktop-demo:has(> .desktop-screen[class*="tutor-"]) {
+    width: min(812px, 92vw);
+    max-width: 92vw;
+    margin-left: 50%;
+    transform: translateX(-50%);
+  }
+  .desktop-screen[class*="tutor-"] { max-width: 780px; }
+
+  /* Themed desktop screens for Forge */
+  .desktop-screen.forge-list        { background: #1e1e22; }
+  .desktop-screen.forge-stack       { background: #18181c; }
+
+  /* Themed desktop screens for SMS */
+  .desktop-screen.sms-kds {
+    background: #ffffff;
+    color: var(--ink);
+    background-image:
+      linear-gradient(to right, rgba(17,17,17,0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(17,17,17,0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .desktop-screen.sms-kds::after    { color: var(--muted); background: var(--bg); border-color: var(--hair); }
+  .desktop-screen.sms-event         { background: linear-gradient(135deg, oklch(85% 0.05 60) 0%, oklch(75% 0.12 30) 100%); }
+  .desktop-screen.sms-event::after  { color: oklch(30% 0.10 40); background: rgba(255,255,255,0.8); border-color: rgba(0,0,0,0.1); }
+  .desktop-screen.sms-dashboard     { background: #f7f7f7; }
+  .desktop-screen.sms-dashboard::after { color: var(--muted); background: var(--bg); border-color: var(--hair); }
+</style>

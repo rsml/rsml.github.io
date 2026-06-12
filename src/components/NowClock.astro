@@ -1,0 +1,361 @@
+---
+/**
+ * NowClock: the live "Now" line at the foot of the homepage.
+ *
+ * Renders two things:
+ *   1. a digital-alarm-clock reading of the current time in Nashville, TN
+ *      (America/Chicago, US Central, DST-correct via Intl.DateTimeFormat) whose
+ *      colon blinks at a true 1Hz like a real alarm clock (~0.5s on, ~0.5s off):
+ *      a clean CSS-driven on/off square wave, and
+ *   2. an interactive ASCII-art cat (a real <button>) with three distinct
+ *      animation states (idle / hover-focus / click). The cat is rendered in a
+ *      monospace box and animates ONLY by swapping multi-line ASCII text frames:
+ *      no CSS transforms, no opacity / movement / colour transitions. Every frame
+ *      shares the exact same line-count (3) and column-width (8), so only the
+ *      glyphs change and nothing ever reflows or jumps.
+ *
+ * The whole line matches surrounding body text: Inter, ~14px, `var(--muted)`,
+ * normal weight. Nothing here is darker or heavier than the rest of the page.
+ *
+ * Astro view-transition safe. Two JS timers, both tracked at module scope:
+ *   - a 1s setInterval repaints the clock digits (the colon blink is pure CSS), and
+ *   - an idle-frame setInterval cycles the cat's ASCII frames.
+ * BOTH are re-armed on `astro:page-load` and torn down on `astro:before-swap`,
+ * so navigations never stack duplicate timers. Hover/focus swap the active frame
+ * set; click plays a one-shot meow sequence (driven by a short-lived timeout,
+ * also tracked) that then settles back to idle. A `<noscript>` fallback keeps the
+ * line meaningful without JS.
+ *
+ * Under `prefers-reduced-motion`, the cat freezes on a single static frame and
+ * the colon stays steady, but the clock still updates.
+ *
+ * Rest props (notably `style="--rise-i:N"` from index.astro) are spread onto the
+ * root <p> so it stays a direct child of `.container[data-rise]` carrying the
+ * stagger index, which the homepage reveal animation depends on.
+ */
+const { class: className, ...rest } = Astro.props;
+
+// Initial / no-JS frame for the ASCII cat. Rendered via expressions (not as
+// literal template text) because the art contains `<` and `>`, which the Astro
+// compiler would otherwise try to parse as tags. The frame is split at the mouth
+// so the template can wrap 'ㅅ' in the same <span class="cm"> the runtime uses
+// (see setCat below): that keeps the mouth centred on its column before JS runs
+// (and without JS), and makes the first JS paint a no-op swap, so nothing shifts.
+// The `<script>` keeps its own copy of this exact frame (FRAME_CARET) and
+// overwrites the <pre> on load.
+const CAT_INITIAL = [' /\\_/\\  ', '( ^.^ ) ', ' > ㅅ <  '].join('\n');
+const [CAT_BEFORE_MOUTH, CAT_AFTER_MOUTH] = CAT_INITIAL.split('ㅅ');
+---
+<p class:list={['now-line', className]} {...rest}>
+  <span class="now-clock" aria-live="off">
+    It's
+    <span class="clk">
+      <time class="clk-time" datetime=""><span class="clk-h">--</span><span class="clk-colon" aria-hidden="true">:</span><span class="clk-m">--</span></time>
+      <span class="clk-ampm">&nbsp;</span>
+    </span>
+    in Nashville, TN.
+  </span>
+  <button type="button" class="cat" aria-label="pet the cat">
+    <pre class="cat-art" aria-hidden="true">{CAT_BEFORE_MOUTH}<span class="cm">ㅅ</span>{CAT_AFTER_MOUTH}</pre>
+  </button>
+  <noscript><span class="now-clock">It's currently the local time in Nashville, TN.</span></noscript>
+</p>
+
+<style>
+  .now-line { margin-top: 44px; color: var(--muted); }
+
+  /* The live clock reads as one ordinary line of body text. */
+  .now-clock { display: block; }
+
+  /* The clock reading. tabular-nums keeps the digits from jiggling as they
+     change; the colon sits in its own span so it can blink on its own. The whole
+     reading inherits the line's muted colour / Inter font / size / weight: no
+     --ink, no bold, nothing heavier than the surrounding text. */
+  .clk {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* Colon blink: a true alarm-clock blink at 1Hz (~0.5s visible, ~0.5s hidden),
+     a clean on/off square wave. Driven by CSS, not the JS clock tick, so it's
+     crisp and self-contained; the seconds aren't shown, so there's no tick to
+     phase-lock to. `visibility` (not opacity/display) keeps the colon's box, and
+     thus its width, so the digits never shift while it's off. */
+  .clk-colon { animation: colon-blink 1s step-end infinite; }
+  @keyframes colon-blink {
+    0%  { visibility: visible; }
+    50% { visibility: hidden; }
+  }
+
+  /* The ASCII cat.
+     A real <button>, reset to sit inline-ish next to the clock line. The art is
+     a 3-line <pre> in a monospace face with `white-space: pre`, so every column
+     lines up and padded frames stay rectangular. The cat animates SOLELY by JS
+     swapping the <pre>'s textContent between equal-sized ASCII frames; there is
+     deliberately NO transform / opacity / position / colour animation here. */
+  .cat {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    margin: 6px 0 0;
+    padding: 2px 4px;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    display: inline-block;
+    vertical-align: top;
+  }
+  .cat:focus-visible {
+    outline: 1.5px solid var(--hairHigh);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* The art box. Monospace + pre so the columns align and trailing-space padding
+     holds every frame to the same width; small line-height keeps the 3 rows
+     compact. Colour stays muted in every state. */
+  .cat-art {
+    margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre;
+    /* The middle line grows during the "meow", so the frames are unequal width.
+       A <button> defaults to text-align:center, which the <pre> inherits and which
+       would centre the short ears/mouth lines against the wide one, shifting the
+       cat. Pin left so every line starts at the same column and the cat holds. */
+    text-align: left;
+    line-height: 1;   /* rows sit a little closer than default (mouth tucks up under the face) */
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0;
+  }
+  /* The closed-mouth glyph 'ㅅ' comes from a Korean fallback font and renders
+     ~1.4 monospace cells wide, so flanking it with the 1-cell whiskers would shove
+     the right whisker off the grid. Clamp it to a single cell so it advances
+     exactly one column, and centre the overflow with flex: `justify-content:
+     center` is spec-required to overflow EQUALLY in both directions when content
+     is wider than the box. (text-align: center does NOT do this; Chrome
+     start-aligns overflowing inline content, which left the mouth ~1.6px right of
+     centre.) The glyph now overlaps the flanking spaces evenly and '> ㅅ <' sits
+     centred under the nose. */
+  /* :global because the span is also injected via innerHTML (JS), so it doesn't
+     carry Astro's scoping attribute that a scoped selector would require. */
+  :global(.cm) { display: inline-flex; width: 1ch; justify-content: center; }
+
+  /* Reduced motion: the cat holds a single static frame (JS checks the same
+     media query and skips frame cycling), and the colon stays steady. The clock
+     itself keeps ticking; only the motion is suppressed. */
+  @media (prefers-reduced-motion: reduce) {
+    .clk-colon { animation: none; visibility: visible; }
+  }
+</style>
+
+<script>
+  // --- Live Nashville (America/Chicago) clock + colon blink ---
+  // Single 1s interval, tracked at module scope so it can be cleared before an
+  // Astro view-transition swaps the DOM (no duplicate timers across nav).
+
+  let timer: ReturnType<typeof setInterval> | null = null;
+
+  // DST-correct: Intl resolves US-Central's offset per-instant, so we never
+  // hardcode it and the viewer's own timezone is irrelevant.
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+
+  function parts(date: Date) {
+    const map: Record<string, string> = {};
+    for (const p of fmt.formatToParts(date)) map[p.type] = p.value;
+    return {
+      h: map.hour ?? '--',
+      m: map.minute ?? '--',
+      s: parseInt(map.second ?? '0', 10),
+      ap: (map.dayPeriod ?? '').toUpperCase(),   // AM / PM
+    };
+  }
+
+  function paint() {
+    const root = document.querySelector('.now-clock');
+    if (!root) return;
+    const hEl = root.querySelector('.clk-h');
+    const mEl = root.querySelector('.clk-m');
+    const ampm = root.querySelector('.clk-ampm');
+    const timeEl = root.querySelector('.clk-time') as HTMLTimeElement | null;
+    if (!hEl || !mEl || !ampm) return;
+
+    const now = new Date();
+    const { h, m, ap } = parts(now);
+    hEl.textContent = h;
+    mEl.textContent = m;
+    ampm.textContent = ' ' + ap;          // leading space before AM/PM
+    // 24h machine-readable value for the <time> element (best-effort, CT local).
+    if (timeEl) {
+      const h24 = ap === 'PM'
+        ? (h === '12' ? '12' : String(Number(h) + 12).padStart(2, '0'))
+        : (h === '12' ? '00' : h.padStart(2, '0'));
+      timeEl.dateTime = `${h24}:${m}`;
+    }
+  }
+
+  function startClock() {
+    stopClock();
+    // No clock on this page (e.g. after navigating away): don't arm a timer.
+    if (!document.querySelector('.now-clock')) return;
+    paint();                       // immediate so there's no "--" flash
+    timer = setInterval(paint, 1000);
+  }
+  function stopClock() {
+    if (timer !== null) { clearInterval(timer); timer = null; }
+  }
+
+  // --- ASCII cat ---
+  // The cat is pure text. Each state is an array of 3-line ASCII frames; every
+  // frame across every state is exactly 3 rows tall and 8 columns wide (every
+  // line right-padded with spaces to 8), so swapping textContent only ever
+  // changes glyphs: never the box size, never the layout. The ONLY thing that
+  // animates is which frame's string is shown; there is no CSS transform /
+  // opacity / position / colour animation anywhere.
+  //
+  // Reference cat (idle, eyes open):
+  //    /\_/\
+  //   ( o.o )
+  //    > ^ <
+  //
+  // `f()` right-pads each of the 3 lines to exactly 8 columns, so the frames are
+  // guaranteed rectangular and identically sized (a dev-time throw catches any
+  // over-wide line). The face "( X.X )" keeps the SAME column position in every
+  // state, so eyes/mouth never appear to slide sideways between frames.
+  const W = 8;
+  const padTo = (s: string) => {
+    if (s.length > W) throw new Error(`cat frame line too wide (${s.length}): "${s}"`);
+    return s + ' '.repeat(W - s.length);
+  };
+  const f = (a: string, b: string, c: string) =>
+    `${padTo(a)}\n${padTo(b)}\n${padTo(c)}`;
+
+  // The cat rests with caret eyes '^' and, every ~4s, opens them wide '°' for a
+  // brief beat (see the eye loop below). The nose stays a '.' dot; the mouth stays
+  // closed ('ㅅ') except during the click (meow) and mouse-move (purr) reactions.
+  const FRAME_CARET = f(' /\\_/\\', '( ^.^ )', ' > ㅅ <  ');  // resting eyes
+  const FRAME_OPEN  = f(' /\\_/\\', '( °.° )', ' > ㅅ <  ');  // eyes open (brief)
+
+  // One-shot reactions (raw strings, not f()): the extra word makes the middle line
+  // wider than the box, which is fine — the cat is pinned left (text-align:left), so
+  // the word just runs into the empty space at the right and the cat never shifts.
+  //   meow: click — eyes go wide, the mouth opens to 'o', "meow!" sounds out.
+  //   purr: mouse-move while hovering — mouth stays closed, "purr" sounds out.
+  const MEOW_FRAME = ' /\\_/\\\n( °.° )    meow!\n > o <';
+  const PURR_FRAME = ' /\\_/\\\n( ^.^ )    purr\n > ㅅ <';
+
+  // Cat runtime state, all module-scoped so timers can be explicitly torn down and
+  // re-armed across view-transitions (never left to survive a DOM swap).
+  let catEyeTimer: ReturnType<typeof setTimeout> | null = null;   // eye open/close loop
+  let catSeqTimer: ReturnType<typeof setTimeout> | null = null;   // meow/purr one-shot
+  let eyesOpen = false;   // false = resting caret '^', true = open '°'
+  let busy = false;       // a meow/purr one-shot is currently showing
+  let lastPurr = 0;       // timestamp (ms) of the last purr, for the 4s throttle
+  let catBound = false;
+
+  const reduceMotion = () =>
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
+  function catArtEl(): HTMLElement | null {
+    return document.querySelector('.cat-art');
+  }
+
+  // Render a frame into the cat box. Frames are plain text, but the closed mouth
+  // 'ㅅ' needs a wrapping <span class="cm"> so CSS can clamp it to one column and
+  // centre the glyph on it (see the .cm rule), so escape the frame to HTML and
+  // wrap the 'ㅅ' before assigning innerHTML.
+  const escapeHtml = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  function setCat(el: HTMLElement, frame: string) {
+    el.innerHTML = escapeHtml(frame).replace(/ㅅ/g, '<span class="cm">ㅅ</span>');
+  }
+
+  // Paint the resting cat for the current eye state. Suppressed while a meow/purr
+  // one-shot is showing (busy); frozen on caret eyes under reduced motion.
+  function paintEyes() {
+    const el = catArtEl();
+    if (!el || busy) return;
+    setCat(el, (eyesOpen && !reduceMotion()) ? FRAME_OPEN : FRAME_CARET);
+  }
+
+  // Eye loop: rest on caret '^' (closed) for 3s, then open wide '°' for 0.8s,
+  // repeat. A single self-rescheduling timeout (not a fixed interval) gives the
+  // two different hold times. Under reduced motion the cat just holds the caret.
+  function eyeLoop() {
+    paintEyes();
+    const hold = eyesOpen ? 800 : 3000;   // open '°' for 0.8s, closed '^' for 3s
+    catEyeTimer = setTimeout(() => { eyesOpen = !eyesOpen; eyeLoop(); }, hold);
+  }
+  function startCatIdle() {
+    stopCatIdle();
+    const el = catArtEl();
+    if (!el) return;                 // cat not on this page: no timer
+    eyesOpen = false;
+    if (reduceMotion()) { setCat(el, FRAME_CARET); return; }   // static, no timer
+    eyeLoop();
+  }
+  function stopCatIdle() {
+    if (catEyeTimer !== null) { clearTimeout(catEyeTimer); catEyeTimer = null; }
+  }
+  function stopCatSeq() {
+    if (catSeqTimer !== null) { clearTimeout(catSeqTimer); catSeqTimer = null; }
+  }
+
+  // One-shot overlay (meow or purr): show `frame` for `ms` (suppressing the eye
+  // loop meanwhile), then revert to the resting eyes. Skipped under reduced motion.
+  function oneShot(frame: string, ms: number) {
+    const el = catArtEl();
+    if (!el || reduceMotion()) return;
+    stopCatSeq();
+    busy = true;
+    setCat(el, frame);
+    catSeqTimer = setTimeout(() => {
+      busy = false;
+      catSeqTimer = null;
+      paintEyes();                             // revert to the resting cat
+    }, ms);
+  }
+  function meow() { oneShot(MEOW_FRAME, 1000); }                      // click
+  function purr() { oneShot(PURR_FRAME, 1000); lastPurr = Date.now(); }   // mouse-move
+
+  // Bind interactions once at document level (survives view transitions). The
+  // button is re-rendered each navigation but the document persists, so a single
+  // delegated set of listeners means no per-page rebinding and no stacking.
+  function bindCat() {
+    if (catBound) return;
+    catBound = true;
+
+    // Click (or keyboard Enter/Space on the button): meow.
+    document.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest?.('.cat')) meow();
+    });
+
+    // Move the mouse over the cat and it purrs — but at most once every 4s, and
+    // never while a meow (or another purr) is already showing. pointermove fires
+    // rapidly, so the timestamp throttle is what keeps the purr occasional.
+    document.addEventListener('pointermove', (e) => {
+      if (!(e.target as HTMLElement).closest?.('.cat')) return;
+      if (busy) return;                            // not during a meow/purr
+      if (Date.now() - lastPurr < 4000) return;    // at most once per 4s
+      purr();
+    });
+  }
+
+  // --- Astro view-transition lifecycle ---
+  // Tear BOTH timers (clock + cat) down before a swap; re-arm BOTH on page-load.
+  // Guard flags (`catBound`) and the stop-before-start pattern prevent duplicate
+  // timers / double-binding across navigations.
+  function teardown() { stopClock(); stopCatIdle(); stopCatSeq(); busy = false; }
+  function setup() { bindCat(); startClock(); startCatIdle(); }
+
+  document.addEventListener('astro:before-swap', teardown);
+  document.addEventListener('astro:page-load', setup);
+  // Initial load (covers the case where page-load already fired before hydration).
+  setup();
+</script>

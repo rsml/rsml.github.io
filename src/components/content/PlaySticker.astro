@@ -1,0 +1,49 @@
+---
+// "Play with me" annotation (handwritten Caveat): centered above the demo with a
+// short downward arrow pointing at the controls. The demo uses one stacked
+// layout at every size, so there's a single centered variant here.
+// Decorative: aria-hidden + pointer-events:none.
+---
+
+<div class="play-sticker" aria-hidden="true">
+  <span class="play-sticker__text">Play with me</span>
+  <svg
+    class="play-sticker__arrow"
+    viewBox="0 0 38 96"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <!-- your Figma shaft, translated; control2.x snapped to tip.x = vertical end tangent -->
+    <path d="M30 4 C 38 31.5, 12 40.5, 12 90" />
+    <path d="M19 77 L 12 90 L 5 77" />
+  </svg>
+</div>
+
+<style>
+  .play-sticker {
+    z-index: 7;
+    pointer-events: none;
+    color: oklch(72% 0.2 25);
+    transform: rotate(-2deg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 0 2px;
+  }
+  .play-sticker__text {
+    font-family: 'Caveat', ui-sans-serif, system-ui, cursive;
+    font-weight: 700;
+    font-size: 32px;
+    line-height: 0.9;
+    white-space: nowrap;
+  }
+  .play-sticker__arrow {
+    display: block;
+    width: 20px;
+    height: auto;
+    margin: 3px 0 0;
+  }
+</style>

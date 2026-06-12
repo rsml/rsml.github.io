@@ -1,0 +1,31 @@
+# Ross Miller
+
+> Software engineer and serial founder. Creator of Forge (native macOS terminal for AI coding agents), Vivy (the #1 doctor-led GLP-1 companion app), Chord Colors, Tutor, and Symphony Pro. Previously Software Engineering Manager and #2 employee at Openpath Security.
+
+Ross Miller (also written Ross N. Miller) is a software engineer focused on architecture and user experience. He has founded multiple companies and shipped native mobile, web, and macOS products used by millions. His current focus is Forge, a native macOS tool for running many AI coding agents in parallel.
+
+## Active projects
+
+- [Forge](https://rossmiller.dev/forge/): Native macOS terminal manager for running many AI coding agents in parallel. Get pinged the moment an agent finishes, stalls at a prompt, or needs input. Built with SwiftUI on libghostty.
+- [Vivy](https://apps.apple.com/us/app/vivy-glp-1-shot-tracker/id6736508784): The #1 doctor-led GLP-1 companion app on the App Store.
+- [Chord Colors](https://chordcolors.app/): Interactive music theory exploration app for iOS and Web. iOS app: https://apps.apple.com/us/app/id1422598441. Web: https://chordcolors.com/.
+- [Tutor](https://rossmiller.dev/tutor/): AI tutor that writes books for you, answers questions, and tests your understanding. Open source: https://github.com/rsml/tutor.
+
+## Past work
+
+- [Openpath Security](https://www.openpath.com/): Software Engineering Manager and #2 employee. Premier access control platform powering millions of door unlocks per day. Acquired by Motorola Solutions.
+- [Symphony Pro](https://symphonypro.net/): World's first iPad sheet music notation app. iOS app: https://apps.apple.com/us/app/symphony-pro-music-notation/id412380315.
+- Text2Order: Order food and drink at music festivals by text message.
+- GrubRunner: Order food and drink at stadium events by text message.
+
+## Profiles
+
+- LinkedIn: https://www.linkedin.com/in/rossnmiller/
+- GitHub: https://github.com/rsml
+- X / Twitter: https://x.com/coding_ross
+- Email: rossnmiller@gmail.com
+- Portfolio: https://rossmiller.dev/
+
+## Areas of expertise
+
+Software engineering, engineering leadership, software leadership, technical strategy, startup founding, lean startup, rapid prototyping, product-market fit, product design, user experience design, user research, AI coding agents, macOS development, SwiftUI, iOS development, mobile engineering, React, React Native, JavaScript, TypeScript, access control systems, music theory software, reliability engineering.

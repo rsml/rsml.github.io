@@ -1,0 +1,25 @@
+---
+interface Props { title: string; }
+const { title } = Astro.props;
+---
+<section class="dive-section">
+  <h2 class="dive-h">{title}</h2>
+  <slot />
+</section>
+<style>
+  h2.dive-h {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 48px 0 14px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.09px;
+  }
+  h2.dive-h::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--hair);
+  }
+</style>

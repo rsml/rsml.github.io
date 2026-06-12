@@ -1,0 +1,98 @@
+---
+import Lede from '../content/Lede.astro';
+import Section from '../content/Section.astro';
+import PhoneFrame from '../content/PhoneFrame.astro';
+import Screen from '../content/Screen.astro';
+import Caption from '../content/Caption.astro';
+import StackTrailer from '../content/StackTrailer.astro';
+import Footnotes from '../content/Footnotes.astro';
+---
+
+<Lede>Vivy is the #1 doctor-backed GLP-1 companion app. It's designed for people on medications like Ozempic to reduce short-term side effects and improve long-term outcomes.</Lede>
+<Lede>Vivy does this with goal setting and accountability, a supportive private community, AI meal logging, step counting, weight and side-effect tracking, water tracking, and doctor-written lessons that teach how the medications work and which lifestyle changes matter most while on them.</Lede>
+<Lede>68 app releases in 2025. 99.98% crash-free sessions. 4.8 stars from 655+ ratings. 10k+ paid users. 8.9% install-to-subscription. 77% monthly cohort retention.</Lede>
+<Lede>I designed and built everything you see in the app, by myself, apart from the logo. Founder, CTO, and only engineer.</Lede>
+
+<Section title="Daily goals">
+  <p>The app opens on today. A short list of goals for protein, water, steps, and the weekly shot, each one a tap to log. The point is accountability without a spreadsheet.</p>
+  <p>Goals adjust to where a member is in their program, so the target on week one is not the target on month six.</p>
+  <PhoneFrame>
+    <Screen theme="vivy-goals" label="goals.mp4" />
+  </PhoneFrame>
+  <Caption>Today's goals on the home screen. Tap to log, no typing.</Caption>
+</Section>
+
+<Section title="Meal logging">
+  <p>Photograph the plate. The app identifies the food and estimates protein and calories, so logging a meal takes a photo instead of a search through a database.</p>
+  <p>Protein is the number that matters most on a GLP-1, so it sits at the top of every entry rather than buried under macros.</p>
+  <PhoneFrame>
+    <Screen theme="vivy-meal" label="meal.mp4" />
+  </PhoneFrame>
+  <Caption>AI meal logging from a single photo. Protein first.</Caption>
+</Section>
+
+<Section title="Supportive community">
+  <p>GLP-1 users were trading wins and side effects on Reddit, where strangers could find them by name. I built a private, in-app community so they could do it in a space that does not follow them around the internet.</p>
+  <p>The whole community was built in two weeks: posts, photos, moderation, and replies, all written in one sprint. Members share weight wins, compare side effects, and ask questions in a place built for exactly this.</p>
+  <PhoneFrame>
+    <Screen theme="vivy-community" label="community.mp4" />
+  </PhoneFrame>
+  <Caption>A private community, built in two weeks. Wins and side effects, off Reddit.</Caption>
+</Section>
+
+<Section title="Community widgets">
+  <p>The community is alive on the surface. Live engagement widgets show what is happening now, notifications pull members back when someone replies, and leaderboards and streaks turn consistency into something worth sharing.</p>
+  <p>Ranking decides what rises to the top, so the feed shows the posts people actually want to see rather than the most recent one.</p>
+  <PhoneFrame>
+    <Screen theme="vivy-widgets" label="widgets.mp4" />
+  </PhoneFrame>
+  <Caption>Live widgets, ranking, notifications, leaderboards, and streaks.</Caption>
+</Section>
+
+<Section title="AI coach">
+  <p>An AI coach answers the questions members would otherwise post at 2am. It knows their logs, their goals, and where they are in the program, so the answer fits the person asking.</p>
+  <p>It is grounded in the same doctor-written material as the lessons, so it points people toward what is true rather than whatever it invents.</p>
+  <PhoneFrame>
+    <Screen theme="vivy-coach" label="coach.mp4" />
+  </PhoneFrame>
+  <Caption>A coach that has read your logs and the doctor's lessons.</Caption>
+</Section>
+
+<Section title="Water logging">
+  <p>Hydration blunts the worst of the side effects, so water gets its own one-tap counter on the home screen. Tap a glass, watch the day fill in.</p>
+</Section>
+
+<Section title="Step logging">
+  <p>Steps sync from the phone automatically and roll into the daily goals. No manual entry, no second fitness app to open.</p>
+</Section>
+
+<Section title="Medication curve">
+  <p>GLP-1 medications peak a day or two after the shot and taper across the week. I built a visualization of that concentration curve so members can see where they are in the cycle.</p>
+  <p>It turns a vague "why do I feel rough on Wednesday" into a curve they can read, which makes timing meals, hydration, and hard days far less mysterious.</p>
+  <PhoneFrame>
+    <Screen theme="vivy-curve" label="curve.mp4" />
+  </PhoneFrame>
+  <Caption>The medication's concentration across the weekly cycle. Peaks you can plan around.</Caption>
+</Section>
+
+<Section title="Side-effect logging">
+  <p>Log nausea, fatigue, or anything else in a tap or two. No essays, no forms. The history lines up against the medication curve and the weekly dose, so patterns surface on their own.</p>
+</Section>
+
+<Section title="Learning modules">
+  <p>Doctor-written lessons explain how the medications actually work and which lifestyle changes matter most while on them. Short, plain-language, and sequenced to where a member is in their program.</p>
+  <p>People do better when they understand the drug they are on. The lessons are how Vivy earns the "doctor-backed" in its description.</p>
+  <PhoneFrame>
+    <Screen theme="vivy-lessons" label="lessons.mp4" />
+  </PhoneFrame>
+  <Caption>Doctor-written lessons on the medications and the habits that matter.</Caption>
+</Section>
+
+<p>Vivy is on the <a href="https://apps.apple.com/us/app/vivy-glp-1-shot-tracker/id6736508784">App Store</a>.</p>
+
+<StackTrailer items={["TypeScript", "React Native", "Expo", "Supabase", "Node", "Vercel", "Superwall", "RevenueCat"]} />
+
+<Footnotes>
+  <li>React Native and Expo, not native. One engineer cannot maintain two codebases at one-release-per-week cadence. EAS Update lets me push JS fixes between App Store reviews, which is how 68 releases in a year is even possible.</li>
+  <li>The shortcut that still bills me interest: the community's feed ranking started as a single Postgres query with a hand-tuned score. It scaled past where I expected, then started showing its age. Shipping it in two weeks was right. Living with the query for a year was the tax.</li>
+</Footnotes>

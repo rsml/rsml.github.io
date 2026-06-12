@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Santa & the Unicorn Express</title>
+  <style>
+    :root {
+      --night: #0c1531;
+      --sky: #1a2f60;
+      --mint: #9ef3ff;
+      --candy: #ff4d6d;
+      --gold: #ffcf71;
+      --snow: #e6f7ff;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: radial-gradient(120% 120% at 20% 20%, #14254d, var(--night));
+      color: var(--snow);
+      font-family: "Trebuchet MS", "Gill Sans", "Avenir Next", sans-serif;
+      overflow: hidden;
+    }
+
+    h1 {
+      margin: 12px 0 0;
+      letter-spacing: 1px;
+      text-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+      color: var(--gold);
+      font-size: clamp(26px, 3vw, 36px);
+    }
+
+    .frame {
+      position: relative;
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      box-shadow:
+        0 18px 45px rgba(0, 0, 0, 0.45),
+        inset 0 0 40px rgba(255, 255, 255, 0.05);
+      border-radius: 18px;
+      padding: 12px;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+      backdrop-filter: blur(6px);
+    }
+
+    canvas {
+      display: block;
+      background: radial-gradient(140% 140% at 80% 20%, rgba(255, 255, 255, 0.06), transparent),
+                  linear-gradient(180deg, var(--sky), var(--night));
+      border-radius: 12px;
+    }
+
+    .hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      letter-spacing: 0.4px;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+    }
+
+    .hud strong { color: var(--gold); }
+
+    .instructions {
+      max-width: 920px;
+      text-align: center;
+      font-size: 14px;
+      opacity: 0.9;
+      line-height: 1.4;
+    }
+
+    .cta {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--candy), #ff7f5f);
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      box-shadow: 0 10px 25px rgba(255, 77, 109, 0.45);
+    }
+  </style>
+</head>
+<body>
+  <h1>Santa & the Unicorn Express</h1>
+  <div class="frame">
+    <canvas id="game" width="960" height="580"></canvas>
+    <div class="hud" id="hud"></div>
+  </div>
+  <div class="instructions">
+    Deliver as many gifts as you can before the clock hits midnight. Duck under incoming snowballs and leap over snowmen.
+    <div class="cta">Move: WASD or Arrow Keys · Throw Gift: Space · Jump: K · Duck: Shift · Restart: R</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const hud = document.getElementById("hud");
+
+    const world = { w: 960, h: 580 };
+    const keys = {};
+    const unicorns = [];
+    const presents = [];
+    const snow = [];
+    const particles = [];
+    const snowballs = [];
+    const snowmen = [];
+    const unicornColors = ["#b8f1ff", "#ffe0ff", "#d6d0ff", "#c3ffe2", "#fef6bd"];
+
+    const santa = {
+      x: world.w / 2,
+      y: world.h / 2,
+      vx: 0,
+      vy: 0,
+      speed: 240,
+      size: 34,
+      facing: 0,
+      cooldown: 0,
+      ducking: false,
+      z: 0,
+      vz: 0,
+      hitTimer: 0
+    };
+
+    let wave = 1;
+    let score = 0;
+    let delivered = 0;
+    let timeLeft = 75;
+    let gameOver = false;
+    let snowballTimer = 2.5;
+
+    function resize() {
+      const aspect = world.w / world.h;
+      let w = Math.min(window.innerWidth - 32, 1100);
+      let h = w / aspect;
+      const maxH = Math.min(window.innerHeight - 180, 720);
+      if (h > maxH) {
+        h = maxH;
+        w = h * aspect;
+      }
+      canvas.style.width = `${Math.max(640, w)}px`;
+      canvas.style.height = `${Math.max(400, h)}px`;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    function spawnUnicorn() {
+      const padding = 80;
+      const x = Math.random() * (world.w - padding * 2) + padding;
+      const y = Math.random() * (world.h - padding * 2) + padding;
+      const speed = 50 + Math.random() * 40;
+      const angle = Math.random() * Math.PI * 2;
+      unicorns.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 34 + Math.random() * 8,
+        color: unicornColors[Math.floor(Math.random() * unicornColors.length)],
+        happy: false
+      });
+    }
+
+    function spawnSnowman() {
+      const padding = 80;
+      const x = Math.random() * (world.w - padding * 2) + padding;
+      const y = Math.random() * (world.h - padding * 2) + padding;
+      snowmen.push({
+        x,
+        y,
+        size: 36 + Math.random() * 16
+      });
+    }
+
+    function spawnWave(count) {
+      unicorns.length = 0;
+      snowmen.length = 0;
+      snowballs.length = 0;
+      presents.length = 0;
+      delivered = 0;
+      for (let i = 0; i < count; i++) spawnUnicorn();
+      const snowmanCount = Math.min(6, 3 + Math.floor(wave / 2));
+      for (let i = 0; i < snowmanCount; i++) spawnSnowman();
+    }
+
+    function spawnSnow() {
+      for (let i = 0; i < 80; i++) {
+        snow.push({
+          x: Math.random() * world.w,
+          y: Math.random() * world.h,
+          r: Math.random() * 2 + 0.5,
+          speed: Math.random() * 25 + 15
+        });
+      }
+    }
+
+    function tossGift() {
+      if (santa.cooldown > 0 || gameOver) return;
+      santa.cooldown = 0.4;
+      const force = 260;
+      presents.push({
+        x: santa.x,
+        y: santa.y,
+        vx: Math.cos(santa.facing) * force,
+        vy: Math.sin(santa.facing) * force,
+        life: 2.6
+      });
+      particles.push({ x: santa.x, y: santa.y, life: 0.4, r: 6, color: "#fff" });
+    }
+
+    function resetGame() {
+      wave = 1;
+      score = 0;
+      gameOver = false;
+      timeLeft = 75;
+      santa.x = world.w / 2;
+      santa.y = world.h / 2;
+      santa.vx = santa.vy = 0;
+      santa.vz = santa.z = 0;
+      snowballTimer = 2.5;
+      spawnWave(5);
+    }
+
+    function handleInput(dt) {
+      let ax = 0;
+      let ay = 0;
+      if (keys["ArrowUp"] || keys["w"]) ay -= 1;
+      if (keys["ArrowDown"] || keys["s"]) ay += 1;
+      if (keys["ArrowLeft"] || keys["a"]) ax -= 1;
+      if (keys["ArrowRight"] || keys["d"]) ax += 1;
+
+      const len = Math.hypot(ax, ay) || 1;
+      const speedMod = santa.ducking ? 0.5 : 1;
+      santa.vx += (ax / len) * santa.speed * dt * speedMod;
+      santa.vy += (ay / len) * santa.speed * dt * speedMod;
+
+      santa.vx *= 0.9;
+      santa.vy *= 0.9;
+
+      santa.x += santa.vx * dt;
+      santa.y += santa.vy * dt;
+
+      const eps = santa.size / 2;
+      santa.x = Math.max(eps, Math.min(world.w - eps, santa.x));
+      santa.y = Math.max(eps, Math.min(world.h - eps, santa.y));
+
+      if (Math.abs(santa.vx) + Math.abs(santa.vy) > 2) {
+        santa.facing = Math.atan2(santa.vy, santa.vx);
+      }
+    }
+
+    function updateUnicorns(dt) {
+      for (const u of unicorns) {
+        u.x += u.vx * dt;
+        u.y += u.vy * dt;
+        if (u.x < 40 || u.x > world.w - 40) u.vx *= -1;
+        if (u.y < 40 || u.y > world.h - 40) u.vy *= -1;
+      }
+    }
+
+    function updatePresents(dt) {
+      for (const p of presents) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 12 * dt;
+        p.life -= dt;
+      }
+      for (let i = presents.length - 1; i >= 0; i--) {
+        const p = presents[i];
+        if (p.life <= 0 || p.x < 0 || p.x > world.w || p.y < 0 || p.y > world.h) {
+          presents.splice(i, 1);
+        }
+      }
+    }
+
+    function spawnSnowball() {
+      const fromLeft = Math.random() > 0.5;
+      const y = Math.random() * (world.h - 120) + 60;
+      const speed = 200 + Math.random() * 140;
+      snowballs.push({
+        x: fromLeft ? -20 : world.w + 20,
+        y,
+        vx: fromLeft ? speed : -speed,
+        r: 14 + Math.random() * 6
+      });
+    }
+
+    function updateSnowballs(dt) {
+      snowballTimer -= dt;
+      if (snowballTimer <= 0) {
+        spawnSnowball();
+        snowballTimer = 1.2 + Math.random() * 1.3;
+      }
+      for (const s of snowballs) {
+        s.x += s.vx * dt;
+      }
+      for (let i = snowballs.length - 1; i >= 0; i--) {
+        const s = snowballs[i];
+        if (s.x < -30 || s.x > world.w + 30) snowballs.splice(i, 1);
+      }
+    }
+
+    function startJump() {
+      if (santa.z > 0.1 || gameOver) return;
+      santa.vz = 260;
+    }
+
+    function updateVertical(dt) {
+      santa.vz -= 720 * dt;
+      santa.z = Math.max(0, santa.z + santa.vz * dt);
+      if (santa.z === 0 && santa.vz < 0) santa.vz = 0;
+    }
+
+    function collisions() {
+      for (const u of unicorns) {
+        if (u.happy) continue;
+        for (let i = presents.length - 1; i >= 0; i--) {
+          const p = presents[i];
+          const d = Math.hypot(u.x - p.x, u.y - p.y);
+          if (d < u.size * 0.65) {
+            presents.splice(i, 1);
+            u.happy = true;
+            delivered += 1;
+            score += 100 + Math.floor(timeLeft * 2);
+            particles.push({ x: u.x, y: u.y, life: 0.6, r: 14, color: u.color });
+            break;
+          }
+        }
+      }
+      if (delivered === unicorns.length && unicorns.length > 0) {
+        wave += 1;
+        timeLeft += 12;
+        spawnWave(4 + wave);
+      }
+    }
+
+    function hazardHit() {
+      if (santa.hitTimer > 0 || gameOver) return;
+      santa.hitTimer = 1;
+      timeLeft = Math.max(0, timeLeft - 8);
+      particles.push({ x: santa.x, y: santa.y, life: 0.5, r: 18, color: "#ff9b9b" });
+    }
+
+    function hazardCollisions() {
+      for (const s of snowballs) {
+        const d = Math.hypot(santa.x - s.x, santa.y - s.y);
+        const safe = santa.ducking || santa.z > 18;
+        if (!safe && d < santa.size * 0.5 + s.r) {
+          hazardHit();
+          santa.vx += Math.sign(santa.x - s.x) * 140;
+          santa.vy += Math.sign(santa.y - s.y) * 140;
+          break;
+        }
+      }
+      for (const m of snowmen) {
+        const d = Math.hypot(santa.x - m.x, santa.y - m.y);
+        if (d < m.size * 0.55 + santa.size * 0.4 && santa.z < 18) {
+          hazardHit();
+          const angle = Math.atan2(santa.y - m.y, santa.x - m.x);
+          santa.vx += Math.cos(angle) * 200;
+          santa.vy += Math.sin(angle) * 200;
+          break;
+        }
+      }
+    }
+
+    function updateSnow(dt) {
+      for (const flake of snow) {
+        flake.y += flake.speed * dt;
+        flake.x += Math.sin(flake.y * 0.02) * 8 * dt;
+        if (flake.y > world.h) {
+          flake.y = -5;
+          flake.x = Math.random() * world.w;
+        }
+      }
+    }
+
+    function updateParticles(dt) {
+      for (const p of particles) {
+        p.life -= dt;
+        p.r *= 0.94;
+      }
+      for (let i = particles.length - 1; i >= 0; i--) {
+        if (particles[i].life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function updateHUD() {
+      hud.innerHTML = `
+        <div><strong>Wave</strong> ${wave} · <strong>Score</strong> ${score}</div>
+        <div><strong>Unicorns</strong> ${delivered}/${unicorns.length || 0} · <strong>Time</strong> ${Math.max(0, timeLeft).toFixed(1)}s</div>
+      `;
+    }
+
+    function drawSanta() {
+      const { x, y, size } = santa;
+      ctx.save();
+      ctx.translate(x, y - santa.z * 0.6);
+      ctx.rotate(santa.facing);
+      if (santa.hitTimer > 0) {
+        ctx.globalAlpha = 0.6 + 0.4 * Math.sin(Date.now() * 0.02);
+      }
+
+      ctx.fillStyle = "rgba(0,0,0,0.2)";
+      ctx.beginPath();
+      ctx.ellipse(0, santa.z * 0.3 + 6, size * 0.6, size * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      const heightScale = santa.ducking ? 0.7 : 1;
+      ctx.fillStyle = "#d0002f";
+      ctx.beginPath();
+      ctx.ellipse(0, 0, size * 0.55, size * 0.38 * heightScale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(size * 0.05, -6 * heightScale, size * 0.4, 12 * heightScale);
+      ctx.fillStyle = "#ffe7c4";
+      ctx.beginPath();
+      ctx.arc(size * 0.42, 0, 8 * heightScale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawUnicorn(u) {
+      ctx.save();
+      ctx.translate(u.x, u.y);
+      ctx.fillStyle = u.happy ? "#ffe15d" : u.color;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, u.size * 0.7, u.size * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(u.size * 0.1, -u.size * 0.25, u.size * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#f56cf0";
+      ctx.beginPath();
+      ctx.moveTo(-u.size * 0.3, -u.size * 0.3);
+      ctx.lineTo(-u.size * 0.1, -u.size * 0.65);
+      ctx.lineTo(u.size * 0.05, -u.size * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawSnowman(s) {
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.fillStyle = "#f0f8ff";
+      ctx.beginPath();
+      ctx.arc(0, -s.size * 0.15, s.size * 0.45, 0, Math.PI * 2);
+      ctx.arc(0, s.size * 0.2, s.size * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#ffb347";
+      ctx.beginPath();
+      ctx.moveTo(-4, -s.size * 0.2);
+      ctx.lineTo(10, -s.size * 0.18);
+      ctx.lineTo(-4, -s.size * 0.13);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawSnowball(s) {
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.fillStyle = "#dff0ff";
+      ctx.beginPath();
+      ctx.arc(0, 0, s.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawPresent(p) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.fillStyle = "#ff6f61";
+      ctx.fillRect(-8, -8, 16, 16);
+      ctx.strokeStyle = "#fefefe";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -8); ctx.lineTo(0, 8);
+      ctx.moveTo(-8, 0); ctx.lineTo(8, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawParticles() {
+      for (const p of particles) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life * 1.6);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawSnow() {
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      for (const flake of snow) {
+        ctx.beginPath();
+        ctx.arc(flake.x, flake.y, flake.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Stars
+      ctx.save();
+      ctx.globalAlpha = 0.2;
+      for (let i = 0; i < 80; i++) {
+        const x = (i * 83) % world.w;
+        const y = (i * 197) % world.h;
+        ctx.fillStyle = i % 2 ? "#d0e6ff" : "#a8c6ff";
+        ctx.fillRect(x, y, 2, 2);
+      }
+      ctx.restore();
+
+      drawSnow();
+      for (const s of snowmen) drawSnowman(s);
+      for (const u of unicorns) drawUnicorn(u);
+      for (const s of snowballs) drawSnowball(s);
+      for (const p of presents) drawPresent(p);
+      drawSanta();
+      drawParticles();
+
+      if (gameOver) {
+        ctx.save();
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.fillRect(0, canvas.height / 2 - 80, canvas.width, 160);
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.font = "bold 28px 'Trebuchet MS', 'Avenir Next', sans-serif";
+        ctx.fillText("Midnight bells ring! Final score: " + score, canvas.width / 2, canvas.height / 2 - 10);
+        ctx.font = "18px 'Trebuchet MS', 'Avenir Next', sans-serif";
+        ctx.fillStyle = "#ffcf71";
+        ctx.fillText("Press R to fly again", canvas.width / 2, canvas.height / 2 + 28);
+        ctx.restore();
+      }
+    }
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      if (!gameOver) {
+        timeLeft = Math.max(0, timeLeft - dt);
+        santa.cooldown = Math.max(0, santa.cooldown - dt);
+        handleInput(dt);
+        santa.ducking = keys["Shift"] || keys["ShiftLeft"] || keys["ShiftRight"] || keys["Control"] || keys["ControlLeft"] || keys["ControlRight"];
+        updateVertical(dt);
+        updateUnicorns(dt);
+        updatePresents(dt);
+        updateSnowballs(dt);
+        updateSnow(dt);
+        updateParticles(dt);
+        collisions();
+        hazardCollisions();
+        updateHUD();
+        santa.hitTimer = Math.max(0, santa.hitTimer - dt);
+        if (timeLeft <= 0) gameOver = true;
+      }
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    document.addEventListener("keydown", (e) => {
+      keys[e.key] = true;
+      if (e.key === " ") {
+        e.preventDefault();
+        tossGift();
+      }
+      if (e.key === "k" || e.key === "K") {
+        startJump();
+      }
+      if (e.key === "r" || e.key === "R") {
+        resetGame();
+      }
+    });
+
+    document.addEventListener("keyup", (e) => {
+      keys[e.key] = false;
+    });
+
+    spawnSnow();
+    resetGame();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

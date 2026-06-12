@@ -1,0 +1,45 @@
+---
+import PortfolioLayout from '../layouts/PortfolioLayout.astro';
+import WorkRow from '../components/WorkRow.astro';
+import Lightbox from '../components/Lightbox.astro';
+import NowClock from '../components/NowClock.astro';
+import { getWork } from '../data/work';
+const work = getWork();
+---
+<PortfolioLayout title="Ross Miller">
+  <div class="container" data-rise>
+    <h1 class="name" style="--rise-i:0">Ross Miller</h1>
+    <p class="updated" style="--rise-i:1">Updated June 3, 2026</p>
+    <div class="bio" style="--rise-i:2">
+      <p>Hi, I'm a full-stack engineer, designer, and 4x founder. My work has reached millions of users.</p>
+      <p>I care about building things that matter, leading with empathy, and leveling up the people around me.</p>
+      <p>You can find me on <a href="https://www.linkedin.com/in/rossnmiller/" target="_blank" rel="noopener noreferrer">LinkedIn</a>, <a href="https://github.com/rsml" target="_blank" rel="noopener noreferrer">GitHub</a>, <a href="https://x.com/coding_ross" target="_blank" rel="noopener noreferrer">X</a>, or reach me via <a href="mailto:rossnmiller@gmail.com">email</a>.</p>
+    </div>
+    <h2 class="home-section-h" style="--rise-i:3">Selected works</h2>
+    <div class="work" style="--rise-i:4">
+      {work.map((p) => <WorkRow project={p} />)}
+    </div>
+    <NowClock style="--rise-i:5" />
+  </div>
+  <Lightbox projects={work} />
+</PortfolioLayout>
+<style>
+  h1.name { margin: 0; font-size: 14px; font-weight: 500; }
+  .updated { margin: 0 0 36px; color: var(--muted); }
+  .bio p { margin: 0 0 20px; }
+  .bio p:last-child { margin-bottom: 0; }
+  /* Same treatment as the work links: a quiet underline at rest that fills to
+     full ink on hover. text-decoration-color animates (background-image can't),
+     so the fill is a smooth fade, not a snap. */
+  .bio a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--ink) 22%, transparent);
+    transition: text-decoration-color 200ms ease;
+  }
+  .bio a:hover { text-decoration-color: var(--ink); }
+  h2.home-section-h { margin: 60px 0 4px; font-size: 14px; font-weight: 460; }
+  .work { margin: 0; }
+</style>

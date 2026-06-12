@@ -1,0 +1,129 @@
+---
+import Lede from '../content/Lede.astro';
+import Section from '../content/Section.astro';
+import DesktopFrame from '../content/DesktopFrame.astro';
+import Screen from '../content/Screen.astro';
+import Caption from '../content/Caption.astro';
+import StackTrailer from '../content/StackTrailer.astro';
+import Footnotes from '../content/Footnotes.astro';
+import Ref from '../content/Ref.astro';
+---
+
+<Lede>Tutor is a macOS reading app that generates personalized books, based on your learning style and what you already know.</Lede>
+<Lede>While reading you can ask questions about the text and get context-aware personalized answers.</Lede>
+<Lede>I've already used Tutor to read dozens of personalized books and it's been a game changer for how I learn. I feel like I have a personal tutor that grows with me over time.</Lede>
+
+<Section title="Personalize">
+  <p>You can't tutor a reader you've never met, so after entering your OpenAI, Anthropic, or Gemini keys, the app first has you fill out your learning profile. To save time, an AI-led interview can gather all the answers with a series of simple questions.</p>
+  <DesktopFrame>
+    <Screen kind="desktop" theme="tutor-personalize" src="/tutor/screenshots/personalize.webp" alt="The Learning Profile: prior knowledge, an About Me interview, teaching preferences, and style sliders" width={2560} height={1600} />
+  </DesktopFrame>
+</Section>
+
+<Section title="Title and description">
+  <p>Every book starts with a title and a description. Type your own, or let the AI propose both.</p>
+  <p>If you don't know what to put, you can ask the AI to expand your existing skills, learn a new complementary skill, or explore a completely new topic and it'll choose an appropriate title and description for you.</p>
+  <DesktopFrame>
+    <Screen kind="desktop" theme="tutor-create" src="/tutor/screenshots/new-book.webp" alt="The New Book dialog: a topic field, optional details, and a length slider" width={2560} height={1600} />
+  </DesktopFrame>
+  <Caption>A topic, optional details, and a length. Suggest proposes the book for you; everything stays editable before generation.</Caption>
+</Section>
+
+<Section title="Table of contents">
+  <p>From that brief, Tutor first just drafts a full table of contents. This way you can make sure the book aligns with your goals before any chapters are written.</p>
+  <p>If you're not happy with the table of contents, you can chat with the AI to make any necessary adjustments.</p>
+</Section>
+
+<Section title="First chapter">
+  <p>Approve the outline and Tutor writes the first chapter. Just one. The rest of the book stays intentionally unwritten.</p>
+  <p>Chapters run about 1,500 words, so they only require about five to ten minutes of reading.<Ref id="fn-tutor-1" n={1} /> Short enough to binge read multiple chapters, long enough that each chapter could cover it's subject matter in sufficient depth.</p>
+</Section>
+
+<Section title="Chat">
+  <p>Select any passage and an inline chat opens, anchored to that exact text, with the context of the entire chapter and the subject matter of book. When you ask "what does this mean," the model already knows what "this" is.</p>
+  <p>When you're done with the conversation, simply close the chat and you can continue reading right where you left off. This feature of being able to zoom in, then zoom back out is a major improvement over the experience of learning with a simple LLM chat bot.</p>
+  <DesktopFrame>
+    <Screen kind="desktop" theme="tutor-chat" src="/tutor/screenshots/inline-chat.webp" alt="A chapter open beside an inline chat answering a question about the highlighted passage" width={2560} height={1600} />
+  </DesktopFrame>
+  <Caption>Highlight a sentence, ask a question, start a conversation. The AI has context on the chapter and the selected text.</Caption>
+</Section>
+
+<Section title="Rich content">
+  <p>Chapters are more than prose. Math renders as real equations, code arrives syntax-highlighted, and ideas easier seen than said become Mermaid diagrams.</p>
+  <p>Callouts lift the one thing you shouldn't miss out of the paragraph and onto the page.</p>
+  <DesktopFrame>
+    <Screen kind="desktop" theme="tutor-rich" src="/tutor/screenshots/reader.webp" alt="A chapter with rendered math, a key-insight callout, and syntax-highlighted code, with the reading settings open" width={2560} height={1600} />
+  </DesktopFrame>
+  <Caption>KaTeX math, highlighted code, and callouts, generated inline wherever the subject calls for them. You can also customize the reading mode settings to suit your preferences.</Caption>
+</Section>
+
+<Section title="Chapter quiz">
+  <p>Every chapter ends with a short, skippable, multiple-choice quiz on what you just read. The quiz serves two purposes. First it helps you reflect on what you just read to aid retention. Second, it provides feedback to the AI to tailor the next chapter to your needs.</p>
+  <DesktopFrame>
+    <Screen kind="desktop" theme="tutor-quiz" src="/tutor/screenshots/quiz.webp" alt="A graded chapter quiz: correct answers marked in green, a miss marked in red" width={2560} height={1600} />
+  </DesktopFrame>
+</Section>
+
+<Section title="Feedback">
+  <p>After each chapter you can say what worked and what didn't, or just skip ahead. This info will be used to generate all subsequent chapters, as well as the suggested updates to your learning profile when you finish the book.</p>
+  <DesktopFrame>
+    <Screen kind="desktop" theme="tutor-adapt" src="/tutor/screenshots/feedback.webp" alt="The chapter feedback form: what worked well, what could be better, and a Generate Next Chapter button" width={2560} height={1600} />
+  </DesktopFrame>
+  <Caption>Plain-language feedback on the chapter you just finished, captured while it's still fresh.</Caption>
+</Section>
+
+<Section title="Next chapter">
+  <p>The next chapter is written only after the last one is read, generated from your quiz results, your feedback, your learning style, and the structure set forth by the table of contents.</p>
+</Section>
+
+<Section title="End-of-book quiz">
+  <p>At the end of the book, there's a final quiz that synthesizes that that tests if you can synthesize information across multiple chapters. After taking the quiz, you can write the book. So you remember for future use, which books you like most.</p>
+</Section>
+
+<Section title="Learning profile">
+  <p>While Tutor was generating each chapter, it was also creating a list of skills associated with each chapter. Once you finish the book, Tutor uses those skills as well as your feedback along to way to give you suggestions on how to update your learning profile.</p>
+  <p>Tutor can propose adding new skills, update your existing skills to a new competency level, updating your learning profile's free text field, or update any of your discrete preferences such as whether you like metaphors or humor in your books.</p>
+  <p>All of these proposed changes are easy to view, approve, or override. So the user is always in the loop and always in control, while the AI handles the busy work.</p>
+</Section>
+
+<Section title="Series">
+  <p>You can group related books into a series for easy categorization.</p>
+</Section>
+
+<Section title="Organize">
+  <p>Powerful sort and filter tools help you find the right book at the right time. You can use Gemini to create a unique personalized cover image for each book.</p>
+</Section>
+
+<Section title="Audiobook">
+  <p>Generate a narrated version of any book, with chapter markers and a voice you choose. The audiobook generation happens completely offline and for free using an open source model, with many voices to choose from.</p>
+</Section>
+
+<Section title="Import and export">
+  <p>Export any book as an EPUB to read in your e-reader of choice, or import one someone else generated and make it yours. Nothing you make is trapped inside the app.</p>
+</Section>
+
+<Section title="Open and yours">
+  <p>Tutor is GPLv3, BYOK, and totally free to use. Point it at OpenAI, Anthropic, a local model, whatever you prefer, and the app uses your keys directly with no server in the middle.</p>
+  <p>I'm not the bottleneck or the billing department for someone else's reading habit. The app outlives any one model, any one provider, and me.</p>
+</Section>
+
+<Section title="Offline by design">
+  <p>Every book is plain markdown on your disk. No database, no cloud, no account. The library is a folder stored on your computer, so you can back it up, share it, or do whatever you like with it.</p>
+</Section>
+
+<Section title="Advanced generation via MCP">
+  <p>When generating a book, Tutor has an "Advanced" mode where you can copy/paste a prompt into into your terminal that will generate your book for use using Claude Code. Behind the scenes, Claude Code will use a specialized MCP and skills.</p>
+  <p>This mode is helpful if you want enhanced coherence, if you want to leverage any MCPs or skills you already have, if you need an agent to search the web for you, and if you want to utilize more sophisticated generation techniques such as "plan mode."</p>
+</Section>
+
+<Section title="Reflections">
+  <p>I believe one of the biggest bottlenecks in the AI-transformation of the world is the speed at which humans can learn and adapt to new information. I've read dozens of books with Tutor. It's helped me learn new information faster while keeping it engaging and immediately useful for my specific goals.</p>
+  <p>Tutor is a great sandbox for me to experiment with an AI-first product that I have full control over, where AI is the substrate of the app that touches nearly every feature, instead of something tacked onto an existing app</p>
+  <p>Download tutor today at <a href="https://github.com/rsml/tutor/releases">https://github.com/rsml/tutor/releases</a> or learn more at <a href="https://rossmiller.dev/tutor/">rossmiller.dev/tutor</a>.</p>
+</Section>
+
+<StackTrailer items={["macOS", "GPLv3", "BYOK", "LLM-agnostic"]} />
+
+<Footnotes>
+  <li id="fn-tutor-1">I tested chapter lengths from 800 to 3,000 words. Under 1,200, chapters felt like blog posts and quizzes had nothing to chew on. Over 2,000, and the feedback loop of chapter to quiz to next chapter was looser so it was less satisfying to complete a chapter. 1500 was about the sweet spot where books felt addictive in a good way to read.</li>
+</Footnotes>

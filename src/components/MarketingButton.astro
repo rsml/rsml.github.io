@@ -1,0 +1,16 @@
+---
+interface Props { href: string; label: string; }
+const { href, label } = Astro.props;
+// → for an internal page, ↗ for an external link (same rule as the work cards).
+const external = /^https?:/.test(href);
+---
+<a class="marketing-btn" href={href} data-astro-reload>{label} {external ? '↗' : '→'}</a>
+<style>
+  .marketing-btn {
+    flex: none;
+    font-size: 13px; color: var(--ink); text-decoration: none;
+    border: 1px solid var(--hair); border-radius: 999px; padding: 6px 14px;
+    transition: border-color 160ms ease, background 160ms ease;
+  }
+  .marketing-btn:hover { border-color: var(--hairHigh); background: rgba(17,17,17,0.025); }
+</style>

@@ -1,0 +1,522 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  PORTFOLIO CONTENT: the single place to edit projects.
+#
+#  This file is the source of truth for every project's title, subtitle, role,
+#  links, and gallery assets. `src/data/work.ts` loads it, validates it against a
+#  schema (so a typo fails the build with a clear message), and hands it to the
+#  home page, the case-study pages, the work rows, and the lightbox.
+#
+#  ORDER: projects appear on the page in the order they are listed here. To
+#  reorder the home page, move a block up or down. Nothing else to change.
+#
+#  FIELDS (per project)
+#    slug          required  url + getStaticPaths id (e.g. /work/<slug>/). unique.
+#    title         required  full document/page title.
+#    cardTitle     required  label on the home row / lightbox (may be shorter).
+#    role          required  the eyebrow line ("Creator", "Founder, CTO", …).
+#    subtitle      required  short "what it is", shown after the title.
+#    date          optional  freeform display date ("2024", "2018-present"),
+#                            shown after the role in the row eyebrow.
+#    cardDesc      required  the case-study page's <meta name="description">
+#                            (SEO + link previews). Not rendered on any page.
+#    blurb         required  one-sentence explainer. Currently used by NOTHING
+#                            (kept for reuse; a candidate for removal).
+#    device        required  iphone | desktop | ipad, rounds thumbnails/lightbox
+#                            images like the real screen (radii in global.css).
+#    thumbClass    required  e.g. thumb-chord, selects the Thumb.astro variant.
+#    thumbImage    optional  app-icon shown in row/lightbox/case-study headers.
+#    transition    required  ripple | fade-slide (ripple is chord-colors only).
+#    deepDive      optional  true → prepend a "Deep dive" link to /work/<slug>/.
+#    marketingUrl  optional  shows a "Visit …" button on the case-study page.
+#    marketingLabel optional label for that button (default "Visit site").
+#    appStoreUrl   optional  shows the Apple "Download on the App Store" badge.
+#    ripple        optional  shader params for the ripple transition (chord only).
+#
+#    links: a list of { label, href }. The arrow (→ internal vs ↗ external) and
+#    new-tab behaviour are DERIVED from the href, so just paste the URL:
+#      href starting with "/"    → internal page, renders "→".
+#      href starting with "http" → external link, renders "↗", opens in a new tab.
+#
+#    assets: the gallery shown in the home row's strip and the lightbox. Each is
+#    { type, src, alt, orientation, poster? }. `orientation` (portrait|landscape)
+#    drives the strip sizing and lightbox framing, so keep a project's assets
+#    homogeneous. Supported `type` values (default: image):
+#      image   a PNG/JPG screenshot.           <img>.            poster: ignored.
+#      gif     an animated GIF (autoplays).    <img>.            poster optional
+#                                                                (static strip thumb).
+#      video   an MP4/WebM. Rendered with the  <video> + Plyr.   poster REQUIRED
+#              Plyr player (custom controls,                     (strip thumbnail +
+#              fullscreen, mobile-friendly).                     play poster).
+#      youtube a YouTube video, by URL or id   Plyr (youtube     poster auto from
+#              (.../embed/ID, or just ID).     provider).        the id (override
+#                                                                with poster: ...).
+#      embed   a live web view / interactive   <iframe>, lazy-   poster REQUIRED
+#              demo (any URL). Loads only when  loaded only when  (a live page can't
+#              its project is open in the box.  on-screen.        be a strip thumb).
+#      pdf     a PDF document, shown in the     <iframe>, lazy-   poster REQUIRED
+#              browser's native PDF viewer.     loaded like       (pnpm editor renders
+#                                               embed.            one from page 1).
+# ─────────────────────────────────────────────────────────────────────────────
+
+- slug: chord-colors
+  title: Chord Colors
+  cardTitle: Chord Colors
+  role: Creator
+  subtitle: interactive music theory
+  date: "2018-present"
+  cardDesc: Innovative music theory app with an intricate design system
+  blurb: Music theory you explore by color instead of sheet music.
+  device: iphone
+  shotHeight: 300
+  thumbClass: thumb-chord
+  thumbImage: /logos/chord-colors.jpg
+  transition: ripple
+  deepDive: true
+  appStoreUrl: https://apps.apple.com/us/app/chord-colors-piano-and-guitar/id1422598441
+  links:
+    - label: iOS app
+      href: https://apps.apple.com/us/app/chord-colors-piano-and-guitar/id1422598441
+    - label: Web app
+      href: https://chordcolors.com/
+  assets:
+    - src: /chord-colors/IMG_7054.webp
+      alt: img_7054
+      orientation: portrait
+    - src: /chord-colors/IMG_7059.webp
+      alt: img_7059
+      orientation: portrait
+    - src: /chord-colors/Screenshot-2026-06-11-at-1.26.40-PM.webp
+      alt: screenshot 2026-06-11 at 1.26.40 pm
+      orientation: portrait
+    - src: /chord-colors/IMG_7056.webp
+      alt: img_7056
+      orientation: portrait
+    - src: /chord-colors/Screenshot-2026-06-11-at-1.31.57-PM.webp
+      alt: screenshot 2026-06-11 at 1.31.57 pm
+      orientation: portrait
+    - src: /chord-colors/IMG_7061.webp
+      alt: img_7061
+      orientation: portrait
+    - type: video
+      src: /chord-colors/wheel.mp4
+      alt: wheel tutorial
+      orientation: portrait
+      poster: /chord-colors/wheel-poster.webp
+    - type: video
+      src: /chord-colors/progressions.mp4
+      alt: progressions tutorial
+      orientation: portrait
+      poster: /chord-colors/progressions-poster.webp
+    - type: video
+      src: /chord-colors/chords.mp4
+      alt: chords tutorial
+      orientation: portrait
+      poster: /chord-colors/chords-poster.webp
+    - type: video
+      src: /chord-colors/guitar.mp4
+      alt: guitar tutorial
+      orientation: portrait
+      poster: /chord-colors/guitar-poster.webp
+    - type: video
+      src: /chord-colors/scales.mp4
+      alt: scales tutorial
+      orientation: portrait
+      poster: /chord-colors/scales-poster.webp
+    - type: video
+      src: /chord-colors/saved.mp4
+      alt: saved chords tutorial
+      orientation: portrait
+      poster: /chord-colors/saved-poster.webp
+    - type: embed
+      src: https://chordcolors.com/
+      alt: try it out!
+      orientation: portrait
+      poster: /chord-colors/embed-chordcolors.com-poster.webp
+  ripple:
+    mode: 0
+    durationMs: 900
+    band: 0.52
+    period: 0.77
+    sat: 1.0
+    light: 0.97
+    easeIn: 84
+    easeOut: 53
+
+- slug: tutor
+  title: Tutor
+  cardTitle: Tutor
+  role: Creator
+  subtitle: personalized AI books
+  date: "2026"
+  cardDesc: AI-written personalized books that learn how your learn
+  blurb: A macOS app that writes personalized books that adapt to how you learn.
+  device: desktop
+  thumbClass: thumb-tutor
+  thumbImage: /logos/tutor.webp
+  transition: fade-slide
+  deepDive: true
+  marketingUrl: /tutor
+  marketingLabel: Visit Tutor
+  links:
+    - label: Desktop app
+      href: /tutor
+    - label: Product demo
+      href: https://youtu.be/XIXhGluiswI?si=1O2gpkRyb2recDI4&t=138
+  assets:
+    - type: video
+      src: /tutor/screenshots/peek.mp4
+      alt: peek
+      orientation: landscape
+      poster: /tutor/screenshots/peek-poster.webp
+    - type: video
+      src: /tutor/screenshots/book-generation.mp4
+      alt: book generation
+      orientation: landscape
+      poster: /tutor/screenshots/book-generation-poster.webp
+    - type: video
+      src: /tutor/screenshots/chat-with-book.mp4
+      alt: chat with book
+      orientation: landscape
+      poster: /tutor/screenshots/chat-with-book-poster.webp
+    - type: video
+      src: /tutor/screenshots/CleanShot-2026-06-11-at-16.55.11.mp4
+      alt: cleanshot 2026-06-11 at 16.55.11
+      orientation: landscape
+      poster: /tutor/screenshots/CleanShot-2026-06-11-at-16.55.11-poster.webp
+    - type: video
+      src: /tutor/screenshots/generate-audiobook.mp4
+      alt: generate audiobook
+      orientation: landscape
+      poster: /tutor/screenshots/generate-audiobook-poster.webp
+    - type: video
+      src: /tutor/screenshots/play-audiobook.mp4
+      alt: play audiobook
+      orientation: landscape
+      poster: /tutor/screenshots/play-audiobook-poster.webp
+    - src: /tutor/screenshots/CleanShot-2026-06-11-at-16.38.30-2x.webp
+      alt: cleanshot 2026-06-11 at 16.38.30@2x
+      orientation: landscape
+    - src: /tutor/screenshots/CleanShot-2026-06-11-at-16.39.33-2x.webp
+      alt: cleanshot 2026-06-11 at 16.39.33@2x
+      orientation: landscape
+    - src: /tutor/screenshots/quiz.webp
+      alt: 'A graded chapter quiz: correct answers in green, a miss in red'
+      orientation: landscape
+    - src: /tutor/screenshots/feedback.webp
+      alt: 'The chapter feedback form: what worked, what could be better'
+      orientation: landscape
+    - src: /tutor/screenshots/CleanShot-2026-06-11-at-16.40.15-2x.webp
+      alt: cleanshot 2026-06-11 at 16.40.15@2x
+      orientation: landscape
+    - src: /tutor/screenshots/settings.webp
+      alt: Tutor reading and appearance settings
+      orientation: landscape
+    - src: /tutor/screenshots/progress.webp
+      alt: 'The Review Progress screen: counts, completion, and per-skill progress bars'
+      orientation: landscape
+
+- slug: forge
+  title: Forge
+  cardTitle: Forge
+  role: Creator
+  subtitle: terminal multiplexer for AI agents
+  date: "2026"
+  cardDesc: Native macOS app for efficiently managing many AI coding agents
+  blurb: A native macOS workspace for running many AI coding agents at once.
+  device: desktop
+  thumbClass: thumb-forge
+  thumbImage: /logos/forge.webp
+  transition: fade-slide
+  marketingUrl: /forge
+  marketingLabel: Visit Forge
+  links:
+    - label: macOS app
+      href: /forge
+  assets:
+    - type: video
+      src: /forge/screenshots/list-mode-2.mp4
+      alt: list-mode
+      orientation: landscape
+      poster: /forge/screenshots/list-mode-2-poster.webp
+    - type: video
+      src: /forge/screenshots/stack-mode-2.mp4
+      alt: stack-mode
+      orientation: landscape
+      poster: /forge/screenshots/stack-mode-2-poster.webp
+    - type: video
+      src: /forge/screenshots/settings-2.mp4
+      alt: settings
+      orientation: landscape
+      poster: /forge/screenshots/settings-2-poster.webp
+
+- slug: vivy
+  title: Vivy
+  cardTitle: Vivy
+  role: Founder, CTO, Designer
+  subtitle: "#1 doctor-backend GLP-1 companion app"
+  date: "2024-2026"
+  cardDesc: '#1 doctor-backed GLP-1 companion app on the App Store'
+  blurb: "The #1 doctor-backed GLP-1 companion app on the App Store."
+  device: iphone
+  shotHeight: 300
+  thumbClass: thumb-vivy
+  thumbImage: /logos/vivy.jpg
+  transition: fade-slide
+  links:
+    # TODO: real Vivy App Store URL
+    - label: iOS app
+      href: https://apps.apple.com/us/app/id0000000000
+  assets:
+    - type: video
+      src: /vivy/log-weight-2.mp4
+      alt: log weight
+      orientation: portrait
+      poster: /vivy/log-weight-2-poster.webp
+    - type: video
+      src: /vivy/log-shot.mp4
+      alt: log shot
+      orientation: portrait
+      poster: /vivy/log-shot-poster.webp
+    - type: video
+      src: /vivy/log-side-effects.mp4
+      alt: log side effects
+      orientation: portrait
+      poster: /vivy/log-side-effects-poster.webp
+    - type: video
+      src: /vivy/log-meals.mp4
+      alt: log meals
+      orientation: portrait
+      poster: /vivy/log-meals-poster.webp
+    - type: video
+      src: /vivy/log-water.mp4
+      alt: log water
+      orientation: portrait
+      poster: /vivy/log-water-poster.webp
+    - type: video
+      src: /vivy/chat-with-coach.mp4
+      alt: chat with coach
+      orientation: portrait
+      poster: /vivy/chat-with-coach-poster.webp
+    - type: video
+      src: /vivy/comment-with-widgets.mp4
+      alt: comment with widgets
+      orientation: portrait
+      poster: /vivy/comment-with-widgets-poster.webp
+    - type: video
+      src: /vivy/profile-widgets.mp4
+      alt: profile widgets
+      orientation: portrait
+      poster: /vivy/profile-widgets-poster.webp
+    - type: video
+      src: /vivy/learning-modules.mp4
+      alt: learning modules
+      orientation: portrait
+      poster: /vivy/learning-modules-poster.webp
+    - type: video
+      src: /vivy/customize-appearance.mp4
+      alt: customize appearance
+      orientation: portrait
+      poster: /vivy/customize-appearance-poster.webp
+
+- slug: openpath
+  title: Openpath Security
+  cardTitle: Openpath Security
+  role: "Manager, React Native Lead, UX Designer, #2 Employee"
+  subtitle: Premier cloud-based access control
+  date: "2017-2023"
+  cardDesc: Premier cloud-based access control. Millions of door unlocks per day. Acquired by Motorola Solutions.
+  blurb: Cloud access control handling millions of door unlocks a day, acquired by Motorola.
+  device: iphone
+  shotHeight: 300
+  thumbClass: thumb-openpath
+  thumbImage: /logos/openpath.webp
+  transition: fade-slide
+  links:
+    # TODO: real Openpath iOS App Store URL
+    - label: iOS app
+      href: https://apps.apple.com/us/app/id0000000000
+    # TODO: real Openpath Google Play URL
+    - label: Android app
+      href: https://play.google.com/store/apps/details?id=com.openpath
+  assets:
+    - type: video
+      src: /openpath/door-unlock-demo-3.mp4
+      alt: door-unlock-demo
+      orientation: portrait
+      poster: /openpath/door-unlock-demo-3-poster.webp
+    - type: video
+      src: /openpath/provision.mp4
+      alt: provision
+      orientation: portrait
+      poster: /openpath/provision-poster.webp
+    - type: video
+      src: /openpath/old-tutorial.mp4
+      alt: old-tutorial
+      orientation: portrait
+      poster: /openpath/old-tutorial-poster.webp
+    - type: video
+      src: /openpath/send-feedback.mp4
+      alt: send-feedback
+      orientation: portrait
+      poster: /openpath/send-feedback-poster.webp
+    - type: video
+      src: /openpath/shard-guest-pass.mp4
+      alt: shard-guest-pass
+      orientation: portrait
+      poster: /openpath/shard-guest-pass-poster.webp
+    - type: video
+      src: /openpath/schedules.mp4
+      alt: schedules
+      orientation: landscape
+      poster: /openpath/schedules-poster.webp
+    - type: video
+      src: /openpath/open-admin-demo-2.mp4
+      alt: open admin demo
+      orientation: landscape
+      poster: /openpath/open-admin-demo-2-poster.webp
+
+- slug: sms
+  title: SMS ordering
+  cardTitle: SMS ordering
+  role: Founder, CTO
+  subtitle: SMS-based ordering at festivals and stations
+  date: "2013-2016, 2022-2024"
+  cardDesc: SMS food and drink ordering at music festivals and stadium events.
+  blurb: SMS food and drink ordering for music festivals and stadium events.
+  device: desktop
+  thumbClass: thumb-sms
+  thumbImage: /logos/text2order.webp
+  transition: fade-slide
+  assets:
+    - type: video
+      src: /sms/RPReplay_Final1690306867.mp4
+      alt: rpreplay_final1690306867
+      orientation: landscape
+      poster: /sms/RPReplay_Final1690306867-poster.webp
+    - type: pdf
+      src: /sms/Grub-Runner---Product-Offering.pdf
+      alt: grub runner - product offering
+      orientation: landscape
+      poster: /sms/Grub-Runner---Product-Offering-poster.webp
+    - src: /sms/text2order-20230819-8.jpg
+      alt: text2order 20230819-8
+      orientation: landscape
+    - src: /sms/IMG_1244.jpg
+      alt: img_1244
+      orientation: landscape
+    - src: /sms/IMG_0130.jpg
+      alt: img_0130
+      orientation: landscape
+    - src: /sms/Select-Venue-2.webp
+      alt: select venue-2
+      orientation: landscape
+    - src: /sms/Operator.jpg
+      alt: operator
+      orientation: landscape
+    - type: pdf
+      src: /sms/GrubRunner_Admin-pages-deleted.pdf
+      alt: grubrunner_admin-pages-deleted
+      orientation: landscape
+      poster: /sms/GrubRunner_Admin-pages-deleted-poster.webp
+    - type: pdf
+      src: /sms/GrubRunner-_-Onboarding.pdf
+      alt: grubrunner _ onboarding
+      orientation: landscape
+      poster: /sms/GrubRunner-_-Onboarding-poster.webp
+    - type: pdf
+      src: /sms/3020-1P_Drawings-FINAL.pdf
+      alt: 3020-1p_drawings-final
+      orientation: landscape
+      poster: /sms/3020-1P_Drawings-FINAL-poster.webp
+    - src: /sms/text2order-20230813-38.jpg
+      alt: text2order 20230813-38
+      orientation: landscape
+    - src: /sms/text2order-20230819-4.jpg
+      alt: text2order 20230819-4
+      orientation: landscape
+    - type: video
+      src: /sms/output.mp4
+      alt: output
+      orientation: landscape
+      poster: /sms/output-poster.webp
+    - src: /sms/text2order-20230813-31.jpg
+      alt: text2order 20230813-31
+      orientation: landscape
+    - src: /sms/scenario-10.jpg
+      alt: scenario 10
+      orientation: landscape
+    - src: /sms/IMG_3823.webp
+      alt: img_3823
+      orientation: landscape
+    - src: /sms/IMG_3425.jpg
+      alt: img_3425
+      orientation: landscape
+    - src: /sms/IMG_3865.jpg
+      alt: img_3865
+      orientation: landscape
+    - src: /sms/IMG_5082-2.jpeg
+      alt: img_5082 2
+      orientation: landscape
+    - src: /sms/IMG_4935.jpeg
+      alt: img_4935
+      orientation: landscape
+
+- slug: symphony
+  title: Symphony Pro
+  cardTitle: Symphony Pro
+  role: Founder, Developer, UX Designer
+  subtitle: Premier iPad composition app
+  date: "2009-2013"
+  cardDesc: World's first iPad sheet music notation app. Spotlighted by Apple.
+  blurb: The world's first iPad sheet-music notation app, spotlighted by Apple.
+  device: ipad
+  thumbClass: thumb-symphony
+  thumbImage: /logos/symphony.jpg
+  transition: fade-slide
+  links:
+    - label: Website
+      href: https://symphonypro.net/
+    # TODO: real Symphony Pro App Store URL
+    - label: iPad app
+      href: https://apps.apple.com/us/app/id0000000000
+  assets:
+    - type: youtube
+      src: https://www.youtube.com/embed/kzQQR3i1mrk
+      alt: Symphony Pro on iPad, a walkthrough of the sheet-music notation app
+      orientation: landscape
+    - type: image
+      src: /symphonypro/FeaturedByAppleFor11Months.webp
+      alt: Symphony Pro, featured by Apple on the App Store for 11 months
+      orientation: landscape
+    - type: image
+      src: /symphonypro/website.webp
+      alt: The Symphony Pro website
+      orientation: portrait
+    - src: /symphonypro/Score-View-v.1.7-change.webp
+      alt: "sidebar expanded"
+      orientation: landscape
+    - type: gif
+      src: /symphonypro/bookshelf-loading.webp
+      alt: Symphony Pro's bookshelf loading animation
+      orientation: landscape
+    - src: /symphonypro/Acoustic-Fretboard-v.1.3-2.webp
+      alt: Guitar tool
+      orientation: landscape
+    - type: image
+      src: /symphonypro/popover-menus.webp
+      alt: Symphony Pro's popover menus on the iPad
+      orientation: landscape
+    - type: image
+      src: /symphonypro/Mixer-menu.jpg
+      alt: The Symphony Pro mixer
+      orientation: landscape
+    - type: image
+      src: /symphonypro/Popup-Top-Bar-v.1.0.jpg
+      alt: Symphony Pro's pop-up top toolbar
+      orientation: landscape
+    - src: /symphonypro/sp3_intro-ipads.webp
+      alt: Modern UX
+      orientation: landscape
+    - src: /symphonypro/sp3_intro-iphone.webp
+      alt: iPhone layout
+      orientation: landscape

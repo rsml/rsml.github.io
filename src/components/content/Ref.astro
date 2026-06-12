@@ -1,0 +1,18 @@
+---
+interface Props { id: string; n: number; }
+const { id, n } = Astro.props;
+---
+<sup><a href={`#${id}`}>{n}</a></sup>
+<style is:global>
+  .case-body sup a {
+    color: var(--muted);
+    background: none;
+    padding: 0 2px;
+    font-size: 10px;
+    text-decoration: none;
+  }
+  .case-body sup a:hover {
+    color: var(--ink);
+    background: none;
+  }
+</style>

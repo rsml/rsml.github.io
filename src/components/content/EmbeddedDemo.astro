@@ -1,0 +1,147 @@
+---
+import PlaySticker from './PlaySticker.astro';
+import SimControls from './SimControls.astro';
+import { buildSrc, savedChordsToWire } from '../../scripts/sim-controls-core';
+import type { InstrumentValue, SavedChord, ThemeValue } from '../../scripts/sim-controls-core';
+
+interface Props {
+  base: string;
+  defaultKey?: string;
+  defaultInstrument?: InstrumentValue;
+  defaultTheme?: ThemeValue;
+  /**
+   * Pin a scale on load, in the bridge's wire form, e.g. 'C:Major'.
+   * Keys/scales are the app's musical names; '' clears a persisted pin.
+   */
+  pinnedScale?: string;
+  /** Pre-populate the saved-chords list (replaces whatever the app persisted; [] clears). */
+  savedChords?: SavedChord[];
+  title?: string;
+  /** Eager-load the iframe (use for the first, above-the-fold demo). */
+  eager?: boolean;
+  /** Plain padding instead of the bordered card. */
+  bare?: boolean;
+}
+
+const {
+  base,
+  defaultKey = 'C',
+  defaultInstrument = 'keyboard',
+  defaultTheme = 'light',
+  pinnedScale,
+  savedChords,
+  title = 'Chord Colors interactive demo',
+  eager = false,
+  bare = false,
+} = Astro.props;
+
+// Wire (query/dataset) form once, up front. Undefined props stay undefined so
+// both the query param and the data attribute are omitted and the app keeps
+// its own state.
+const savedChordsWire = savedChords ? savedChordsToWire(savedChords) : undefined;
+
+const initialSrc = buildSrc({
+  base,
+  key: defaultKey,
+  instrument: defaultInstrument,
+  theme: defaultTheme,
+  pinnedScale,
+  savedChords: savedChordsWire,
+});
+---
+
+<div
+  class:list={['phone-demo', bare ? 'bare' : 'card']}
+  data-base={base}
+  data-key={defaultKey}
+  data-instrument={defaultInstrument}
+  data-theme={defaultTheme}
+  data-pinned-scale={pinnedScale}
+  data-saved-chords={savedChordsWire}
+>
+  <PlaySticker />
+  <SimControls defaultKey={defaultKey} defaultInstrument={defaultInstrument} defaultTheme={defaultTheme} />
+  <div class="phone-frame">
+    <iframe
+      class="phone-iframe"
+      src={initialSrc}
+      title={title}
+      loading={eager ? 'eager' : 'lazy'}
+      allow="autoplay; encrypted-media"
+      referrerpolicy="no-referrer-when-downgrade"
+      sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms"></iframe>
+  </div>
+  <a class="open-in-browser" href={`https://chordcolors.com${base}`} target="_blank" rel="noopener">
+    Open in browser <span aria-hidden="true">↗</span>
+  </a>
+</div>
+
+<style>
+  /* One stacked layout at every size: annotation, then controls, then the
+     phone, then the browser link. */
+  .phone-demo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 28px;
+  }
+  .phone-demo.card {
+    margin: 8px 0 6px;
+    background: #fcfcfc;
+    border: 1px solid var(--hair);
+    border-radius: 10px;
+  }
+  .phone-frame {
+    position: relative;
+    width: min(380px, 100%);
+    aspect-ratio: 9 / 19.5;
+    background: #1a1a1a;
+    border-radius: 52px;
+    box-shadow:
+      0 14px 40px rgba(0, 0, 0, 0.16),
+      0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  /* The app reflows to its container width and clips below ~iPhone width, so it
+     renders at a 390px logical viewport scaled down to the frame's inner width
+     (see phone-fit.ts). The values below are the desktop default for first paint;
+     phone-fit.ts overrides width/height/zoom to fit any frame size.
+     zoom, NOT transform: scale() — transformed iframes get pointer/touch
+     coordinates delivered unscaled (WebKit especially), so taps inside the app
+     land offset toward the top-left (wheel taps registered one ring out). */
+  .phone-iframe {
+    position: absolute;
+    /* zoom multiplies the element's own offsets; divide so the bezel stays 14px */
+    top: calc(14px / 0.9026);
+    left: calc(14px / 0.9026);
+    width: 390px;
+    height: 882px;
+    zoom: 0.9026;
+    border: 0;
+    border-radius: 42px;
+    background: #1a1a1a;
+    pointer-events: auto;
+  }
+
+  /* "Open in browser" escape hatch, below the embed. */
+  .open-in-browser {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 16px;
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: oklch(72% 0.2 25);
+    text-decoration: none;
+    pointer-events: auto;
+  }
+  .open-in-browser:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<script>
+  import '../../scripts/phone-fit.ts';
+</script>
