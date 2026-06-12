@@ -429,7 +429,7 @@ async function main() {
     console.log('\n--dry: nothing written.');
     return;
   }
-  if (videoJobs.length + imageJobs.length === 0) {
+  if (videoJobs.length + imageJobs.length + thumbJobs.length === 0) {
     console.log('\nnothing to do.');
     return;
   }
