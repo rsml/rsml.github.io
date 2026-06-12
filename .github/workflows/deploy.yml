@@ -14,10 +14,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: withastro/action@v3   # detects pnpm, runs build, uploads dist as the Pages artifact
-        with:
-          node-version: 24          # Astro 6 needs >= 22.12; runner default is still 20
+      - uses: actions/checkout@v6
+      - uses: withastro/action@v6   # detects pnpm, runs build, uploads dist as the Pages artifact
+        # node-version input still accepted in v6; default is now 24 (meets Astro 6 requirement of >= 22.12)
   deploy:
     needs: build
     runs-on: ubuntu-latest

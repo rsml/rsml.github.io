@@ -1,9 +1,42 @@
 ---
+import { existsSync } from 'node:fs';
+import { thumbPath } from '../../tools/optimize-portfolio.mjs';
 import { youtubePoster, type Project } from '../data/work';
 import ActionLinks from './ActionLinks.astro';
-interface Props { project: Project; }
-const { project } = Astro.props;
+interface Props { project: Project; eager?: boolean; }
+const { project, eager = false } = Astro.props;
 const assets = project.assets;
+
+/**
+ * Resolve the strip thumbnail src for one asset. Priority:
+ *   1. asset.poster  (explicit still; video/embed/pdf always have one)
+ *   2. youtubePoster(asset.src)  for youtube assets (external URL, no thumb)
+ *   3. asset.src  for image assets (type='image' or missing type)
+ * Then: if the chosen ref is a local absolute path and a '-thumb.webp' sibling
+ * exists in public/, use the thumb. WorkRow renders at --shot-h (max ~300px),
+ * so the thumb (2x shotHeight tall) is more than sharp enough while being a
+ * fraction of the full-resolution source size.
+ * GIF src paths are returned as-is: generating a lossy WebP thumb would kill
+ * the animation. YouTube and external poster URLs bypass the thumb check.
+ */
+function resolveStripSrc(asset: (typeof assets)[number]): string {
+  // Build the base ref in the same priority order WorkRow used before thumbs.
+  // video/embed/pdf always supply a poster (schema enforces it), so the final
+  // fallback to asset.src is only a safety net for schema-violating inputs.
+  const ref: string =
+    asset.poster
+    ?? (asset.type === 'youtube' ? youtubePoster(asset.src) : undefined)
+    ?? ((asset.type == null || asset.type === 'image') ? asset.src : undefined)
+    ?? asset.src;
+  // Only probe disk for local absolute paths that are not animated GIFs.
+  // GIFs animate in the strip; their thumb would be a static WebP (no good).
+  if (ref.startsWith('/') && asset.type !== 'gif') {
+    const thumb = thumbPath(ref);
+    // process.cwd() is the repo root at Astro build time.
+    if (existsSync(`${process.cwd()}/public${thumb}`)) return thumb;
+  }
+  return ref;
+}
 
 // Links: an optional "Deep dive" (always an internal page) followed by the
 // project's platform/store links. Internal ("/…") links render "→"; external
@@ -43,8 +76,16 @@ const actions = [
         >
           {/* Every type shows a still in the strip: video + embed carry a required
               `poster`; youtube derives one from its id; image/gif fall back to
-              their own `src` (a GIF animates). */}
-          <img src={s.poster ?? (s.type === 'youtube' ? youtubePoster(s.src) : s.src)} alt={s.alt} loading="lazy" decoding="async" draggable="false" />
+              their own `src` (a GIF animates). resolveStripSrc also swaps in a
+              '-thumb.webp' sidecar when one exists, keeping download weight low. */}
+          <img
+            src={resolveStripSrc(s)}
+            alt={s.alt}
+            loading={eager && i < 4 ? 'eager' : 'lazy'}
+            fetchpriority={eager && i === 0 ? 'high' : undefined}
+            decoding="async"
+            draggable="false"
+          />
           {(s.type === 'video' || s.type === 'youtube') && <span class="shot-play" aria-hidden="true"></span>}
           {(s.type === 'embed' || s.type === 'pdf') && (
             <span class="shot-embed" aria-hidden="true">

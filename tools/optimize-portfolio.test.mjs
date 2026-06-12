@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MARKER, classifyVideo, encodeArgs, extractChromeRefs, extractRefs,
   findCollisions, outputFps, remuxArgs, rewriteRefs, targetPath,
+  thumbPath, stripImageRef,
 } from './optimize-portfolio.mjs';
 
 describe('extractRefs', () => {
@@ -141,5 +142,70 @@ describe('findCollisions', () => {
   it('reports sources that map to the same optimized name', () => {
     const collisions = findCollisions(['/a/demo.mov', '/a/demo.mp4', '/a/other.png']);
     expect(collisions).toEqual([['/a/demo.mp4', ['/a/demo.mov', '/a/demo.mp4']]]);
+  });
+});
+
+describe('thumbPath', () => {
+  it('replaces the final extension with -thumb.webp', () => {
+    expect(thumbPath('/a/shot.webp')).toBe('/a/shot-thumb.webp');
+    expect(thumbPath('/a/shot.png')).toBe('/a/shot-thumb.webp');
+    expect(thumbPath('/a/shot.jpg')).toBe('/a/shot-thumb.webp');
+    expect(thumbPath('/tutor/screenshots/library.png')).toBe('/tutor/screenshots/library-thumb.webp');
+  });
+
+  it('works correctly when the stem itself contains dots', () => {
+    expect(thumbPath('/a/my.poster.jpg')).toBe('/a/my.poster-thumb.webp');
+  });
+});
+
+describe('stripImageRef', () => {
+  it('returns asset.poster when set, regardless of type', () => {
+    expect(stripImageRef({ type: 'video', src: '/a/v.mp4', poster: '/a/v-poster.webp', alt: '', orientation: 'landscape' }))
+      .toBe('/a/v-poster.webp');
+    expect(stripImageRef({ type: 'image', src: '/a/shot.webp', poster: '/a/custom.webp', alt: '', orientation: 'portrait' }))
+      .toBe('/a/custom.webp');
+  });
+
+  it('returns null for youtube (poster is derived externally by WorkRow)', () => {
+    expect(stripImageRef({ type: 'youtube', src: 'dQw4w9WgXcQ', alt: '', orientation: 'landscape' }))
+      .toBeNull();
+  });
+
+  it('returns null for gif (must keep animating, not replaced by a still thumb)', () => {
+    expect(stripImageRef({ type: 'gif', src: '/a/loop.gif', alt: '', orientation: 'landscape' }))
+      .toBeNull();
+  });
+
+  it('returns null for gif even when a poster is absent (gif without poster)', () => {
+    // gif + no poster: src would animate. no thumb desired.
+    expect(stripImageRef({ type: 'gif', src: '/a/loop.webp', alt: '', orientation: 'landscape' }))
+      .toBeNull();
+  });
+
+  it('returns asset.src for type image', () => {
+    expect(stripImageRef({ type: 'image', src: '/a/shot.webp', alt: '', orientation: 'portrait' }))
+      .toBe('/a/shot.webp');
+  });
+
+  it('returns asset.src when type is missing (schema default is image)', () => {
+    expect(stripImageRef({ src: '/a/shot.webp', alt: '', orientation: 'portrait' }))
+      .toBe('/a/shot.webp');
+  });
+
+  it('returns null for video/embed/pdf without a poster (schema requires poster; null is safe fallback)', () => {
+    expect(stripImageRef({ type: 'video', src: '/a/v.mp4', alt: '', orientation: 'landscape' }))
+      .toBeNull();
+    expect(stripImageRef({ type: 'embed', src: 'https://example.com', alt: '', orientation: 'landscape' }))
+      .toBeNull();
+    expect(stripImageRef({ type: 'pdf', src: '/a/doc.pdf', alt: '', orientation: 'portrait' }))
+      .toBeNull();
+  });
+
+  it('rejects external http refs (cannot be processed as local public/ files)', () => {
+    expect(stripImageRef({ type: 'image', src: 'https://example.com/shot.png', alt: '', orientation: 'landscape' }))
+      .toBeNull();
+    // Poster pointing to an external URL is also rejected.
+    expect(stripImageRef({ type: 'video', src: '/a/v.mp4', poster: 'https://cdn.example.com/poster.jpg', alt: '', orientation: 'landscape' }))
+      .toBeNull();
   });
 });

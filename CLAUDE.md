@@ -18,6 +18,11 @@ Astro static site (SSG). Deploys to GitHub Pages via GitHub Actions on push to `
   profile, never resized, re-runs skip already-optimized files via an embedded
   marker), PNG/GIF to lossless WebP (JPG stays). Renames rewrite work.yaml and the
   .astro files; originals are backed up to `public-backup-<timestamp>/` (gitignored).
+  It also generates `<name>-thumb.webp` sidecars for every image the home strip
+  shows: lossy WebP at quality 80, scaled to 2x the project's `shotHeight` (so
+  600px tall for a 300px strip, 400px for the default 200px). WorkRow.astro
+  automatically serves the thumb when it exists and falls back to the original when
+  it does not. Thumbs are derived files and are excluded from the orphan report.
   Settings and rationale live in `tools/optimize-portfolio.mjs`. Needs ffmpeg.
 - `pnpm push-chunked` pushes the current branch in <= 40 MB slices via a
   throwaway seed branch, then the real push sends almost nothing

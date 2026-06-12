@@ -7,7 +7,7 @@ import { getWork } from '../data/work';
 const work = getWork();
 ---
 <PortfolioLayout title="Ross Miller">
-  <div class="container" data-rise>
+  <main class="container" data-rise>
     <h1 class="name" style="--rise-i:0">Ross Miller</h1>
     <p class="updated" style="--rise-i:1">Updated June 3, 2026</p>
     <div class="bio" style="--rise-i:2">
@@ -17,10 +17,10 @@ const work = getWork();
     </div>
     <h2 class="home-section-h" style="--rise-i:3">Selected works</h2>
     <div class="work" style="--rise-i:4">
-      {work.map((p) => <WorkRow project={p} />)}
+      {work.map((p, i) => <WorkRow project={p} eager={i === 0} />)}
     </div>
     <NowClock style="--rise-i:5" />
-  </div>
+  </main>
   <Lightbox projects={work} />
 </PortfolioLayout>
 <style>

@@ -128,6 +128,48 @@ export function targetPath(ref) {
 }
 
 /**
+ * The thumbnail path for a strip image ref: replaces the final extension with
+ * '-thumb.webp'. Used by the thumbnail generation step and by WorkRow.astro to
+ * check whether a thumb exists before falling back to the full-resolution file.
+ * Examples: '/a/shot.webp' -> '/a/shot-thumb.webp'
+ *           '/a/shot.png'  -> '/a/shot-thumb.webp'
+ */
+export function thumbPath(ref) {
+  const ext = path.extname(ref);
+  const stem = ref.slice(0, ref.length - ext.length);
+  return `${stem}-thumb.webp`;
+}
+
+/**
+ * The image the home-row strip shows for one asset, mirroring WorkRow.astro's
+ * logic so the thumbnail step knows exactly which file to scale.
+ *
+ * Rules (matching WorkRow in priority order):
+ *   1. asset.poster  -- explicit poster always wins.
+ *   2. type 'youtube' -- poster is derived from the video id (external URL);
+ *      return null so the thumb step skips it (cannot download external images).
+ *   3. type 'gif'    -- animated GIFs must keep animating in the strip;
+ *      returning a thumb would break animation, so return null.
+ *   4. type 'image'  -- use asset.src (type defaults to 'image' per schema).
+ *   5. Everything else (video/embed/pdf without poster) -- schema enforces that
+ *      these have a poster, so this branch is unreachable in practice;
+ *      return null for safety.
+ *
+ * Only absolute paths (starting with '/') are returned; external http refs
+ * cannot be processed on disk and are treated as null.
+ */
+export function stripImageRef(asset) {
+  const ref = asset.poster
+    ?? ((asset.type === 'youtube' || asset.type === 'gif') ? null
+      : (asset.type == null || asset.type === 'image') ? asset.src
+      : null);
+  if (!ref) return null;
+  // Reject external URLs: the thumb step only handles local public/ files.
+  if (!ref.startsWith('/')) return null;
+  return ref;
+}
+
+/**
  * Decide what to do with one video given its probe data.
  *   skip          already optimized (marker)
  *   convert       re-encode to H.264; forceConvert means "keep the result even
@@ -297,7 +339,6 @@ async function main() {
 
   const existing = [...refs].filter((r) => existsSync(onDisk(r)));
   const dangling = [...refs].filter((r) => !existsSync(onDisk(r)));
-  const orphans = listPublicMedia().filter((f) => !refs.has(f) && !chromeRefs.has(f));
 
   const collisions = findCollisions(existing);
   if (collisions.length > 0) {
@@ -329,7 +370,60 @@ async function main() {
   }
   for (const j of imageJobs) console.log(`  image  ${j.ref} -> ${j.target}  [lossless webp${j.animated ? ', animated' : ''}]`);
   if (dangling.length) console.log(`\ndangling refs (referenced but no file):\n  ${dangling.join('\n  ')}`);
-  if (orphans.length) console.log(`\norphans (in public/ but unreferenced):\n  ${orphans.join('\n  ')}`);
+
+  // Build the thumbnail plan (used in both dry and real modes).
+  // Thumbs are derived files: exclude any '-thumb.webp' path from the orphan
+  // filter so a re-run never treats freshly generated thumbs as unreferenced.
+  const orphansFiltered = listPublicMedia().filter(
+    (f) => !refs.has(f) && !chromeRefs.has(f) && !f.endsWith('-thumb.webp'),
+  );
+  if (orphansFiltered.length) console.log(`\norphans (in public/ but unreferenced):\n  ${orphansFiltered.join('\n  ')}`);
+
+  // Parse YAML now (before any renames) to build the thumbnail job list.
+  // After the rename phase, renames.get(ref) gives the new path if one exists,
+  // so we resolve each strip ref through the pending rename map before probing.
+  const { load } = await import('js-yaml');
+  const projects = load(yamlText);
+
+  // plannedRenames collects the rename map we WILL build during conversion so
+  // dry mode can simulate where a source file will land after this run.
+  // In dry mode renames is never populated, so we build it separately from the
+  // job lists (targetPath gives the destination for each pending job).
+  const pendingRenames = new Map([
+    ...videoJobs.filter((j) => j.ref !== j.target).map((j) => [j.ref, j.target]),
+    ...imageJobs.map((j) => [j.ref, j.target]),
+  ]);
+
+  const thumbJobs = [];
+  for (const project of projects) {
+    const shotH = project.shotHeight ?? 200;
+    for (const asset of (project.assets ?? [])) {
+      const rawRef = stripImageRef(asset);
+      if (!rawRef) continue;
+      // Apply any pending rename so the thumb points at the post-conversion file.
+      const ref = pendingRenames.get(rawRef) ?? rawRef;
+      const srcAbs = onDisk(ref);
+      if (!existsSync(srcAbs)) continue;
+      // Skip thumb inputs that are themselves thumbs (guards against YAML listing
+      // a thumb directly, which would produce a thumb-thumb chain).
+      if (ref.endsWith('-thumb.webp')) continue;
+      const dest = thumbPath(ref);
+      const destAbs = onDisk(dest);
+      // Skip when an up-to-date thumb already exists (mtime compare).
+      if (existsSync(destAbs) && statSync(destAbs).mtimeMs >= statSync(srcAbs).mtimeMs) continue;
+      thumbJobs.push({ ref, dest, srcAbs, destAbs, shotH });
+    }
+  }
+
+  // Print thumbnail plan (both dry and real modes show the intent).
+  if (thumbJobs.length > 0) {
+    console.log(`\nthumbnail plan (${thumbJobs.length} strip image(s) to generate):`);
+    for (const j of thumbJobs) {
+      console.log(`  thumb  ${j.ref} -> ${j.dest}  [h${2 * j.shotH}, lossy webp q80]`);
+    }
+  } else {
+    console.log('\nthumbnails: all up to date.');
+  }
 
   if (dry) {
     console.log('\n--dry: nothing written.');
@@ -429,6 +523,48 @@ async function main() {
     }
   }
 
+  // 5b. Generate strip thumbnails: small lossy WebP scaled to 2x shotHeight.
+  // These are derived files; WorkRow.astro prefers <name>-thumb.webp when it
+  // exists, falling back to the original so old builds stay correct.
+  const thumbReport = [];
+  for (const j of thumbJobs) {
+    const tmp = `${j.destAbs}.part.webp`;
+    try {
+      // Probe the source dimensions so we can cap the target height to the
+      // actual source height (never upscale: a 300px source at 2x 300px shot
+      // would otherwise upscale, which wastes bytes and looks worse).
+      const meta = await sharp(j.srcAbs).metadata();
+      const srcH = meta.height ?? 0;
+      const srcW = meta.width ?? 0;
+      const targetH = srcH > 0 ? Math.min(2 * j.shotH, srcH) : 2 * j.shotH;
+      await sharp(j.srcAbs)
+        .resize({ height: targetH })
+        .webp({ quality: 80, effort: 6 })
+        .toFile(tmp);
+    } catch (e) {
+      rmSync(tmp, { force: true });
+      failures.push(`thumb ${j.dest} (${e.message})`);
+      continue;
+    }
+    const before = statSync(j.srcAbs).size;
+    const after = statSync(tmp).size;
+    if (after >= before) {
+      // Already small enough that a lossy thumb is no smaller (e.g. a tiny
+      // poster); delete the attempt and let WorkRow fall back to the original.
+      rmSync(tmp, { force: true });
+      thumbReport.push(`thumb ${j.dest}: skipped (thumb ${mb(after)} >= src ${mb(before)})`);
+      continue;
+    }
+    renameSync(tmp, j.destAbs);
+    // Re-probe the written file for accurate dimensions after resize. Probe the
+    // source BEFORE reading the dest so both calls see the right file on disk.
+    const srcMeta = await sharp(j.srcAbs).metadata();
+    const destMeta = await sharp(j.destAbs).metadata();
+    const srcLabel = `${srcMeta.width ?? '?'}x${srcMeta.height ?? '?'}`;
+    const destLabel = `${destMeta.width ?? '?'}x${destMeta.height ?? '?'}`;
+    thumbReport.push(`thumb ${j.dest} (${srcLabel} -> ${destLabel}, ${mb(before)} -> ${mb(after)})`);
+  }
+
   // 6. Hygiene: .DS_Store files ship into the build; remove them.
   let dsCount = 0;
   const sweep = (dir) => {
@@ -453,7 +589,7 @@ async function main() {
     }
   }
   try {
-    const { load } = await import('js-yaml');
+    // `load` is already imported above; this re-validates the post-rename YAML.
     load(readFileSync(WORK_YAML, 'utf8'));
   } catch (e) {
     problems.push(`work.yaml no longer parses: ${e.message}`);
@@ -461,6 +597,7 @@ async function main() {
 
   console.log('\n── results ──');
   for (const r of report) console.log(`  ${r}`);
+  for (const r of thumbReport) console.log(`  ${r}`);
   if (dsCount) console.log(`  removed ${dsCount} .DS_Store file(s) from public/`);
   console.log(`  backup: ${path.relative(ROOT, backupDir)}/`);
   if (failures.length) console.log(`  FAILED (originals untouched):\n    ${failures.join('\n    ')}`);

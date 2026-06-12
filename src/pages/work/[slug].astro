@@ -25,7 +25,7 @@ const project = getProject(slug!)!;
 const Body = bodies[project.slug];
 ---
 <PortfolioLayout title={`${project.title} - Ross Miller`} description={project.cardDesc}>
-  <div class="container dive" data-rise>
+  <main class="container dive" data-rise>
     <div class="rise-slot top-row" style="--rise-i:0">
       <BackLink />
       {project.marketingUrl && <MarketingButton href={project.marketingUrl} label={project.marketingLabel ?? 'Visit site'} />}
@@ -50,7 +50,7 @@ const Body = bodies[project.slug];
       )}
     </div>
     <div class="dive-body case-body" style="--rise-i:3"><Body /></div>
-  </div>
+  </main>
 </PortfolioLayout>
 <style>
   .container.dive { position: relative; }

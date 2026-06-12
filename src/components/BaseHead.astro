@@ -8,13 +8,26 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
 <title>{title}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={canonical} />
+<!-- Preload primary font to cut render-blocking time -->
+<link rel="preload" href="/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
+<!-- Favicons -->
+<link rel="icon" href="/favicon.ico" sizes="32x32" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<!-- Open Graph -->
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
 <meta property="og:type" content="website" />
-<!-- Inter from rsms.me, same as the prototype -->
-<link rel="preconnect" href="https://rsms.me/" />
-<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
-<!-- Caveat (handwritten) for the "Play with me" annotation on demos -->
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap" />
+<meta property="og:url" content={canonical} />
+{/* og.png stays PNG (unfurlers reject webp) and its path lives INSIDE these
+    og:/twitter: lines: pnpm optimize only spares chrome refs it finds on
+    lines matching og:|twitter:|rel=icon, a frontmatter const evades that. */}
+<meta property="og:image" content={new URL('/og.png', Astro.site)} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Ross Miller, full-stack engineer, designer, 4x founder" />
+<!-- Twitter card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={new URL('/og.png', Astro.site)} />
