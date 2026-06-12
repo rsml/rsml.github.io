@@ -686,6 +686,37 @@ const linksFor = (p: Project) => [
       show(downBtn, !vert.isEnd);
     }
 
+    // Release a local <video>'s decode buffers by detaching its src. iOS WebKit
+    // enforces a strict per-tab memory budget (jetsam) and keeps decoded frames
+    // resident as long as the src attribute is present. Removing the src and
+    // calling load() signals the browser to free the decoder and buffer memory.
+    // The Plyr wrapper is left alive; it tolerates a temporarily src-less element.
+    // The original src is stashed in data-lb-src so it can be restored later.
+    function releaseVideoMemory(video: HTMLVideoElement) {
+      if (video.readyState === 0) return;   // nothing buffered, nothing to free
+      if (!video.dataset.lbSrc) {
+        // Stash the live src attribute (fall back to the element property, which
+        // holds the resolved URL even when set via JS rather than HTML).
+        video.dataset.lbSrc = video.getAttribute('src') || video.src || '';
+      }
+      video.removeAttribute('src');
+      video.preload = 'none';
+      try { video.load(); } catch {}   // signals WebKit to free decoder and buffers
+    }
+
+    // Restore a local <video>'s src from data-lb-src (written by releaseVideoMemory).
+    // preload stays 'none' so restoring the attribute alone does not trigger a
+    // fetch; the existing poster/preload/autoplay logic below upgrades the active
+    // shot to 'metadata' and starts play when appropriate.
+    function restoreVideoSrc(video: HTMLVideoElement) {
+      if (!video.dataset.lbSrc) return;   // never released, nothing to restore
+      if (!video.getAttribute('src')) {
+        video.setAttribute('src', video.dataset.lbSrc);
+        video.preload = 'none';   // explicit: keep cold until the active-shot path upgrades it
+      }
+      delete video.dataset.lbSrc;
+    }
+
     // Media follows the active slide: the active project's embeds load (data-src →
     // src) while every other embed is blanked, and any video that isn't the active
     // shot of the active project is paused, so nothing loads or plays off-screen.
@@ -701,6 +732,20 @@ const linksFor = (p: Project) => [
             if (f.getAttribute('src') !== ds) f.setAttribute('src', ds);
           } else if (f.getAttribute('src')) {
             f.removeAttribute('src');   // blank off-screen embeds: stops their audio/video
+          }
+        });
+
+        // iOS WebKit memory management: release decode buffers for videos belonging
+        // to projects that are NOT the active one, restore them for the active one.
+        // YouTube players have no <video> element and are skipped. The restore runs
+        // BEFORE the poster/preload/autoplay block below so the existing flow sees a
+        // fully valid element (src present, preload='none') and can upgrade from there.
+        slide.querySelectorAll('video.lb-video').forEach((node) => {
+          const video = node as HTMLVideoElement;
+          if (projActive) {
+            restoreVideoSrc(video);
+          } else {
+            releaseVideoMemory(video);
           }
         });
       });
@@ -751,11 +796,19 @@ const linksFor = (p: Project) => [
       }
     }
 
-    // Hard stop for close(): pause every player (video + youtube) and blank every embed.
+    // Hard stop for close(): pause every player (video + youtube), blank every embed,
+    // and release local video decode buffers. iOS WebKit (jetsam) keeps buffered video
+    // memory resident across navigation unless src is removed and load() is called.
+    // Releasing here means the tab holds no decode state once the gallery is closed.
+    // Reopening calls open() -> syncMedia(), which restores the active project's src
+    // before the existing autoplay logic runs, so reopening still works correctly.
     function stopAllMedia() {
       for (const { plyr } of players) { try { plyr.pause(); } catch {} }
       projects().forEach((slide) => {
         slide.querySelectorAll('iframe.lb-embed').forEach((f) => { if (f.getAttribute('src')) f.removeAttribute('src'); });
+        slide.querySelectorAll('video.lb-video').forEach((node) => {
+          releaseVideoMemory(node as HTMLVideoElement);
+        });
       });
     }
 
