@@ -15,9 +15,13 @@ Astro static site (SSG). Deploys to GitHub Pages via GitHub Actions on push to `
   `edit` to npm.)
 - `pnpm optimize` (or `pnpm optimize --dry` to preview) compresses every asset the
   site references, in place: videos to web-safe H.264 MP4 (orientation picks the
-  profile, never resized, re-runs skip already-optimized files via an embedded
-  marker), PNG/GIF to lossless WebP (JPG stays). Renames rewrite work.yaml and the
-  .astro files; originals are backed up to `public-backup-<timestamp>/` (gitignored).
+  profile; long edge capped at 1920 and level pinned to High@5.1 because iPhone
+  hardware decoders stop at Level 5.2; re-runs skip marked in-spec files via an
+  embedded marker and re-encode anything outside that spec, so out-of-spec files
+  self-heal), PNG/GIF to lossless WebP (JPG stays), and work.yaml posters over
+  1920px long edge to lossy WebP q80 in place (the lightbox shows them full
+  size). Renames rewrite work.yaml and the .astro files; originals are backed
+  up to `public-backup-<timestamp>/` (gitignored).
   It also generates `<name>-thumb.webp` sidecars for every image the home strip
   shows: lossy WebP at quality 80, scaled to 2x the project's `shotHeight` (so
   600px tall for a 300px strip, 400px for the default 200px). WorkRow.astro

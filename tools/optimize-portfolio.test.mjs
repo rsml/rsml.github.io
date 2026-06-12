@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   MARKER, classifyVideo, encodeArgs, extractChromeRefs, extractRefs,
-  findCollisions, outputFps, remuxArgs, rewriteRefs, targetPath,
-  thumbPath, stripImageRef,
+  findCollisions, inDeliverySpec, outputFps, posterCapDecision, remuxArgs,
+  rewriteRefs, targetPath, thumbPath, stripImageRef,
 } from './optimize-portfolio.mjs';
 
 describe('extractRefs', () => {
@@ -57,11 +57,63 @@ describe('targetPath', () => {
   });
 });
 
-describe('classifyVideo', () => {
-  const base = { codec: 'h264', pixFmt: 'yuv420p', width: 1920, height: 1080, marker: false };
+describe('inDeliverySpec', () => {
+  it('accepts h264 at level <= 5.1 with long edge <= 1920', () => {
+    expect(inDeliverySpec({ codec: 'h264', level: 51, width: 1920, height: 1080 })).toBe(true);
+    expect(inDeliverySpec({ codec: 'h264', level: 51, width: 1080, height: 1920 })).toBe(true);
+    expect(inDeliverySpec({ codec: 'h264', level: 40, width: 1280, height: 720 })).toBe(true);
+  });
 
-  it('skips marked files', () => {
+  it('rejects levels above 5.1 (iPhone hardware stops at 5.2; 5.1 leaves margin)', () => {
+    expect(inDeliverySpec({ codec: 'h264', level: 52, width: 1920, height: 1080 })).toBe(false);
+    expect(inDeliverySpec({ codec: 'h264', level: 60, width: 2560, height: 1600 })).toBe(false);
+  });
+
+  it('rejects a long edge over 1920 in either dimension', () => {
+    expect(inDeliverySpec({ codec: 'h264', level: 51, width: 2560, height: 1080 })).toBe(false);
+    expect(inDeliverySpec({ codec: 'h264', level: 51, width: 1080, height: 1921 })).toBe(false);
+  });
+
+  it('rejects unknown levels (0, missing, ffprobe -99) and non-h264 codecs', () => {
+    expect(inDeliverySpec({ codec: 'h264', level: 0, width: 1280, height: 720 })).toBe(false);
+    expect(inDeliverySpec({ codec: 'h264', width: 1280, height: 720 })).toBe(false);
+    expect(inDeliverySpec({ codec: 'h264', level: -99, width: 1280, height: 720 })).toBe(false);
+    expect(inDeliverySpec({ codec: 'hevc', level: 51, width: 1280, height: 720 })).toBe(false);
+  });
+});
+
+describe('classifyVideo', () => {
+  const base = { codec: 'h264', pixFmt: 'yuv420p', width: 1920, height: 1080, level: 51, marker: false };
+
+  it('skips marked files that are within the delivery spec', () => {
     expect(classifyVideo({ ...base, marker: true }).action).toBe('skip');
+  });
+
+  it('re-encodes a marked file that is out of spec (self-healing), never remuxing it', () => {
+    const plan = classifyVideo({ ...base, marker: true, level: 60, width: 2560, height: 1600 });
+    expect(plan.action).toBe('convert');
+    // forceConvert true means the remux fallback can never be chosen: a remux
+    // would ship the out-of-spec bits unchanged.
+    expect(plan.forceConvert).toBe(true);
+    expect(plan.reason).toBe('out of delivery spec (h264 level 6.0, 2560x1600)');
+  });
+
+  it('treats oversized dimensions alone as out of spec, even at level 5.1', () => {
+    const plan = classifyVideo({ ...base, marker: true, width: 2560, height: 1600 });
+    expect(plan.action).toBe('convert');
+    expect(plan.forceConvert).toBe(true);
+    expect(plan.reason).toContain('out of delivery spec');
+  });
+
+  it('treats an unknown level on h264 as out of spec (conservative)', () => {
+    const plan = classifyVideo({ ...base, marker: true, level: 0 });
+    expect(plan.action).toBe('convert');
+    expect(plan.forceConvert).toBe(true);
+    expect(plan.reason).toContain('level unknown');
+  });
+
+  it('never picks the remux fallback for an unmarked out-of-spec h264 file either', () => {
+    expect(classifyVideo({ ...base, level: 60, width: 2560, height: 1600 }).forceConvert).toBe(true);
   });
 
   it('picks the profile by orientation, square counts as portrait', () => {
@@ -70,7 +122,7 @@ describe('classifyVideo', () => {
     expect(classifyVideo({ ...base, width: 1000, height: 1000 })).toMatchObject({ profile: 'portrait' });
   });
 
-  it('forces conversion for wrong codec or pixel format, not for clean h264', () => {
+  it('forces conversion for wrong codec or pixel format, not for clean in-spec h264', () => {
     expect(classifyVideo({ ...base, codec: 'hevc' }).forceConvert).toBe(true);
     expect(classifyVideo({ ...base, pixFmt: 'yuv420p10le' }).forceConvert).toBe(true);
     expect(classifyVideo(base).forceConvert).toBe(false);
@@ -94,13 +146,16 @@ describe('outputFps', () => {
 describe('encodeArgs / remuxArgs', () => {
   const plan = { crf: 18 };
 
-  it('encodes quality-first H.264 with the marker, never scaling beyond even-rounding', () => {
+  it('encodes capped H.264: 1920 long edge (never upscaled), refs 5, level 5.1', () => {
     const joined = encodeArgs(plan, 60, true, 'in.mov', 'out.mp4').join(' ');
     expect(joined).toContain('-c:v libx264');
     expect(joined).toContain('-preset veryslow');
     expect(joined).toContain('-crf 18');
     expect(joined).toContain('-x264-params aq-mode=3');
-    expect(joined).toContain('fps=60,scale=trunc(iw/2)*2:trunc(ih/2)*2');
+    expect(joined).toContain("fps=60,scale='min(iw,1920)':'min(ih,1920)':force_original_aspect_ratio=decrease:force_divisible_by=2");
+    expect(joined).not.toContain('trunc(iw/2)*2'); // old uncapped filter retired
+    expect(joined).toContain('-refs 5');
+    expect(joined).toContain('-level:v 5.1');
     expect(joined).toContain(`comment=${MARKER}`);
     expect(joined).toContain('-movflags +faststart');
     expect(joined).toContain('-c:a aac -b:a 160k');
@@ -207,5 +262,24 @@ describe('stripImageRef', () => {
     // Poster pointing to an external URL is also rejected.
     expect(stripImageRef({ type: 'video', src: '/a/v.mp4', poster: 'https://cdn.example.com/poster.jpg', alt: '', orientation: 'landscape' }))
       .toBeNull();
+  });
+});
+
+describe('posterCapDecision', () => {
+  it('caps when the long edge exceeds 1920, in either dimension', () => {
+    expect(posterCapDecision({ width: 2560, height: 1600 })).toEqual({ action: 'cap', targetLongEdge: 1920 });
+    expect(posterCapDecision({ width: 1080, height: 2556 })).toEqual({ action: 'cap', targetLongEdge: 1920 });
+    expect(posterCapDecision({ width: 1921, height: 1080 })).toEqual({ action: 'cap', targetLongEdge: 1920 });
+  });
+
+  it('skips posters already within the cap (never upscales)', () => {
+    expect(posterCapDecision({ width: 1920, height: 1080 }).action).toBe('skip');
+    expect(posterCapDecision({ width: 1920, height: 1920 }).action).toBe('skip');
+    expect(posterCapDecision({ width: 640, height: 480 }).action).toBe('skip');
+  });
+
+  it('skips unreadable metadata (no dimensions, nothing to judge)', () => {
+    expect(posterCapDecision({}).action).toBe('skip');
+    expect(posterCapDecision({ width: undefined, height: undefined }).action).toBe('skip');
   });
 });

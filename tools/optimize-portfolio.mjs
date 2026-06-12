@@ -15,7 +15,9 @@
  *      files) into <repo>/public-backup-<unix-seconds>/, mirroring paths.
  *   3. Videos (.mp4/.mov/.m4v, any case) become H.264 MP4, the one codec every
  *      modern browser (Safari/Chrome/Firefox/Brave, desktop + mobile) decodes:
- *        - skipped when they carry the rsml-optimized marker (re-run safety)
+ *        - skipped when they carry the rsml-optimized marker AND already sit
+ *          inside the delivery spec (h264, level <= 5.1, long edge <= 1920);
+ *          a marked file outside the spec re-encodes anyway (self-healing)
  *        - portrait (h >= w) treated as an iPhone recording: CRF 24
  *        - landscape treated as a desktop recording: CRF 23 (one step more
  *          quality than portrait: UI text shows artifacts first)
@@ -26,18 +28,28 @@
  *        - libx264 veryslow, aq-mode=3 (anti-banding: biases bits into the
  *          flat/dark regions where gradients fall apart), High yuv420p,
  *          +faststart, AAC 160k when the source has audio
- *        - NEVER resized (only odd dimensions lose 1px, a yuv420p requirement)
+ *        - delivery cap: long edge scaled down to at most 1920 (never up),
+ *          refs 5, level 5.1. Every iPhone hardware-decodes High@L5.1;
+ *          veryslow's default 16 refs at 2560x1600 overflowed the L5.2
+ *          decoded-picture buffer, x264 stamped L6.0 (an 8K-tier level), and
+ *          iOS WebKit crashed the tab decoding it in software (jetsam OOM)
  *        - frame rate capped at 60 and VFR normalized to constant; rates at or
  *          below 60 are preserved, never increased
  *        - wrong codec or pixel format (e.g. HEVC) converts even if the file
  *          grows, because compatibility is the point; an already-H.264 file
  *          keeps its original bits (lossless remux + marker only) when the
- *          re-encode comes out larger
+ *          re-encode comes out larger, EXCEPT out-of-spec files, which always
+ *          take the full re-encode (a remux would ship the bad bits unchanged)
  *   4. Images: PNG and GIF become lossless WebP (sharp, max effort, animated
  *      WebP for GIFs, ICC profile preserved). JPG stays JPG (already lossy;
  *      lossless WebP of decoded JPEG pixels is usually LARGER, and a lossy
  *      transcode costs a generation). Existing WebP/SVG/PDF are left alone.
  *      Guard: a conversion that comes out larger keeps the original.
+ *   4b. Posters (every distinct poster: in work.yaml): the lightbox shows
+ *       posters full size, so any with a long edge over 1920 is rewritten in
+ *       place (same filename) as lossy WebP q80 scaled to 1920, ICC profile
+ *       preserved. A 2560x1600 lossless poster is ~2.2 MB on the wire and
+ *       ~16 MB of decoded RGBA on a phone.
  *   5. Renames (.MOV to .mp4, .png to .webp, ...) rewrite every reference in
  *      work.yaml and the .astro files by exact string replacement, then the
  *      script verifies the YAML still parses, no old path lingers in src/,
@@ -58,7 +70,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Bump the version whenever encode settings change: marked files are skipped
 // on re-runs, so retiring the old marker is what makes new settings apply.
+// (Exception: the delivery-spec gate re-encodes out-of-spec files even when
+// marked, so cap tightening needs no bump.)
 export const MARKER = 'rsml-optimized-v2';
+
+// Delivery cap for anything a phone must decode in full: iPhone hardware
+// decoders top out at H.264 Level 5.2, and oversized stills hurt the same
+// way (decoded RGBA memory). 1920 long edge + refs 5 keeps every encode
+// within High@L5.1; posters get the same long-edge ceiling.
+export const MAX_LONG_EDGE = 1920;
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -170,20 +190,56 @@ export function stripImageRef(asset) {
 }
 
 /**
+ * Whether a poster needs the delivery-size cap. Posters feed the lightbox at
+ * full size, so decode size is what matters: a 2560x1600 lossless WebP is
+ * ~2.2 MB on the wire and ~16 MB of RGBA once decoded on a phone. Anything
+ * with a long edge over 1920 is rewritten in place (same filename) as lossy
+ * WebP q80 scaled to 1920. Never upscales; in-spec posters are untouched.
+ * Input is { width, height } from sharp metadata; unreadable files skip.
+ */
+export function posterCapDecision(meta) {
+  const long = Math.max(meta.width ?? 0, meta.height ?? 0);
+  if (long <= MAX_LONG_EDGE) return { action: 'skip' };
+  return { action: 'cap', targetLongEdge: MAX_LONG_EDGE };
+}
+
+/**
+ * True when a video's bits already fit iPhone hardware decoders: h264 at
+ * level <= 5.1 (ffprobe reports tenths: 51) with a long edge <= 1920.
+ * An unknown or missing level on an h264 file counts as out of spec:
+ * re-encoding is cheap, a crashed iOS tab is not.
+ */
+export function inDeliverySpec(probe) {
+  return probe.codec === 'h264'
+    && probe.level > 0 && probe.level <= 51
+    && Math.max(probe.width, probe.height) <= MAX_LONG_EDGE;
+}
+
+/**
  * Decide what to do with one video given its probe data.
- *   skip          already optimized (marker)
+ *   skip          marker present AND within delivery spec (healthy, no churn)
  *   convert       re-encode to H.264; forceConvert means "keep the result even
- *                 if larger" (wrong codec/pix_fmt: compatibility conversion);
- *                 otherwise a larger result falls back to a marker-only remux.
+ *                 if larger": wrong codec/pix_fmt (compatibility conversion) or
+ *                 out of delivery spec (a remux would ship the out-of-spec bits
+ *                 unchanged). Otherwise a larger result falls back to a
+ *                 marker-only remux.
  */
 export function classifyVideo(probe) {
-  if (probe.marker) return { action: 'skip', reason: 'already optimized' };
+  const inSpec = inDeliverySpec(probe);
+  if (probe.marker && inSpec) return { action: 'skip', reason: 'already optimized' };
   const portrait = probe.height >= probe.width;
+  // Out-of-spec h264 carries a reason so the plan line says why it re-encodes
+  // (non-h264 already reports as a compatibility convert).
+  const outOfSpec = probe.codec === 'h264' && !inSpec;
+  const levelLabel = probe.level > 0 ? (probe.level / 10).toFixed(1) : 'unknown';
   return {
     action: 'convert',
     profile: portrait ? 'portrait' : 'landscape',
     crf: portrait ? 24 : 23,
-    forceConvert: probe.codec !== 'h264' || probe.pixFmt !== 'yuv420p',
+    forceConvert: probe.codec !== 'h264' || probe.pixFmt !== 'yuv420p' || outOfSpec,
+    ...(outOfSpec && {
+      reason: `out of delivery spec (h264 level ${levelLabel}, ${probe.width}x${probe.height})`,
+    }),
   };
 }
 
@@ -199,10 +255,17 @@ export function encodeArgs(plan, fps, hasAudio, input, output) {
     '-nostdin', '-hide_banner', '-loglevel', 'warning', '-stats', '-y',
     '-i', input,
     '-map', '0:v:0', '-map', '0:a:0?',
-    // Never resize; trunc only shaves an odd dimension to even (encoder need).
-    '-vf', `fps=${fps},scale=trunc(iw/2)*2:trunc(ih/2)*2`,
+    // Delivery cap: long edge down to at most 1920 (never upscaled), aspect
+    // preserved, both dimensions kept even (a yuv420p requirement). Args are
+    // spawned without a shell, so the commas inside the quoted min() reach
+    // ffmpeg's filtergraph parser intact.
+    '-vf', `fps=${fps},scale='min(iw,${MAX_LONG_EDGE})':'min(ih,${MAX_LONG_EDGE})':force_original_aspect_ratio=decrease:force_divisible_by=2`,
     '-c:v', 'libx264', '-preset', 'veryslow', '-crf', String(plan.crf),
     '-x264-params', 'aq-mode=3',
+    // refs 5 keeps the decoded-picture buffer small enough that, combined with
+    // the 1920 cap, every output fits High@L5.1 (all iPhones hardware-decode
+    // that). veryslow's default 16 refs is what pushed files to L6.0.
+    '-refs', '5', '-level:v', '5.1',
     '-profile:v', 'high', '-pix_fmt', 'yuv420p',
     ...(hasAudio ? ['-c:a', 'aac', '-b:a', '160k'] : ['-an']),
     '-map_metadata', '-1',
@@ -257,15 +320,26 @@ function ffprobe(file) {
     const r = spawnSync('ffprobe', ['-v', 'error', ...args, file], { encoding: 'utf8' });
     return r.status === 0 ? r.stdout.trim() : '';
   };
-  const v = get(['-select_streams', 'v:0', '-show_entries',
-    'stream=codec_name,width,height,pix_fmt,avg_frame_rate', '-of', 'csv=p=0']).split(',');
-  const [num, den] = (v[4] || '').split('/').map(Number);
+  // key=value output: ffprobe's csv writer orders fields by its internal
+  // section order, NOT the -show_entries order, so positional parsing breaks
+  // the moment the field list changes. Keys are immune.
+  const kv = Object.fromEntries(
+    get(['-select_streams', 'v:0', '-show_entries',
+      'stream=codec_name,width,height,pix_fmt,avg_frame_rate,level',
+      '-of', 'default=noprint_wrappers=1'])
+      .split('\n').filter((l) => l.includes('='))
+      .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]),
+  );
+  const [num, den] = (kv.avg_frame_rate || '').split('/').map(Number);
   return {
-    codec: v[0] || '',
-    width: Number(v[1]) || 0,
-    height: Number(v[2]) || 0,
-    pixFmt: v[3] || '',
+    codec: kv.codec_name || '',
+    width: Number(kv.width) || 0,
+    height: Number(kv.height) || 0,
+    pixFmt: kv.pix_fmt || '',
     avgFps: den ? num / den : 0,
+    // H.264 level in tenths (51 = L5.1, 60 = L6.0); ffprobe reports -99 or
+    // N/A for unknown, both of which inDeliverySpec treats as out of spec.
+    level: Number(kv.level) || 0,
     marker: get(['-show_entries', 'format_tags=comment', '-of', 'csv=p=0']).includes(MARKER),
     hasAudio: get(['-select_streams', 'a', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0']).length > 0,
   };
@@ -366,7 +440,8 @@ async function main() {
   console.log(`referenced assets: ${existing.length}  (videos to do: ${videoJobs.length}, images to do: ${imageJobs.length}, already done/skipped: ${skipped.length})`);
   for (const s of skipped) console.log(`  skip   ${s}`);
   for (const j of videoJobs) {
-    console.log(`  video  ${j.ref} -> ${j.target}  [${j.probe.codec} ${j.probe.width}x${j.probe.height} -> h264 ${j.plan.profile} crf ${j.plan.crf}${j.plan.forceConvert ? ', compatibility convert' : ''}]`);
+    const why = j.plan.reason ? `, ${j.plan.reason}` : j.plan.forceConvert ? ', compatibility convert' : '';
+    console.log(`  video  ${j.ref} -> ${j.target}  [${j.probe.codec} ${j.probe.width}x${j.probe.height} -> h264 ${j.plan.profile} crf ${j.plan.crf}${why}]`);
   }
   for (const j of imageJobs) console.log(`  image  ${j.ref} -> ${j.target}  [lossless webp${j.animated ? ', animated' : ''}]`);
   if (dangling.length) console.log(`\ndangling refs (referenced but no file):\n  ${dangling.join('\n  ')}`);
@@ -425,11 +500,47 @@ async function main() {
     console.log('\nthumbnails: all up to date.');
   }
 
+  // Poster delivery cap plan: every distinct poster: path in work.yaml that
+  // lives in public/. Filenames never change, so no reference rewriting.
+  // A poster about to be renamed by a conversion (png -> webp) is resolved
+  // through pendingRenames so the cap lands on the post-conversion file.
+  const posterCapJobs = [];
+  {
+    const posterRefs = new Set();
+    for (const project of projects) {
+      for (const asset of (project.assets ?? [])) {
+        if (typeof asset.poster === 'string' && asset.poster.startsWith('/')) posterRefs.add(asset.poster);
+      }
+    }
+    for (const rawRef of [...posterRefs].sort()) {
+      const srcAbs = onDisk(rawRef);
+      if (!existsSync(srcAbs)) continue;
+      let meta;
+      try { meta = await sharp(srcAbs).metadata(); } catch { continue; }
+      const decision = posterCapDecision(meta);
+      if (decision.action !== 'cap') continue;
+      posterCapJobs.push({
+        rawRef, // the file as it exists now (backup source)
+        ref: pendingRenames.get(rawRef) ?? rawRef, // the file the cap rewrites
+        width: meta.width, height: meta.height,
+        targetLongEdge: decision.targetLongEdge,
+      });
+    }
+  }
+  if (posterCapJobs.length > 0) {
+    console.log(`\nposter cap plan (${posterCapJobs.length} poster(s) exceed ${MAX_LONG_EDGE}px long edge):`);
+    for (const j of posterCapJobs) {
+      console.log(`  poster ${j.ref}  [${j.width}x${j.height} -> long edge ${j.targetLongEdge}, lossy webp q80]`);
+    }
+  } else {
+    console.log(`\nposters: all within the ${MAX_LONG_EDGE}px delivery cap.`);
+  }
+
   if (dry) {
     console.log('\n--dry: nothing written.');
     return;
   }
-  if (videoJobs.length + imageJobs.length + thumbJobs.length === 0) {
+  if (videoJobs.length + imageJobs.length + thumbJobs.length + posterCapJobs.length === 0) {
     console.log('\nnothing to do.');
     return;
   }
@@ -446,6 +557,10 @@ async function main() {
     copyFileSync(abs, dest);
   };
   for (const j of [...videoJobs, ...imageJobs]) backup(onDisk(j.ref));
+  // Posters are rewritten in place: back up the file as it exists right now
+  // (one also being converted this run was already backed up above; the
+  // second copy is the same bytes to the same path, harmless).
+  for (const j of posterCapJobs) backup(onDisk(j.rawRef));
   backup(WORK_YAML);
   for (const f of astroFiles) backup(f);
   console.log(`\nbacked up originals to ${path.relative(ROOT, backupDir)}/`);
@@ -523,7 +638,37 @@ async function main() {
     }
   }
 
-  // 5b. Generate strip thumbnails: small lossy WebP scaled to 2x shotHeight.
+  // 5b. Cap oversized posters in place (lossy WebP q80, long edge 1920).
+  // Runs before the thumb pass so thumbs generated this run derive from the
+  // capped file. No larger-result guard here: the point is decode size (RGBA
+  // memory on phones), not bytes, so the cap applies even if the file grows.
+  const posterReport = [];
+  for (const j of posterCapJobs) {
+    // Prefer the post-conversion path; if that conversion kept the original
+    // (or failed), cap the file that actually exists.
+    const ref = existsSync(onDisk(j.ref)) ? j.ref : j.rawRef;
+    const abs = onDisk(ref);
+    const tmp = `${abs}.part.webp`;
+    try {
+      let img = sharp(abs).resize({
+        width: j.targetLongEdge, height: j.targetLongEdge,
+        fit: 'inside', withoutEnlargement: true,
+      }).webp({ quality: 80, effort: 6 });
+      try { img = img.keepIccProfile(); } catch {}
+      await img.toFile(tmp);
+    } catch (e) {
+      rmSync(tmp, { force: true });
+      failures.push(`poster ${ref} (${e.message})`);
+      continue;
+    }
+    const before = statSync(abs).size;
+    const after = statSync(tmp).size;
+    const destMeta = await sharp(tmp).metadata();
+    renameSync(tmp, abs);
+    posterReport.push(`poster ${ref}: ${j.width}x${j.height} -> ${destMeta.width ?? '?'}x${destMeta.height ?? '?'} (${mb(before)} -> ${mb(after)})`);
+  }
+
+  // 5c. Generate strip thumbnails: small lossy WebP scaled to 2x shotHeight.
   // These are derived files; WorkRow.astro prefers <name>-thumb.webp when it
   // exists, falling back to the original so old builds stay correct.
   const thumbReport = [];
@@ -597,6 +742,7 @@ async function main() {
 
   console.log('\n── results ──');
   for (const r of report) console.log(`  ${r}`);
+  for (const r of posterReport) console.log(`  ${r}`);
   for (const r of thumbReport) console.log(`  ${r}`);
   if (dsCount) console.log(`  removed ${dsCount} .DS_Store file(s) from public/`);
   console.log(`  backup: ${path.relative(ROOT, backupDir)}/`);
