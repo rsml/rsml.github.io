@@ -88,15 +88,6 @@
     - src: /chord-colors/Screenshot-2026-06-11-at-1.26.40-PM.webp
       alt: screenshot 2026-06-11 at 1.26.40 pm
       orientation: portrait
-    - src: /chord-colors/IMG_7056.webp
-      alt: img_7056
-      orientation: portrait
-    - src: /chord-colors/Screenshot-2026-06-11-at-1.31.57-PM.webp
-      alt: screenshot 2026-06-11 at 1.31.57 pm
-      orientation: portrait
-    - src: /chord-colors/IMG_7061.webp
-      alt: img_7061
-      orientation: portrait
     - type: video
       src: /chord-colors/wheel.mp4
       alt: wheel tutorial
@@ -127,6 +118,15 @@
       alt: saved chords tutorial
       orientation: portrait
       poster: /chord-colors/saved-poster.webp
+    - src: /chord-colors/IMG_7056.webp
+      alt: img_7056
+      orientation: portrait
+    - src: /chord-colors/Screenshot-2026-06-11-at-1.31.57-PM.webp
+      alt: screenshot 2026-06-11 at 1.31.57 pm
+      orientation: portrait
+    - src: /chord-colors/IMG_7061.webp
+      alt: img_7061
+      orientation: portrait
     - type: embed
       src: https://chordcolors.com/
       alt: try it out!
