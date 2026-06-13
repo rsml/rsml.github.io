@@ -370,10 +370,10 @@
       orientation: landscape
       poster: /openpath/schedules-poster.webp
     - type: video
-      src: /openpath/open-admin-demo-2.mp4
-      alt: open admin demo
-      orientation: landscape
-      poster: /openpath/open-admin-demo-2-poster.webp
+      src: /openpath/open-admin-demo-2-2.mp4
+      alt: open-admin-demo-2
+      orientation: portrait
+      poster: /openpath/open-admin-demo-2-2-poster.webp
 
 - slug: sms
   title: SMS ordering
