@@ -659,21 +659,41 @@ const linksFor = (p: Project) => [
   // mark records how many lightbox videos currently hold a src / poster / decoded
   // frames, so the last entry before a crash shows where it died and how much media
   // was resident. Absolutely zero work when the flag is absent.
-  const LB_DEBUG = (() => { try { return new URLSearchParams(location.search).has('lbdebug'); } catch { return false; } })();
+  const LB_QS = (() => { try { return new URLSearchParams(location.search); } catch { return new URLSearchParams(); } })();
+  const LB_DEBUG = LB_QS.has('lbdebug');
+  // ?autodrive=<slug> (or bare ?autodrive) self-drives the gallery to the crash. The two
+  // kill-switches bisect the remaining memory suspects: ?noposter skips the active-shot
+  // poster apply (tests poster-bitmap accumulation), ?novideo never attaches video src.
+  const LB_AUTODRIVE = LB_QS.has('autodrive') ? (LB_QS.get('autodrive') || '1') : null;
+  const LB_NOPOSTER = LB_QS.has('noposter');
+  const LB_NOVIDEO = LB_QS.has('novideo');
   let lbT0 = 0;
   let lbTrail: any[] = [];
+  let autodriveRan = false;
   function lbMark(step: string) {
     if (!LB_DEBUG) return;
     try {
       if (!lbT0) lbT0 = performance.now();
       const vids = Array.from(document.querySelectorAll('video.lb-video')) as HTMLVideoElement[];
       const mem = (performance as any).memory;   // Blink only; null on iOS WKWebView
+      // Decoded-bitmap memory proxy that DOES work on iOS (where performance.memory is
+      // null): sum of resident <img> megapixels. RGBA bytes ~= imgMP * 4 MB. This is the
+      // poster / image footprint, the prime suspect now that video src is bounded. Watch
+      // it climb as autodrive swipes a project if posters accumulate (hyp: not released).
+      let imgMP = 0;
+      for (const im of Array.from(document.images)) {
+        if (im.complete && im.naturalWidth) imgMP += (im.naturalWidth * im.naturalHeight) / 1e6;
+      }
       lbTrail.push({
         ms: Math.round(performance.now() - lbT0),
         step,
         src: vids.filter((v) => v.getAttribute('src')).length,
         poster: vids.filter((v) => v.getAttribute('poster')).length,
         ready: vids.filter((v) => v.readyState > 0).length,
+        imgMP: Math.round(imgMP),                       // resident decoded image megapixels (x4 = MB RGBA)
+        media: document.querySelectorAll('video,audio').length,
+        dom: document.getElementsByTagName('*').length,
+        vis: document.visibilityState[0],               // 'v'isible / 'h'idden
         heapMB: mem ? Math.round(mem.usedJSHeapSize / 1048576) : null,
       });
       localStorage.setItem('lb-trail', JSON.stringify(lbTrail));
@@ -692,6 +712,20 @@ const linksFor = (p: Project) => [
     pre.style.cssText = 'position:fixed;inset:6px;z-index:99999;margin:0;padding:10px;overflow:auto;background:#000;color:#0f0;font:11px/1.4 ui-monospace,monospace;border:2px solid #0f0;white-space:pre-wrap;word-break:break-word;';
     pre.addEventListener('click', () => pre.remove());
     document.body.appendChild(pre);
+  }
+
+  // Crash-boundary breadcrumbs (debug only). The trail localizes WHERE the tab died;
+  // these classify WHAT killed it: a JS error/rejection means it is NOT a clean OOM,
+  // while a silent pagehide / visibility->hidden with no preceding error is the classic
+  // iOS jetsam reload (no catchable error). Persisted to the same trail so they survive.
+  let lbHooksBound = false;
+  function lbBindCrashHooks() {
+    if (!LB_DEBUG || lbHooksBound) return;
+    lbHooksBound = true;
+    addEventListener('error', (e) => lbMark('ERROR:' + ((e as ErrorEvent).message || '').slice(0, 50)));
+    addEventListener('unhandledrejection', (e) => lbMark('REJECT:' + String((e as PromiseRejectionEvent).reason).slice(0, 50)));
+    addEventListener('pagehide', () => lbMark('pagehide'));
+    document.addEventListener('visibilitychange', () => lbMark('vis:' + document.visibilityState));
   }
 
   function destroyInstances() {
@@ -803,7 +837,7 @@ const linksFor = (p: Project) => [
         // fully valid element (src present, preload='none') and can upgrade from there.
         slide.querySelectorAll('video.lb-video').forEach((node) => {
           const video = node as HTMLVideoElement;
-          if (projActive) {
+          if (projActive && !LB_NOVIDEO) {   // ?novideo kill-switch: never attach src
             restoreVideoSrc(video);
           } else {
             releaseVideoMemory(video);
@@ -852,7 +886,7 @@ const linksFor = (p: Project) => [
       if (activeEntry && activeVideo) {
         const shotEl = activeEntry.shot!;
         const poster = activeVideo.dataset.lbPoster;   // NOT dataset.poster: see markup comment (hidden from Plyr's eager auto-load)
-        if (poster && !activeVideo.getAttribute('poster')) {
+        if (!LB_NOPOSTER && poster && !activeVideo.getAttribute('poster')) {   // ?noposter kill-switch
           activeVideo.setAttribute('poster', poster);
           try { activeEntry.plyr.poster = poster; } catch {}
           // Shape the player box from this poster before the video's metadata lands,
@@ -1121,6 +1155,33 @@ const linksFor = (p: Project) => [
     });
 
     current = { el: lb, open, close, nav };
+
+    // Self-driving repro (debug only): ?autodrive=<slug> opens that project and swipes
+    // every shot on a timer, then jumps to the next project, marking each step, so the
+    // device drives itself to the crash and you only screenshot the recovered trail.
+    if (LB_DEBUG && LB_AUTODRIVE && !autodriveRan) {
+      autodriveRan = true;
+      const slugs = projects().map((s) => s.dataset.slug || '');
+      let pi = slugs.indexOf(LB_AUTODRIVE);
+      if (pi < 0) pi = 0;
+      lbMark('AUTODRIVE-START:' + slugs[pi]);
+      open(slugs[pi], 0);
+      const tick = () => {
+        if (!current || current.el.hidden) return;
+        const h = activeHoriz();
+        if (!h || h.isEnd) {
+          pi++;
+          if (pi >= slugs.length) { lbMark('AUTODRIVE-DONE'); return; }
+          lbMark('auto:next:' + slugs[pi]);
+          nav('ArrowDown');
+        } else {
+          lbMark('auto:' + (projects()[vert!.activeIndex]?.dataset.slug) + ':' + (h.activeIndex + 1) + '/' + h.slides.length);
+          nav('ArrowRight');
+        }
+        setTimeout(tick, 1500);
+      };
+      setTimeout(tick, 1800);
+    }
   }
 
   // ── Document-level wiring (bound once; persists across view transitions) ──
@@ -1149,8 +1210,9 @@ const linksFor = (p: Project) => [
   }
 
   document.addEventListener('astro:before-swap', destroyInstances);
-  document.addEventListener('astro:page-load', () => { bindDoc(); setupLightbox(); lbRecoverTrail(); });
+  document.addEventListener('astro:page-load', () => { bindDoc(); setupLightbox(); lbBindCrashHooks(); lbRecoverTrail(); });
   bindDoc();
   setupLightbox();
+  lbBindCrashHooks();
   lbRecoverTrail();   // paint any trail an OOM reload left behind (debug only)
 </script>
