@@ -25,8 +25,9 @@ const work = getWork();
 </PortfolioLayout>
 <style>
   h1.name { margin: 0; font-size: 14px; font-weight: 500; }
-  .updated { margin: 0 0 36px; color: var(--muted); }
-  .bio p { margin: 0 0 20px; }
+  .updated { margin: 0; color: var(--muted); }
+  .bio { margin: 32px 0 32px; }
+  .bio p { margin: 0 0 12px; }
   .bio p:last-child { margin-bottom: 0; }
   /* Same treatment as the work links: a quiet underline at rest that fills to
      full ink on hover. text-decoration-color animates (background-image can't),
@@ -40,6 +41,6 @@ const work = getWork();
     transition: text-decoration-color 200ms ease;
   }
   .bio a:hover { text-decoration-color: var(--ink); }
-  h2.home-section-h { margin: 60px 0 4px; font-size: 14px; font-weight: 460; }
+  h2.home-section-h { margin: 0 0 4px; font-size: 14px; font-weight: 460; color: var(--muted); }
   .work { margin: 0; }
 </style>
