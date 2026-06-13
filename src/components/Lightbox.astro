@@ -670,6 +670,7 @@ const linksFor = (p: Project) => [
   let lbT0 = 0;
   let lbTrail: any[] = [];
   let autodriveRan = false;
+  let lbRecovered = false;   // set when lbRecoverTrail paints a prior (crashed) trail; suppresses autodrive that load
   function lbMark(step: string) {
     if (!LB_DEBUG) return;
     try {
@@ -706,7 +707,14 @@ const linksFor = (p: Project) => [
     let prior: string | null = null;
     try { prior = localStorage.getItem('lb-trail'); localStorage.removeItem('lb-trail'); } catch {}
     lbT0 = 0; lbTrail = [];
-    if (!prior || !document.body) return;
+    if (!prior || prior === '[]' || !document.body) return;
+    // Ignore a trail that is ONLY pagehide/visibility noise (normal backgrounding or client
+    // nav, not a crash), else autodrive would be falsely suppressed on the next load.
+    let arr: any[] = [];
+    try { arr = JSON.parse(prior); } catch {}
+    if (!arr.some((e) => e && typeof e.step === 'string' && !/^(pagehide|vis:)/.test(e.step))) return;
+    lbRecovered = true;   // a real crash trail survived: this load is a recovery, so the
+                          // autodrive guard stands down and lets the painted trail be screenshotted
     const pre = document.createElement('pre');
     pre.textContent = 'LB trail from previous load (tap to dismiss):\n\n' + prior.replace(/\},\{/g, '},\n{');
     pre.style.cssText = 'position:fixed;inset:6px;z-index:99999;margin:0;padding:10px;overflow:auto;background:#000;color:#0f0;font:11px/1.4 ui-monospace,monospace;border:2px solid #0f0;white-space:pre-wrap;word-break:break-word;';
@@ -1159,7 +1167,7 @@ const linksFor = (p: Project) => [
     // Self-driving repro (debug only): ?autodrive=<slug> opens that project and swipes
     // every shot on a timer, then jumps to the next project, marking each step, so the
     // device drives itself to the crash and you only screenshot the recovered trail.
-    if (LB_DEBUG && LB_AUTODRIVE && !autodriveRan) {
+    if (LB_DEBUG && LB_AUTODRIVE && !autodriveRan && !lbRecovered) {
       autodriveRan = true;
       const slugs = projects().map((s) => s.dataset.slug || '');
       let pi = slugs.indexOf(LB_AUTODRIVE);
@@ -1210,9 +1218,12 @@ const linksFor = (p: Project) => [
   }
 
   document.addEventListener('astro:before-swap', destroyInstances);
-  document.addEventListener('astro:page-load', () => { bindDoc(); setupLightbox(); lbBindCrashHooks(); lbRecoverTrail(); });
-  bindDoc();
-  setupLightbox();
-  lbBindCrashHooks();
+  // Order matters in debug: recover (read + paint + clear) any prior crash trail BEFORE
+  // setupLightbox runs autodrive, so autodrive's own marks cannot clobber the trail we are
+  // recovering, and lbRecovered can suppress a re-drive on the recovery load (no crash loop).
+  document.addEventListener('astro:page-load', () => { lbRecoverTrail(); bindDoc(); lbBindCrashHooks(); setupLightbox(); });
   lbRecoverTrail();   // paint any trail an OOM reload left behind (debug only)
+  bindDoc();
+  lbBindCrashHooks();
+  setupLightbox();
 </script>
