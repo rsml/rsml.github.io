@@ -98,17 +98,24 @@ const linksFor = (p: Project) => [
                     {s.type === 'video' ? (
                       // Plyr enhances this <video> on first open (see script). `controls`
                       // is kept as the no-JS fallback; Plyr removes it when it takes over.
-                      // Cold start: preload="none" plus a deferred poster (syncMedia moves
-                      // data-lb-poster onto the element once its shot is the open slide),
-                      // so a plain page visit fetches zero bytes for the hidden gallery.
-                      // The strip thumbnails already display these poster URLs, so the
-                      // deferred apply is normally an HTTP-cache hit. The attribute is
-                      // data-lb-poster, NOT data-poster, on purpose: Plyr auto-loads any
-                      // `data-poster` it finds on init (getAttribute('poster')||
-                      // getAttribute('data-poster')), which would eagerly decode all ~34
-                      // full posters at once and OOM-kill the tab on iOS. Our own name
-                      // hides it from Plyr until we set plyr.poster for the active shot.
-                      <video class="lb-media lb-video" src={s.src} data-lb-poster={s.poster} controls playsinline preload="none"></video>
+                      // Cold start: BOTH the src and the poster are deferred. The real URL
+                      // rides on data-lb-src (not src) so a plain page load holds ZERO
+                      // src-attached <video> elements. On iOS WebKit every src-attached
+                      // media element costs a resident player allocation, and all ~34 of
+                      // them at once (the whole portfolio's clips live in this one lightbox)
+                      // is what jetsam-killed the tab on open. syncMedia/restoreVideoSrc
+                      // attaches src for the active project only, on open; preload="none"
+                      // keeps even those cold until the active shot upgrades to 'metadata'.
+                      // The poster is deferred the same way (syncMedia moves data-lb-poster
+                      // onto the element once its shot is the open slide); the strip
+                      // thumbnails already display these poster URLs, so the deferred apply
+                      // is normally an HTTP-cache hit. The attribute is data-lb-poster, NOT
+                      // data-poster, on purpose: Plyr auto-loads any `data-poster` it finds
+                      // on init (getAttribute('poster')||getAttribute('data-poster')), which
+                      // would eagerly decode all ~34 full posters at once and OOM-kill the
+                      // tab on iOS. Our own name hides it from Plyr until we set plyr.poster
+                      // for the active shot.
+                      <video class="lb-media lb-video" data-lb-src={s.src} data-lb-poster={s.poster} controls playsinline preload="none"></video>
                     ) : s.type === 'youtube' ? (
                       // YouTube, played through the SAME Plyr player as local video (so it
                       // gets the themed controls, not YouTube's chrome). Plyr builds the
@@ -742,7 +749,10 @@ const linksFor = (p: Project) => [
     // The Plyr wrapper is left alive; it tolerates a temporarily src-less element.
     // The original src is stashed in data-lb-src so it can be restored later.
     function releaseVideoMemory(video: HTMLVideoElement) {
-      if (video.readyState === 0) return;   // nothing buffered, nothing to free
+      if (!video.hasAttribute('src')) return;   // already detached, nothing to free (this is the
+      // critical guard: the old `readyState === 0` test skipped never-loaded videos, so the
+      // open-time release freed nothing and all ~34 stayed src-attached. Gate on the src
+      // attribute instead, so a cold-but-attached video is still detached on open.
       if (!video.dataset.lbSrc) {
         // Stash the live src attribute (fall back to the element property, which
         // holds the resolved URL even when set via JS rather than HTML).
@@ -753,7 +763,8 @@ const linksFor = (p: Project) => [
       try { video.load(); } catch {}   // signals WebKit to free decoder and buffers
     }
 
-    // Restore a local <video>'s src from data-lb-src (written by releaseVideoMemory).
+    // Restore a local <video>'s src from data-lb-src (written by releaseVideoMemory,
+    // or shipped in the server markup so the first open attaches the active project).
     // preload stays 'none' so restoring the attribute alone does not trigger a
     // fetch; the existing poster/preload/autoplay logic below upgrades the active
     // shot to 'metadata' and starts play when appropriate.
