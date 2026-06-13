@@ -99,11 +99,16 @@ const linksFor = (p: Project) => [
                       // Plyr enhances this <video> on first open (see script). `controls`
                       // is kept as the no-JS fallback; Plyr removes it when it takes over.
                       // Cold start: preload="none" plus a deferred poster (syncMedia moves
-                      // data-poster onto the element once its project is the open slide),
+                      // data-lb-poster onto the element once its shot is the open slide),
                       // so a plain page visit fetches zero bytes for the hidden gallery.
                       // The strip thumbnails already display these poster URLs, so the
-                      // deferred apply is normally an HTTP-cache hit.
-                      <video class="lb-media lb-video" src={s.src} data-poster={s.poster} controls playsinline preload="none"></video>
+                      // deferred apply is normally an HTTP-cache hit. The attribute is
+                      // data-lb-poster, NOT data-poster, on purpose: Plyr auto-loads any
+                      // `data-poster` it finds on init (getAttribute('poster')||
+                      // getAttribute('data-poster')), which would eagerly decode all ~34
+                      // full posters at once and OOM-kill the tab on iOS. Our own name
+                      // hides it from Plyr until we set plyr.poster for the active shot.
+                      <video class="lb-media lb-video" src={s.src} data-lb-poster={s.poster} controls playsinline preload="none"></video>
                     ) : s.type === 'youtube' ? (
                       // YouTube, played through the SAME Plyr player as local video (so it
                       // gets the themed controls, not YouTube's chrome). Plyr builds the
@@ -638,6 +643,50 @@ const linksFor = (p: Project) => [
   let players: { plyr: Plyr; shot: HTMLElement | null }[] = [];
   let current: Controller | null = null;
 
+  // ── On-device crash breadcrumbs (debug only: add ?lbdebug=1 to the URL) ──────
+  // iOS WebKit kills the tab on OOM with no catchable error, and the crash repros
+  // only on real hardware (Chrome on iOS is WKWebView, a tighter per-tab memory
+  // budget than desktop or Safari). So in debug mode we persist a step-by-step
+  // trail to localStorage (which survives the tab crash) and, on the next load of
+  // a ?lbdebug=1 page, paint the recovered trail on screen to screenshot. Each
+  // mark records how many lightbox videos currently hold a src / poster / decoded
+  // frames, so the last entry before a crash shows where it died and how much media
+  // was resident. Absolutely zero work when the flag is absent.
+  const LB_DEBUG = (() => { try { return new URLSearchParams(location.search).has('lbdebug'); } catch { return false; } })();
+  let lbT0 = 0;
+  let lbTrail: any[] = [];
+  function lbMark(step: string) {
+    if (!LB_DEBUG) return;
+    try {
+      if (!lbT0) lbT0 = performance.now();
+      const vids = Array.from(document.querySelectorAll('video.lb-video')) as HTMLVideoElement[];
+      const mem = (performance as any).memory;   // Blink only; null on iOS WKWebView
+      lbTrail.push({
+        ms: Math.round(performance.now() - lbT0),
+        step,
+        src: vids.filter((v) => v.getAttribute('src')).length,
+        poster: vids.filter((v) => v.getAttribute('poster')).length,
+        ready: vids.filter((v) => v.readyState > 0).length,
+        heapMB: mem ? Math.round(mem.usedJSHeapSize / 1048576) : null,
+      });
+      localStorage.setItem('lb-trail', JSON.stringify(lbTrail));
+    } catch {}
+  }
+  // Paint any trail left by a prior load (crash or clean) so it can be screenshotted,
+  // then reset for this session. Runs on every ?lbdebug=1 page load.
+  function lbRecoverTrail() {
+    if (!LB_DEBUG) return;
+    let prior: string | null = null;
+    try { prior = localStorage.getItem('lb-trail'); localStorage.removeItem('lb-trail'); } catch {}
+    lbT0 = 0; lbTrail = [];
+    if (!prior || !document.body) return;
+    const pre = document.createElement('pre');
+    pre.textContent = 'LB trail from previous load (tap to dismiss):\n\n' + prior.replace(/\},\{/g, '},\n{');
+    pre.style.cssText = 'position:fixed;inset:6px;z-index:99999;margin:0;padding:10px;overflow:auto;background:#000;color:#0f0;font:11px/1.4 ui-monospace,monospace;border:2px solid #0f0;white-space:pre-wrap;word-break:break-word;';
+    pre.addEventListener('click', () => pre.remove());
+    document.body.appendChild(pre);
+  }
+
   function destroyInstances() {
     for (const s of instances) { try { s.destroy(true, true); } catch {} }
     for (const { plyr } of players) { try { plyr.destroy(); } catch {} }
@@ -723,6 +772,7 @@ const linksFor = (p: Project) => [
     function syncMedia() {
       if (!vert) return;
       const ap = vert.activeIndex;
+      lbMark('sync:' + (projects()[ap]?.dataset.slug ?? ap));
       projects().forEach((slide, pi) => {
         const projActive = pi === ap;
         slide.querySelectorAll('iframe.lb-embed').forEach((node) => {
@@ -772,28 +822,40 @@ const linksFor = (p: Project) => [
         lastActiveShot = activeShot;
         const entry = players.find((p) => p.shot === activeShot);
         if (entry) {
+          lbMark('play');
           try { entry.plyr.currentTime = 0; Promise.resolve(entry.plyr.play()).catch(() => {}); } catch {}
         }
       }
 
-      // Deferred video loading, the counterpart of the cold-start markup above:
-      // when a project becomes the open slide, apply its videos' posters (to the
-      // <video> AND through Plyr so its UI shows them), and upgrade only the shot
-      // being looked at from preload="none" to "metadata" so pressing play starts
-      // fast. Everything off-screen stays cold; nothing video-related is fetched
-      // until the gallery actually shows it.
-      const activeSlide = projects()[ap];
-      for (const { plyr, shot } of players) {
-        if (!shot || !activeSlide || !activeSlide.contains(shot)) continue;
-        const video = shot.querySelector('video') as HTMLVideoElement | null;   // null for youtube
-        if (!video) continue;
-        const poster = video.dataset.poster;
-        if (poster && !video.getAttribute('poster')) {
-          video.setAttribute('poster', poster);
-          try { plyr.poster = poster; } catch {}
+      // Deferred poster + preload for the ACTIVE SHOT ONLY. Applying every poster in
+      // a project at once was the iOS crash: each 1920x1200 still decodes to ~9 MB of
+      // RGBA (x2, since Plyr keeps its own poster <img>), so arriving at a six-video
+      // project like Tutor burst ~100 MB of bitmaps during the slide transition and
+      // WKWebView OOM-killed the tab (which iOS shows as the page reloading itself;
+      // Chrome on iOS gets a tighter per-tab budget than Safari, so it tips first).
+      // The active shot is the only poster on screen anyway; the others get theirs
+      // when swiped to (a strip-thumbnail cache hit), exactly like the preload
+      // deferral. Off-screen videos stay cold: no poster, no metadata, no decode.
+      const activeEntry = activeShot ? players.find((p) => p.shot === activeShot) : null;
+      const activeVideo = (activeEntry?.shot?.querySelector('video') as HTMLVideoElement | null) ?? null;
+      if (activeEntry && activeVideo) {
+        const shotEl = activeEntry.shot!;
+        const poster = activeVideo.dataset.lbPoster;   // NOT dataset.poster: see markup comment (hidden from Plyr's eager auto-load)
+        if (poster && !activeVideo.getAttribute('poster')) {
+          activeVideo.setAttribute('poster', poster);
+          try { activeEntry.plyr.poster = poster; } catch {}
+          // Shape the player box from this poster before the video's metadata lands,
+          // but only for the shot on screen (one decode, not 34). Skip if metadata
+          // already set --plyr-ar.
+          if (!shotEl.style.getPropertyValue('--plyr-ar')) {
+            const img = new Image();
+            img.onload = () => { if (img.naturalWidth > 0) shotEl.style.setProperty('--plyr-ar', `${img.naturalWidth} / ${img.naturalHeight}`); };
+            img.src = poster;
+          }
         }
-        if (shot === activeShot && video.preload === 'none') video.preload = 'metadata';
+        if (activeVideo.preload === 'none') activeVideo.preload = 'metadata';
       }
+      lbMark('synced:' + (projects()[ap]?.dataset.slug ?? ap));
     }
 
     // Hard stop for close(): pause every player (video + youtube), blank every embed,
@@ -900,6 +962,7 @@ const linksFor = (p: Project) => [
         speed: 480,
         on: {
           slideChange(sw) {
+            lbMark('vchange:' + sw.activeIndex);
             syncUI();
             // Incoming project starts on its first shot (both swipe + button paths).
             const h = horiz[sw.activeIndex];
@@ -946,13 +1009,19 @@ const linksFor = (p: Project) => [
       // strip thumbnail) so the box is right before the slide animates in, then
       // confirm from the video's true size once metadata loads. YouTube players
       // have no <video> and stay 16:9, so they're skipped.
+      // Confirm each video's box aspect ratio from its true size once metadata loads
+      // (only the active shot ever loads its metadata, see syncMedia). The earlier
+      // poster-based seed that shaped the box BEFORE metadata is now applied lazily,
+      // active-shot-only, in syncMedia: measuring all 34 posters HERE decoded every
+      // full-res still at first open (~270 MB of RGBA, the 10 Vivy stills are
+      // 1320x2868 alone), the memory spike iOS WebKit could not survive. The listener
+      // is just a callback, so wiring all of them costs nothing until a video loads.
       for (const { shot } of players) {
         const video = shot?.querySelector('video') as HTMLVideoElement | null;
         if (!shot || !video) continue;
-        const setAR = (w: number, h: number) => { if (w > 0 && h > 0) shot.style.setProperty('--plyr-ar', `${w} / ${h}`); };
-        const poster = video.dataset.poster;
-        if (poster) { const img = new Image(); img.onload = () => setAR(img.naturalWidth, img.naturalHeight); img.src = poster; }
-        video.addEventListener('loadedmetadata', () => setAR(video.videoWidth, video.videoHeight));
+        video.addEventListener('loadedmetadata', () => {
+          if (video.videoWidth > 0) shot.style.setProperty('--plyr-ar', `${video.videoWidth} / ${video.videoHeight}`);
+        });
       }
 
       instances = [vert, ...horiz];
@@ -984,6 +1053,7 @@ const linksFor = (p: Project) => [
       lb!.setAttribute('aria-hidden', 'false');
       document.documentElement.classList.add('lb-open');
       build();
+      lbMark('open:' + slug + ':players=' + players.length);
       let p = projects().findIndex((s) => s.dataset.slug === slug);
       if (p < 0) p = 0;
       vert!.slideTo(p, 0);
@@ -995,6 +1065,7 @@ const linksFor = (p: Project) => [
     }
 
     function close() {
+      lbMark('close');
       stopAllMedia();
       lastActiveShot = null;   // a reopen replays the shown clip from the top
       lb!.classList.remove('is-open');
@@ -1067,7 +1138,8 @@ const linksFor = (p: Project) => [
   }
 
   document.addEventListener('astro:before-swap', destroyInstances);
-  document.addEventListener('astro:page-load', () => { bindDoc(); setupLightbox(); });
+  document.addEventListener('astro:page-load', () => { bindDoc(); setupLightbox(); lbRecoverTrail(); });
   bindDoc();
   setupLightbox();
+  lbRecoverTrail();   // paint any trail an OOM reload left behind (debug only)
 </script>
