@@ -431,6 +431,12 @@ const linksFor = (p: Project) => [
   /* contain guarantees no crop even before --plyr-ar is known (the 16/9 fallback
      box), and letterboxes rather than stretches a clip when full-screen. */
   .lb-shot .plyr--html5 video { object-fit: contain; }
+  /* Portrait clips: shape the box from the clip's own aspect (--plyr-ar, seeded from the poster
+     in the script) with a 9/19.5 phone fallback, NOT from the loading <video>'s intrinsic size,
+     which defaults to a wide 300x150 and letterboxed the portrait clip to full width with black
+     bars until metadata landed, then snapped. height:100% + aspect-ratio gives the right narrow
+     box immediately; the dual max-width/height above still contains it. */
+  .lb-horiz--portrait  .lb-shot .plyr--html5 { aspect-ratio: var(--plyr-ar, 9 / 19.5); }
   .lb-horiz--portrait  .lb-shot .plyr { width: auto; height: 100%; }
   .lb-horiz--portrait  .lb-shot .plyr video { width: auto; height: 100%; max-height: 100%; }
 
@@ -839,7 +845,18 @@ const linksFor = (p: Project) => [
         lastActiveShot = activeShot;
         const entry = players.find((p) => p.shot === activeShot);
         if (entry) {
-          try { entry.plyr.currentTime = 0; Promise.resolve(entry.plyr.play()).catch(() => {}); } catch {}
+          // Robust autoplay across REVISITS. On a revisit the video was released (src detached
+          // + load()) and is not loaded when we get here, so an immediate play() can no-op.
+          // tryPlay runs now (works first-visit / already-loaded) AND once more on 'canplay'
+          // (when a just-restored video becomes ready), guarded to the still-active shot.
+          const shot = activeShot;
+          const tryPlay = () => {
+            if (lastActiveShot !== shot) return;
+            try { entry.plyr.currentTime = 0; } catch {}
+            try { Promise.resolve(entry.plyr.play()).catch(() => {}); } catch {}
+          };
+          tryPlay();
+          (entry.shot?.querySelector('video') as HTMLVideoElement | null)?.addEventListener('canplay', tryPlay, { once: true });
         }
       }
     }
