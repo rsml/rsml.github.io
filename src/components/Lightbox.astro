@@ -184,7 +184,17 @@ const linksFor = (p: Project) => [
   }
 
   .lb-vert.swiper { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-  .lb-vert > .swiper-wrapper > .lb-project { width: 100%; height: 100%; }
+  .lb-vert > .swiper-wrapper > .lb-project {
+    width: 100%; height: 100%;
+    /* Restore the smooth vertical (project) glide without the GPU OOM: skip rendering the
+       off-screen project panels so the animating .swiper-wrapper rasterizes only the 1-2
+       visible panels, not the whole 7 x 100vh stack of media (that full-stack rasterization
+       was the iOS WKWebView jetsam crash on the animated snap). contain-intrinsic-size keeps
+       each skipped panel a full viewport tall so Swiper's vertical positioning stays exact.
+       Browsers without content-visibility ignore this and the script keeps the instant snap. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 100vw auto 100vh;
+  }
 
   /* Each project slide: header (top) · image (fills) · counter (below image). */
   .lb-stage {
@@ -658,6 +668,11 @@ const linksFor = (p: Project) => [
   let players: { plyr: Plyr; shot: HTMLElement | null }[] = [];
   let current: Controller | null = null;
 
+  // Gate the animated vertical (project) transition on content-visibility support: it is what
+  // keeps the animated .swiper-wrapper from rasterizing all 7 panels at once (see the
+  // .lb-project CSS and the vert Swiper `speed`). Without it we keep the safe instant snap.
+  const CV_SUPPORTED = (() => { try { return CSS.supports('content-visibility', 'auto'); } catch { return false; } })();
+
   function destroyInstances() {
     for (const s of instances) { try { s.destroy(true, true); } catch {} }
     for (const { plyr } of players) { try { plyr.destroy(); } catch {} }
@@ -941,16 +956,19 @@ const linksFor = (p: Project) => [
         // "Links" dropdown) still pass through untouched.
         touchAngle: 45,
         threshold: 4,
-        // Instant project snap (speed 0), NOT animated. THE iOS crash: Swiper animates the
-        // settle with a CSS transform transition, which promotes the .swiper-wrapper to a GPU
-        // layer. For the VERTICAL swiper that wrapper is the whole stack (7 projects x 100vh,
-        // every project's videos + images), so rasterizing it as one animating layer blew the
-        // WKWebView GPU budget and jetsam-killed the tab on release. Confirmed on device: an
-        // instant snap does not crash, while removing blur or autoplay did not help. The
-        // finger-drag is real-time and unaffected; only the release settle is instant now.
-        // (Horizontal shot-swipes keep their 340ms animation: one project's shots is a small
-        // layer and never crashed.)
-        speed: 0,
+        // Animated project snap (480ms) ONLY when content-visibility is supported; instant
+        // (0) otherwise. THE iOS crash: Swiper animates the settle with a CSS transform
+        // transition, which promotes the .swiper-wrapper to a GPU layer; for the VERTICAL
+        // swiper that wrapper is the whole stack (7 projects x 100vh of media), so rasterizing
+        // it as one animating layer blew the WKWebView GPU budget and jetsam-killed the tab on
+        // release. The fix that lets the glide return: content-visibility:auto on .lb-project
+        // (see CSS) makes the browser skip rendering off-screen panels, so the animated layer
+        // is only the 1-2 visible panels, not all 7. Where content-visibility is absent (older
+        // iOS), CV_SUPPORTED is false and we keep the instant snap (speed 0, confirmed crash-
+        // free) so an unsupported device never hits the animated path. The finger-drag is
+        // real-time either way. (Horizontal shot-swipes keep their own 340ms animation: one
+        // project's shots is a small layer and never crashed.)
+        speed: CV_SUPPORTED ? 480 : 0,
         on: {
           slideChange(sw) {
             syncUI();
