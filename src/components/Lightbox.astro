@@ -658,131 +658,7 @@ const linksFor = (p: Project) => [
   let players: { plyr: Plyr; shot: HTMLElement | null }[] = [];
   let current: Controller | null = null;
 
-  // ── On-device crash breadcrumbs (debug only: add ?lbdebug=1 to the URL) ──────
-  // iOS WebKit kills the tab on OOM with no catchable error, and the crash repros
-  // only on real hardware (Chrome on iOS is WKWebView, a tighter per-tab memory
-  // budget than desktop or Safari). So in debug mode we persist a step-by-step
-  // trail to localStorage (which survives the tab crash) and, on the next load of
-  // a ?lbdebug=1 page, paint the recovered trail on screen to screenshot. Each
-  // mark records how many lightbox videos currently hold a src / poster / decoded
-  // frames, so the last entry before a crash shows where it died and how much media
-  // was resident. Absolutely zero work when the flag is absent.
-  const LB_QS = (() => { try { return new URLSearchParams(location.search); } catch { return new URLSearchParams(); } })();
-  const LB_DEBUG = LB_QS.has('lbdebug');
-  // ?autodrive=<slug> (or bare ?autodrive) self-drives the gallery to the crash. The two
-  // kill-switches bisect the remaining memory suspects: ?noposter skips the active-shot
-  // poster apply (tests poster-bitmap accumulation), ?novideo never attaches video src.
-  const LB_AUTODRIVE = LB_QS.has('autodrive') ? (LB_QS.get('autodrive') || '1') : null;
-  // Bisection kill-switches. ?bare strips everything; each flag strips one suspect so the
-  // crash can be isolated by removing things. LB_BUILD is shown in a corner badge under
-  // ?lbdebug so a stale cache can't masquerade as "the fix didn't work".
-  const LB_BARE = LB_QS.has('bare');
-  const LB_NOPOSTER = LB_BARE || LB_QS.has('noposter');       // skip active-shot poster decode
-  const LB_NOVIDEO = LB_BARE || LB_QS.has('novideo');         // never attach/load video src
-  const LB_NOBLUR = LB_BARE || LB_QS.has('noblur');           // kill ALL backdrop-filter
-  const LB_NOTRANS = LB_BARE || LB_QS.has('notrans');         // instant project snap (no momentum animation)
-  const LB_NOAUTOPLAY = LB_BARE || LB_QS.has('noautoplay');   // don't play() the active video on slide change
-  const LB_BUILD = 'snap-fix-1';                               // bump every deploy
-  let lbT0 = 0;
-  let lbTrail: any[] = [];
-  let autodriveRan = false;
-  let lbRecovered = false;   // set when lbRecoverTrail paints a prior (crashed) trail; suppresses autodrive that load
-  let lbSampler: any = null;   // 200ms memory-proxy sampler while the lightbox is open (debug only)
-  function lbMark(step: string) {
-    if (!LB_DEBUG) return;
-    try {
-      if (!lbT0) lbT0 = performance.now();
-      const vids = Array.from(document.querySelectorAll('video.lb-video')) as HTMLVideoElement[];
-      const mem = (performance as any).memory;   // Blink only; null on iOS WKWebView
-      // Decoded-bitmap memory proxy that DOES work on iOS (where performance.memory is
-      // null): sum of resident <img> megapixels. RGBA bytes ~= imgMP * 4 MB. This is the
-      // poster / image footprint, the prime suspect now that video src is bounded. Watch
-      // it climb as autodrive swipes a project if posters accumulate (hyp: not released).
-      let imgMP = 0, lbImgMP = 0;
-      const lbEl = document.getElementById('lightbox');
-      for (const im of Array.from(document.images)) {
-        if (im.complete && im.naturalWidth) {
-          const mp = (im.naturalWidth * im.naturalHeight) / 1e6;
-          imgMP += mp;
-          if (lbEl && lbEl.contains(im)) lbImgMP += mp;   // isolate lightbox poster/slide growth from the home strip
-        }
-      }
-      lbTrail.push({
-        ms: Math.round(performance.now() - lbT0),
-        step,
-        src: vids.filter((v) => v.getAttribute('src')).length,
-        poster: vids.filter((v) => v.getAttribute('poster')).length,
-        ready: vids.filter((v) => v.readyState > 0).length,
-        imgMP: Math.round(imgMP),                       // ALL resident decoded image megapixels (x4 = MB RGBA)
-        lbImgMP: Math.round(lbImgMP),                   // ...of which is inside the lightbox (poster + image slides)
-        media: document.querySelectorAll('video,audio').length,
-        dom: document.getElementsByTagName('*').length,
-        vis: document.visibilityState[0],               // 'v'isible / 'h'idden
-        heapMB: mem ? Math.round(mem.usedJSHeapSize / 1048576) : null,
-      });
-      if (lbTrail.length > 160) lbTrail.splice(0, lbTrail.length - 160);   // ring-buffer: bound the pre-crash window
-      localStorage.setItem('lb-trail', JSON.stringify(lbTrail));
-    } catch {}
-  }
-  // Paint any trail left by a prior load (crash or clean) so it can be screenshotted,
-  // then reset for this session. Runs on every ?lbdebug=1 page load.
-  function lbRecoverTrail() {
-    if (!LB_DEBUG) return;
-    let prior: string | null = null;
-    try { prior = localStorage.getItem('lb-trail'); localStorage.removeItem('lb-trail'); } catch {}
-    lbT0 = 0; lbTrail = [];
-    if (!prior || prior === '[]' || !document.body) return;
-    // Ignore a trail that is ONLY pagehide/visibility noise (normal backgrounding or client
-    // nav, not a crash), else autodrive would be falsely suppressed on the next load.
-    let arr: any[] = [];
-    try { arr = JSON.parse(prior); } catch {}
-    if (!arr.some((e) => e && typeof e.step === 'string' && !/^(pagehide|vis:)/.test(e.step))) return;
-    lbRecovered = true;   // a real crash trail survived: this load is a recovery, so the
-                          // autodrive guard stands down and lets the painted trail be screenshotted
-    const pre = document.createElement('pre');
-    pre.textContent = 'LB trail from previous load (tap to dismiss):\n\n' + prior.replace(/\},\{/g, '},\n{');
-    pre.style.cssText = 'position:fixed;inset:6px;z-index:99999;margin:0;padding:10px;overflow:auto;background:#000;color:#0f0;font:11px/1.4 ui-monospace,monospace;border:2px solid #0f0;white-space:pre-wrap;word-break:break-word;';
-    pre.addEventListener('click', () => pre.remove());
-    document.body.appendChild(pre);
-  }
-
-  // Crash-boundary breadcrumbs (debug only). The trail localizes WHERE the tab died;
-  // these classify WHAT killed it: a JS error/rejection means it is NOT a clean OOM,
-  // while a silent pagehide / visibility->hidden with no preceding error is the classic
-  // iOS jetsam reload (no catchable error). Persisted to the same trail so they survive.
-  let lbHooksBound = false;
-  function lbBindCrashHooks() {
-    if (!LB_DEBUG || lbHooksBound) return;
-    lbHooksBound = true;
-    addEventListener('error', (e) => lbMark('ERROR:' + ((e as ErrorEvent).message || '').slice(0, 50)));
-    addEventListener('unhandledrejection', (e) => lbMark('REJECT:' + String((e as PromiseRejectionEvent).reason).slice(0, 50)));
-    addEventListener('pagehide', () => lbMark('pagehide'));
-    document.addEventListener('visibilitychange', () => lbMark('vis:' + document.visibilityState));
-  }
-
-  // Bisection helpers: a corner build badge (so a stale cache can't fake "fix didn't work")
-  // and the global ?noblur backdrop-filter kill. Debug/flag only; nothing for real visitors.
-  let lbBisectDone = false;
-  function lbBisectInit() {
-    if (lbBisectDone || (!LB_DEBUG && !LB_NOBLUR)) return;
-    lbBisectDone = true;
-    if (LB_NOBLUR) {
-      const s = document.createElement('style');
-      s.textContent = '*{ -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }';
-      (document.head || document.documentElement).appendChild(s);
-    }
-    const root = document.body || document.documentElement;
-    if (LB_DEBUG && root) {
-      const flags = [LB_BARE && 'BARE', LB_NOBLUR && 'noblur', LB_NOTRANS && 'notrans', LB_NOAUTOPLAY && 'noautoplay', LB_NOPOSTER && 'noposter', LB_NOVIDEO && 'novideo'].filter(Boolean).join(' ');
-      const b = document.createElement('div');
-      b.textContent = 'LB ' + LB_BUILD + (flags ? ' | ' + flags : '');
-      b.style.cssText = 'position:fixed;top:2px;right:2px;z-index:100000;background:#0c0;color:#000;font:10px/1.4 ui-monospace,monospace;padding:2px 6px;border-radius:3px;pointer-events:none;';
-      root.appendChild(b);
-    }
-  }
-
   function destroyInstances() {
-    clearInterval(lbSampler); lbSampler = null;
     for (const s of instances) { try { s.destroy(true, true); } catch {} }
     for (const { plyr } of players) { try { plyr.destroy(); } catch {} }
     instances = [];
@@ -871,7 +747,6 @@ const linksFor = (p: Project) => [
     function syncMedia() {
       if (!vert) return;
       const ap = vert.activeIndex;
-      lbMark('sync:' + (projects()[ap]?.dataset.slug ?? ap));
       // Per-SHOT (not per-project) src ownership: only the ACTIVE SHOT's video keeps a src.
       // iOS allocates a decoder for every src-attached visible <video> (it largely ignores
       // preload="none"), so attaching a whole project's 6-10 videos left 6-10 decoders
@@ -901,7 +776,7 @@ const linksFor = (p: Project) => [
         // so the existing flow sees a valid element (src present, preload='none') to upgrade.
         slide.querySelectorAll('video.lb-video').forEach((node) => {
           const video = node as HTMLVideoElement;
-          if (video === activeShotVideo && !LB_NOVIDEO) {   // ?novideo kill-switch: never attach src
+          if (video === activeShotVideo) {
             restoreVideoSrc(video);
           } else {
             releaseVideoMemory(video);
@@ -930,8 +805,7 @@ const linksFor = (p: Project) => [
       if (activeShot !== lastActiveShot) {
         lastActiveShot = activeShot;
         const entry = players.find((p) => p.shot === activeShot);
-        if (entry && !LB_NOAUTOPLAY) {   // ?noautoplay kill-switch: don't decode/play on landing
-          lbMark('play');
+        if (entry) {
           try { entry.plyr.currentTime = 0; Promise.resolve(entry.plyr.play()).catch(() => {}); } catch {}
         }
       }
@@ -950,7 +824,7 @@ const linksFor = (p: Project) => [
       if (activeEntry && activeVideo) {
         const shotEl = activeEntry.shot!;
         const poster = activeVideo.dataset.lbPoster;   // NOT dataset.poster: see markup comment (hidden from Plyr's eager auto-load)
-        if (!LB_NOPOSTER && poster && !activeVideo.getAttribute('poster')) {   // ?noposter kill-switch
+        if (poster && !activeVideo.getAttribute('poster')) {
           activeVideo.setAttribute('poster', poster);
           try { activeEntry.plyr.poster = poster; } catch {}
           // Shape the player box from this poster before the video's metadata lands,
@@ -964,7 +838,6 @@ const linksFor = (p: Project) => [
         }
         if (activeVideo.preload === 'none') activeVideo.preload = 'metadata';
       }
-      lbMark('synced:' + (projects()[ap]?.dataset.slug ?? ap));
     }
 
     // Hard stop for close(): pause every player (video + youtube), blank every embed,
@@ -1037,7 +910,7 @@ const linksFor = (p: Project) => [
       if (built) return;
       horiz = projects().map((slide) => new Swiper(slide.querySelector('.lb-horiz') as HTMLElement, {
         slidesPerView: 1,
-        speed: LB_NOTRANS ? 0 : 340,
+        speed: 340,
         threshold: 4,
         touchAngle: 45,          // only near-horizontal drags page assets (axis-lock — see vert)
         resistanceRatio: 0.72,
@@ -1072,15 +945,14 @@ const linksFor = (p: Project) => [
         // settle with a CSS transform transition, which promotes the .swiper-wrapper to a GPU
         // layer. For the VERTICAL swiper that wrapper is the whole stack (7 projects x 100vh,
         // every project's videos + images), so rasterizing it as one animating layer blew the
-        // WKWebView GPU budget and jetsam-killed the tab on release. Confirmed by bisection:
-        // ?notrans (speed 0) = no crash, while ?noblur and ?noautoplay still crashed. The
+        // WKWebView GPU budget and jetsam-killed the tab on release. Confirmed on device: an
+        // instant snap does not crash, while removing blur or autoplay did not help. The
         // finger-drag is real-time and unaffected; only the release settle is instant now.
         // (Horizontal shot-swipes keep their 340ms animation: one project's shots is a small
         // layer and never crashed.)
         speed: 0,
         on: {
           slideChange(sw) {
-            lbMark('vchange:' + sw.activeIndex);
             syncUI();
             // Incoming project starts on its first shot (both swipe + button paths).
             const h = horiz[sw.activeIndex];
@@ -1171,8 +1043,6 @@ const linksFor = (p: Project) => [
       lb!.setAttribute('aria-hidden', 'false');
       document.documentElement.classList.add('lb-open');
       build();
-      lbMark('open:' + slug + ':players=' + players.length);
-      if (LB_DEBUG) { clearInterval(lbSampler); lbSampler = setInterval(() => lbMark('t'), 200); }   // sample the render window the sync-point marks miss
       let p = projects().findIndex((s) => s.dataset.slug === slug);
       if (p < 0) p = 0;
       vert!.slideTo(p, 0);
@@ -1184,8 +1054,6 @@ const linksFor = (p: Project) => [
     }
 
     function close() {
-      lbMark('close');
-      clearInterval(lbSampler); lbSampler = null;
       stopAllMedia();
       lastActiveShot = null;   // a reopen replays the shown clip from the top
       lb!.classList.remove('is-open');
@@ -1230,33 +1098,6 @@ const linksFor = (p: Project) => [
     });
 
     current = { el: lb, open, close, nav };
-
-    // Self-driving repro (debug only): ?autodrive=<slug> opens that project and swipes
-    // every shot on a timer, then jumps to the next project, marking each step, so the
-    // device drives itself to the crash and you only screenshot the recovered trail.
-    if (LB_DEBUG && LB_AUTODRIVE && !autodriveRan && !lbRecovered) {
-      autodriveRan = true;
-      const slugs = projects().map((s) => s.dataset.slug || '');
-      let pi = slugs.indexOf(LB_AUTODRIVE);
-      if (pi < 0) pi = 0;
-      lbMark('AUTODRIVE-START:' + slugs[pi]);
-      open(slugs[pi], 0);
-      const tick = () => {
-        if (!current || current.el.hidden) return;
-        const h = activeHoriz();
-        if (!h || h.isEnd) {
-          pi++;
-          if (pi >= slugs.length) { lbMark('AUTODRIVE-DONE'); return; }
-          lbMark('auto:next:' + slugs[pi]);
-          nav('ArrowDown');
-        } else {
-          lbMark('auto:' + (projects()[vert!.activeIndex]?.dataset.slug) + ':' + (h.activeIndex + 1) + '/' + h.slides.length);
-          nav('ArrowRight');
-        }
-        setTimeout(tick, 1500);
-      };
-      setTimeout(tick, 1800);
-    }
   }
 
   // ── Document-level wiring (bound once; persists across view transitions) ──
@@ -1285,13 +1126,7 @@ const linksFor = (p: Project) => [
   }
 
   document.addEventListener('astro:before-swap', destroyInstances);
-  // Order matters in debug: recover (read + paint + clear) any prior crash trail BEFORE
-  // setupLightbox runs autodrive, so autodrive's own marks cannot clobber the trail we are
-  // recovering, and lbRecovered can suppress a re-drive on the recovery load (no crash loop).
-  document.addEventListener('astro:page-load', () => { lbRecoverTrail(); lbBisectInit(); bindDoc(); lbBindCrashHooks(); setupLightbox(); });
-  lbRecoverTrail();   // paint any trail an OOM reload left behind (debug only)
-  lbBisectInit();
+  document.addEventListener('astro:page-load', () => { bindDoc(); setupLightbox(); });
   bindDoc();
-  lbBindCrashHooks();
   setupLightbox();
 </script>
