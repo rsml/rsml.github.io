@@ -826,6 +826,16 @@ const linksFor = (p: Project) => [
       if (!vert) return;
       const ap = vert.activeIndex;
       lbMark('sync:' + (projects()[ap]?.dataset.slug ?? ap));
+      // Per-SHOT (not per-project) src ownership: only the ACTIVE SHOT's video keeps a src.
+      // iOS allocates a decoder for every src-attached visible <video> (it largely ignores
+      // preload="none"), so attaching a whole project's 6-10 videos left 6-10 decoders
+      // resident at once; on a project swipe that, plus the incoming project spinning up,
+      // jetsam-OOM'd the tab (the on-device trail showed ready:6 at the chord-colors->tutor
+      // swipe, the exact original crash). Detaching every non-active-shot video holds it to
+      // one decoder. The home strip thumbnails are separate <img>s, unaffected.
+      const ahNow = activeHoriz();
+      const activeShotEl = ahNow ? (ahNow.slides[ahNow.activeIndex] as HTMLElement) : null;
+      const activeShotVideo = (activeShotEl?.querySelector('video.lb-video') as HTMLVideoElement | null) ?? null;
       projects().forEach((slide, pi) => {
         const projActive = pi === ap;
         slide.querySelectorAll('iframe.lb-embed').forEach((node) => {
@@ -838,14 +848,14 @@ const linksFor = (p: Project) => [
           }
         });
 
-        // iOS WebKit memory management: release decode buffers for videos belonging
-        // to projects that are NOT the active one, restore them for the active one.
-        // YouTube players have no <video> element and are skipped. The restore runs
-        // BEFORE the poster/preload/autoplay block below so the existing flow sees a
-        // fully valid element (src present, preload='none') and can upgrade from there.
+        // iOS WebKit memory management: restore src for the ACTIVE SHOT's video only,
+        // release every other video (including the active project's non-active shots, the
+        // change that fixes the ready:6 decoder pile-up). YouTube players have no <video>
+        // and are skipped. The restore runs BEFORE the poster/preload/autoplay block below
+        // so the existing flow sees a valid element (src present, preload='none') to upgrade.
         slide.querySelectorAll('video.lb-video').forEach((node) => {
           const video = node as HTMLVideoElement;
-          if (projActive && !LB_NOVIDEO) {   // ?novideo kill-switch: never attach src
+          if (video === activeShotVideo && !LB_NOVIDEO) {   // ?novideo kill-switch: never attach src
             restoreVideoSrc(video);
           } else {
             releaseVideoMemory(video);
