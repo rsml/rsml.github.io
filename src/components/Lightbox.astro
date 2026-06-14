@@ -682,7 +682,7 @@ const linksFor = (p: Project) => [
   const LB_NOBLUR = LB_BARE || LB_QS.has('noblur');           // kill ALL backdrop-filter
   const LB_NOTRANS = LB_BARE || LB_QS.has('notrans');         // instant project snap (no momentum animation)
   const LB_NOAUTOPLAY = LB_BARE || LB_QS.has('noautoplay');   // don't play() the active video on slide change
-  const LB_BUILD = 'snap-bisect-1';                            // bump every deploy
+  const LB_BUILD = 'snap-fix-1';                               // bump every deploy
   let lbT0 = 0;
   let lbTrail: any[] = [];
   let autodriveRan = false;
@@ -1068,7 +1068,16 @@ const linksFor = (p: Project) => [
         // "Links" dropdown) still pass through untouched.
         touchAngle: 45,
         threshold: 4,
-        speed: LB_NOTRANS ? 0 : 480,
+        // Instant project snap (speed 0), NOT animated. THE iOS crash: Swiper animates the
+        // settle with a CSS transform transition, which promotes the .swiper-wrapper to a GPU
+        // layer. For the VERTICAL swiper that wrapper is the whole stack (7 projects x 100vh,
+        // every project's videos + images), so rasterizing it as one animating layer blew the
+        // WKWebView GPU budget and jetsam-killed the tab on release. Confirmed by bisection:
+        // ?notrans (speed 0) = no crash, while ?noblur and ?noautoplay still crashed. The
+        // finger-drag is real-time and unaffected; only the release settle is instant now.
+        // (Horizontal shot-swipes keep their 340ms animation: one project's shots is a small
+        // layer and never crashed.)
+        speed: 0,
         on: {
           slideChange(sw) {
             lbMark('vchange:' + sw.activeIndex);
