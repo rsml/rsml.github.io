@@ -673,8 +673,16 @@ const linksFor = (p: Project) => [
   // kill-switches bisect the remaining memory suspects: ?noposter skips the active-shot
   // poster apply (tests poster-bitmap accumulation), ?novideo never attaches video src.
   const LB_AUTODRIVE = LB_QS.has('autodrive') ? (LB_QS.get('autodrive') || '1') : null;
-  const LB_NOPOSTER = LB_QS.has('noposter');
-  const LB_NOVIDEO = LB_QS.has('novideo');
+  // Bisection kill-switches. ?bare strips everything; each flag strips one suspect so the
+  // crash can be isolated by removing things. LB_BUILD is shown in a corner badge under
+  // ?lbdebug so a stale cache can't masquerade as "the fix didn't work".
+  const LB_BARE = LB_QS.has('bare');
+  const LB_NOPOSTER = LB_BARE || LB_QS.has('noposter');       // skip active-shot poster decode
+  const LB_NOVIDEO = LB_BARE || LB_QS.has('novideo');         // never attach/load video src
+  const LB_NOBLUR = LB_BARE || LB_QS.has('noblur');           // kill ALL backdrop-filter
+  const LB_NOTRANS = LB_BARE || LB_QS.has('notrans');         // instant project snap (no momentum animation)
+  const LB_NOAUTOPLAY = LB_BARE || LB_QS.has('noautoplay');   // don't play() the active video on slide change
+  const LB_BUILD = 'snap-bisect-1';                            // bump every deploy
   let lbT0 = 0;
   let lbTrail: any[] = [];
   let autodriveRan = false;
@@ -750,6 +758,27 @@ const linksFor = (p: Project) => [
     addEventListener('unhandledrejection', (e) => lbMark('REJECT:' + String((e as PromiseRejectionEvent).reason).slice(0, 50)));
     addEventListener('pagehide', () => lbMark('pagehide'));
     document.addEventListener('visibilitychange', () => lbMark('vis:' + document.visibilityState));
+  }
+
+  // Bisection helpers: a corner build badge (so a stale cache can't fake "fix didn't work")
+  // and the global ?noblur backdrop-filter kill. Debug/flag only; nothing for real visitors.
+  let lbBisectDone = false;
+  function lbBisectInit() {
+    if (lbBisectDone || (!LB_DEBUG && !LB_NOBLUR)) return;
+    lbBisectDone = true;
+    if (LB_NOBLUR) {
+      const s = document.createElement('style');
+      s.textContent = '*{ -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }';
+      (document.head || document.documentElement).appendChild(s);
+    }
+    const root = document.body || document.documentElement;
+    if (LB_DEBUG && root) {
+      const flags = [LB_BARE && 'BARE', LB_NOBLUR && 'noblur', LB_NOTRANS && 'notrans', LB_NOAUTOPLAY && 'noautoplay', LB_NOPOSTER && 'noposter', LB_NOVIDEO && 'novideo'].filter(Boolean).join(' ');
+      const b = document.createElement('div');
+      b.textContent = 'LB ' + LB_BUILD + (flags ? ' | ' + flags : '');
+      b.style.cssText = 'position:fixed;top:2px;right:2px;z-index:100000;background:#0c0;color:#000;font:10px/1.4 ui-monospace,monospace;padding:2px 6px;border-radius:3px;pointer-events:none;';
+      root.appendChild(b);
+    }
   }
 
   function destroyInstances() {
@@ -901,7 +930,7 @@ const linksFor = (p: Project) => [
       if (activeShot !== lastActiveShot) {
         lastActiveShot = activeShot;
         const entry = players.find((p) => p.shot === activeShot);
-        if (entry) {
+        if (entry && !LB_NOAUTOPLAY) {   // ?noautoplay kill-switch: don't decode/play on landing
           lbMark('play');
           try { entry.plyr.currentTime = 0; Promise.resolve(entry.plyr.play()).catch(() => {}); } catch {}
         }
@@ -1008,7 +1037,7 @@ const linksFor = (p: Project) => [
       if (built) return;
       horiz = projects().map((slide) => new Swiper(slide.querySelector('.lb-horiz') as HTMLElement, {
         slidesPerView: 1,
-        speed: 340,
+        speed: LB_NOTRANS ? 0 : 340,
         threshold: 4,
         touchAngle: 45,          // only near-horizontal drags page assets (axis-lock — see vert)
         resistanceRatio: 0.72,
@@ -1039,7 +1068,7 @@ const linksFor = (p: Project) => [
         // "Links" dropdown) still pass through untouched.
         touchAngle: 45,
         threshold: 4,
-        speed: 480,
+        speed: LB_NOTRANS ? 0 : 480,
         on: {
           slideChange(sw) {
             lbMark('vchange:' + sw.activeIndex);
@@ -1250,8 +1279,9 @@ const linksFor = (p: Project) => [
   // Order matters in debug: recover (read + paint + clear) any prior crash trail BEFORE
   // setupLightbox runs autodrive, so autodrive's own marks cannot clobber the trail we are
   // recovering, and lbRecovered can suppress a re-drive on the recovery load (no crash loop).
-  document.addEventListener('astro:page-load', () => { lbRecoverTrail(); bindDoc(); lbBindCrashHooks(); setupLightbox(); });
+  document.addEventListener('astro:page-load', () => { lbRecoverTrail(); lbBisectInit(); bindDoc(); lbBindCrashHooks(); setupLightbox(); });
   lbRecoverTrail();   // paint any trail an OOM reload left behind (debug only)
+  lbBisectInit();
   bindDoc();
   lbBindCrashHooks();
   setupLightbox();
