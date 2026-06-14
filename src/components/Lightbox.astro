@@ -165,11 +165,12 @@ const linksFor = (p: Project) => [
     position: absolute;
     inset: 0;
     z-index: 0;
-    /* Near-opaque so the busy page behind doesn't show through as blurred,
-       banding rectangles. A light blur keeps a hint of depth. */
+    /* Near-opaque so the busy page behind doesn't show through. NO backdrop-filter:
+       under 0.95 opacity its blur is invisible anyway, but a full-screen backdrop-filter
+       re-blurs the WHOLE viewport every frame, and during a swipe (content moving behind
+       it) that re-blur-per-frame jetsam-OOM'd iOS WKWebView mid-transition (the tab
+       self-reloaded). The opaque background alone gives the same look at zero GPU cost. */
     background: rgba(11, 11, 13, 0.95);
-    -webkit-backdrop-filter: blur(4px);
-    backdrop-filter: blur(4px);
   }
   /* Fine grain dithers the dark gradients (backdrop + image shadow) so 8-bit
      colour quantisation can't band. Above the slide, below the controls. */
@@ -599,6 +600,13 @@ const linksFor = (p: Project) => [
      pops in abruptly. */
   .lb-dragging .lb-arrow { opacity: 0; transition: opacity 50ms ease; }
   .lb-dragging-y .lb-pjump { opacity: 0; transition: opacity 50ms ease; }
+  /* Belt and suspenders for the iOS GPU crash: drop EVERY remaining backdrop-filter (the
+     chrome pills) while a swipe animates, so none of them re-blur over moving content.
+     They return, statically, the instant the slide settles (.lb-dragging is removed). */
+  .lb-dragging *, .lb-dragging-y * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
 
   /* During the swipe, lift the slide content (image + header + counter) above the
      fixed pills and arrows so it slides OVER them, not under. Drag-only: at rest the
