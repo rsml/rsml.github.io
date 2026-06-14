@@ -759,19 +759,15 @@ const linksFor = (p: Project) => [
     // Media follows the active slide: the active project's embeds load (data-src →
     // src) while every other embed is blanked, and any video that isn't the active
     // shot of the active project is paused, so nothing loads or plays off-screen.
+    // syncMedia: VISUAL prep only, safe to run mid-glide. It shows the active shot's poster
+    // (so the card is a static thumb while it slides, never a blank box), pauses every other
+    // player, and points the embeds at the active project. It deliberately does NOT load, play,
+    // or detach any video src; that heavy/visible work is deferred to activateActiveVideo() on
+    // settle (see scheduleActivate), so the glide is pure motion of stills with no flash.
     function syncMedia() {
       if (!vert) return;
       const ap = vert.activeIndex;
-      // Per-SHOT (not per-project) src ownership: only the ACTIVE SHOT's video keeps a src.
-      // iOS allocates a decoder for every src-attached visible <video> (it largely ignores
-      // preload="none"), so attaching a whole project's 6-10 videos left 6-10 decoders
-      // resident at once; on a project swipe that, plus the incoming project spinning up,
-      // jetsam-OOM'd the tab (the on-device trail showed ready:6 at the chord-colors->tutor
-      // swipe, the exact original crash). Detaching every non-active-shot video holds it to
-      // one decoder. The home strip thumbnails are separate <img>s, unaffected.
-      const ahNow = activeHoriz();
-      const activeShotEl = ahNow ? (ahNow.slides[ahNow.activeIndex] as HTMLElement) : null;
-      const activeShotVideo = (activeShotEl?.querySelector('video.lb-video') as HTMLVideoElement | null) ?? null;
+      // Embeds load for the active project and blank for the rest (iframes, separate budget).
       projects().forEach((slide, pi) => {
         const projActive = pi === ap;
         slide.querySelectorAll('iframe.lb-embed').forEach((node) => {
@@ -781,20 +777,6 @@ const linksFor = (p: Project) => [
             if (f.getAttribute('src') !== ds) f.setAttribute('src', ds);
           } else if (f.getAttribute('src')) {
             f.removeAttribute('src');   // blank off-screen embeds: stops their audio/video
-          }
-        });
-
-        // iOS WebKit memory management: restore src for the ACTIVE SHOT's video only,
-        // release every other video (including the active project's non-active shots, the
-        // change that fixes the ready:6 decoder pile-up). YouTube players have no <video>
-        // and are skipped. The restore runs BEFORE the poster/preload/autoplay block below
-        // so the existing flow sees a valid element (src present, preload='none') to upgrade.
-        slide.querySelectorAll('video.lb-video').forEach((node) => {
-          const video = node as HTMLVideoElement;
-          if (video === activeShotVideo) {
-            restoreVideoSrc(video);
-          } else {
-            releaseVideoMemory(video);
           }
         });
       });
@@ -809,23 +791,7 @@ const linksFor = (p: Project) => [
           try { plyr.pause(); } catch {}
         }
       }
-      // ...and autoplay the one that IS, from the start, with sound. Guarded by
-      // lastActiveShot so this fires once each time a shot becomes active (not on a
-      // project-change's double syncMedia, nor any re-sync that leaves the slide put,
-      // which would restart a clip mid-play). syncMedia only runs for the OPEN
-      // lightbox's active slide, so "visible AND in the lightbox" is implicit. The
-      // click / swipe / arrow that got here is a user gesture, so the unmuted play()
-      // sits inside a user-activation window; a browser that still refuses it just
-      // leaves the poster + play-large button (the catch swallows the rejection).
-      if (activeShot !== lastActiveShot) {
-        lastActiveShot = activeShot;
-        const entry = players.find((p) => p.shot === activeShot);
-        if (entry) {
-          try { entry.plyr.currentTime = 0; Promise.resolve(entry.plyr.play()).catch(() => {}); } catch {}
-        }
-      }
-
-      // Deferred poster + preload for the ACTIVE SHOT ONLY. Applying every poster in
+      // Deferred poster for the ACTIVE SHOT ONLY. Applying every poster in
       // a project at once was the iOS crash: each 1920x1200 still decodes to ~9 MB of
       // RGBA (x2, since Plyr keeps its own poster <img>), so arriving at a six-video
       // project like Tutor burst ~100 MB of bitmaps during the slide transition and
@@ -851,8 +817,46 @@ const linksFor = (p: Project) => [
             img.src = poster;
           }
         }
-        if (activeVideo.preload === 'none') activeVideo.preload = 'metadata';
       }
+    }
+
+    // activateActiveVideo: the heavy/visible media work, run AFTER a glide settles (via
+    // scheduleActivate) or immediately on open, never mid-glide. Per-SHOT src ownership (only
+    // the settled shot keeps a src, so at most one decoder is resident: the iOS crash fix) plus
+    // the preload upgrade and the autoplay. The poster set in syncMedia keeps showing until the
+    // first frame decodes, so playback starts in place with no black flash and no jump.
+    function activateActiveVideo() {
+      if (!vert || !current || current.el.hidden) return;   // bail if the lightbox closed before the timer fired
+      const ah = activeHoriz();
+      const activeShot = ah ? (ah.slides[ah.activeIndex] as HTMLElement) : null;
+      const activeShotVideo = (activeShot?.querySelector('video.lb-video') as HTMLVideoElement | null) ?? null;
+      (Array.from(document.querySelectorAll('video.lb-video')) as HTMLVideoElement[]).forEach((video) => {
+        if (video === activeShotVideo) restoreVideoSrc(video);
+        else releaseVideoMemory(video);
+      });
+      if (activeShotVideo && activeShotVideo.preload === 'none') activeShotVideo.preload = 'metadata';
+      if (activeShot !== lastActiveShot) {
+        lastActiveShot = activeShot;
+        const entry = players.find((p) => p.shot === activeShot);
+        if (entry) {
+          try { entry.plyr.currentTime = 0; Promise.resolve(entry.plyr.play()).catch(() => {}); } catch {}
+        }
+      }
+    }
+
+    // Debounced activation: fire activateActiveVideo once the slide motion has landed. The
+    // "max target" guard means a same-tick event with a shorter duration (e.g. the horizontal
+    // reset-to-shot-0 that a project change triggers) can never pull the activation EARLIER and
+    // fire it mid-glide; the longest pending transition wins.
+    let activateTimer: ReturnType<typeof setTimeout> | undefined;
+    let activateAt = 0;
+    function scheduleActivate(speed?: number) {
+      const now = performance.now();
+      const target = now + Math.max(0, speed ?? 0) + 20;
+      if (target <= activateAt) return;
+      activateAt = target;
+      clearTimeout(activateTimer);
+      activateTimer = setTimeout(() => { activateAt = 0; activateActiveVideo(); }, target - now);
     }
 
     // Hard stop for close(): pause every player (video + youtube), blank every embed,
@@ -935,7 +939,7 @@ const linksFor = (p: Project) => [
         noSwipingSelector: '.plyr__controls, .lb-embed',
         on: {
           init(sw) { updateCount(sw); },
-          slideChange(sw) { updateCount(sw); syncUI(); syncMedia(); },
+          slideChange(sw) { updateCount(sw); syncUI(); syncMedia(); scheduleActivate(sw.params.speed); },
           sliderMove: dragStart,
           touchEnd: dragRelease,
           transitionEnd: dragSettle,
@@ -975,8 +979,10 @@ const linksFor = (p: Project) => [
             // Incoming project starts on its first shot (both swipe + button paths).
             const h = horiz[sw.activeIndex];
             if (h) h.slideTo(0, 0);
-            // Load the new project's embeds; stop the old project's video/embed.
+            // Prep visuals (poster + pause) now; the active video activates after the glide
+            // settles (scheduleActivate), so nothing loads/plays/blanks mid-glide.
             syncMedia();
+            scheduleActivate(sw.params.speed);
           },
           sliderMove: dragStart,
           touchEnd: dragRelease,
@@ -1067,6 +1073,7 @@ const linksFor = (p: Project) => [
       horiz[p].slideTo(index || 0, 0);
       syncUI();
       syncMedia();
+      activateActiveVideo();   // on open there is no glide to wait for; activate the shot now
       requestAnimationFrame(() => lb!.classList.add('is-open'));
       closeBtn.focus({ preventScroll: true });
     }
