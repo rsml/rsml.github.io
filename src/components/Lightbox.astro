@@ -671,6 +671,7 @@ const linksFor = (p: Project) => [
   let lbTrail: any[] = [];
   let autodriveRan = false;
   let lbRecovered = false;   // set when lbRecoverTrail paints a prior (crashed) trail; suppresses autodrive that load
+  let lbSampler: any = null;   // 200ms memory-proxy sampler while the lightbox is open (debug only)
   function lbMark(step: string) {
     if (!LB_DEBUG) return;
     try {
@@ -681,9 +682,14 @@ const linksFor = (p: Project) => [
       // null): sum of resident <img> megapixels. RGBA bytes ~= imgMP * 4 MB. This is the
       // poster / image footprint, the prime suspect now that video src is bounded. Watch
       // it climb as autodrive swipes a project if posters accumulate (hyp: not released).
-      let imgMP = 0;
+      let imgMP = 0, lbImgMP = 0;
+      const lbEl = document.getElementById('lightbox');
       for (const im of Array.from(document.images)) {
-        if (im.complete && im.naturalWidth) imgMP += (im.naturalWidth * im.naturalHeight) / 1e6;
+        if (im.complete && im.naturalWidth) {
+          const mp = (im.naturalWidth * im.naturalHeight) / 1e6;
+          imgMP += mp;
+          if (lbEl && lbEl.contains(im)) lbImgMP += mp;   // isolate lightbox poster/slide growth from the home strip
+        }
       }
       lbTrail.push({
         ms: Math.round(performance.now() - lbT0),
@@ -691,12 +697,14 @@ const linksFor = (p: Project) => [
         src: vids.filter((v) => v.getAttribute('src')).length,
         poster: vids.filter((v) => v.getAttribute('poster')).length,
         ready: vids.filter((v) => v.readyState > 0).length,
-        imgMP: Math.round(imgMP),                       // resident decoded image megapixels (x4 = MB RGBA)
+        imgMP: Math.round(imgMP),                       // ALL resident decoded image megapixels (x4 = MB RGBA)
+        lbImgMP: Math.round(lbImgMP),                   // ...of which is inside the lightbox (poster + image slides)
         media: document.querySelectorAll('video,audio').length,
         dom: document.getElementsByTagName('*').length,
         vis: document.visibilityState[0],               // 'v'isible / 'h'idden
         heapMB: mem ? Math.round(mem.usedJSHeapSize / 1048576) : null,
       });
+      if (lbTrail.length > 160) lbTrail.splice(0, lbTrail.length - 160);   // ring-buffer: bound the pre-crash window
       localStorage.setItem('lb-trail', JSON.stringify(lbTrail));
     } catch {}
   }
@@ -737,6 +745,7 @@ const linksFor = (p: Project) => [
   }
 
   function destroyInstances() {
+    clearInterval(lbSampler); lbSampler = null;
     for (const s of instances) { try { s.destroy(true, true); } catch {} }
     for (const { plyr } of players) { try { plyr.destroy(); } catch {} }
     instances = [];
@@ -1117,6 +1126,7 @@ const linksFor = (p: Project) => [
       document.documentElement.classList.add('lb-open');
       build();
       lbMark('open:' + slug + ':players=' + players.length);
+      if (LB_DEBUG) { clearInterval(lbSampler); lbSampler = setInterval(() => lbMark('t'), 200); }   // sample the render window the sync-point marks miss
       let p = projects().findIndex((s) => s.dataset.slug === slug);
       if (p < 0) p = 0;
       vert!.slideTo(p, 0);
@@ -1129,6 +1139,7 @@ const linksFor = (p: Project) => [
 
     function close() {
       lbMark('close');
+      clearInterval(lbSampler); lbSampler = null;
       stopAllMedia();
       lastActiveShot = null;   // a reopen replays the shown clip from the top
       lb!.classList.remove('is-open');
