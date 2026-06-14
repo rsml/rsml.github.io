@@ -32,6 +32,25 @@ const linksFor = (p: Project) => [
   ...(p.deepDive ? [{ label: 'Deep dive', href: `/work/${p.slug}/` }] : []),
   ...p.links,
 ].map((a) => ({ ...a, external: /^https?:/.test(a.href) }));
+
+// Precompute each video shot's exact aspect ratio from its poster's real pixel size, so the
+// player box renders at the right shape from the FIRST paint. Without this, the box used the
+// CSS fallback (16/9) until the video's metadata loaded, then snapped to the true ratio: the
+// "shrinks while loading, then grows" jump. Build-time only (sharp reads the file header);
+// missing/unreadable posters just fall back to the CSS var default.
+// @ts-ignore - sharp ships types at lib/index.d.ts that don't resolve via package.json "exports"; build-time only.
+import sharp from 'sharp';
+const aspectFor = new Map<string, string>();
+for (const p of galleries) {
+  for (const s of p.assets) {
+    if (s.type === 'video' && s.poster) {
+      try {
+        const m = await sharp(process.cwd() + '/public' + s.poster).metadata();
+        if (m.width && m.height) aspectFor.set(s.src, `${m.width} / ${m.height}`);
+      } catch { /* no poster dims -> CSS fallback */ }
+    }
+  }
+}
 ---
 <div class="lb" id="lightbox" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="Project gallery">
   <div class="lb-backdrop"></div>
@@ -94,7 +113,7 @@ const linksFor = (p: Project) => [
             <div class:list={['lb-horiz', 'swiper', `lb-horiz--${p.assets[0].orientation}`]}>
               <div class="swiper-wrapper">
                 {p.assets.map((s) => (
-                  <div class:list={['swiper-slide', 'lb-shot', `lb-shot--${s.type}`]} data-orientation={s.orientation}>
+                  <div class:list={['swiper-slide', 'lb-shot', `lb-shot--${s.type}`]} data-orientation={s.orientation} style={aspectFor.has(s.src) ? `--plyr-ar: ${aspectFor.get(s.src)}` : undefined}>
                     {s.type === 'video' ? (
                       // Plyr enhances this <video> on first open (see script). `controls`
                       // is kept as the no-JS fallback; Plyr removes it when it takes over.
@@ -184,7 +203,18 @@ const linksFor = (p: Project) => [
   }
 
   .lb-vert.swiper { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-  .lb-vert > .swiper-wrapper > .lb-project { width: 100%; height: 100%; }
+  .lb-vert > .swiper-wrapper > .lb-project {
+    width: 100%; height: 100%;
+    /* VIRTUALIZED vertical glide. The script marks every project panel beyond the active +/- 1
+       as .lb-far, and content-visibility:hidden makes the browser SKIP rendering it, so the
+       animated .swiper-wrapper only ever rasterizes ~3 panels (just like the horizontal swiper
+       only holds ONE project's shots), not all 7 x 100vh of media. That whole-stack rasterization
+       under the animated transform was the iOS GPU jetsam crash; capping it to the nearby panels
+       keeps the layer small no matter how many projects you swipe past. contain-intrinsic-size
+       keeps a skipped panel full-height so Swiper's vertical positioning stays exact. */
+    contain-intrinsic-size: auto 100vw auto 100vh;
+  }
+  .lb-vert > .swiper-wrapper > .lb-project.lb-far { content-visibility: hidden; }
 
   /* Each project slide: header (top) · image (fills) · counter (below image). */
   .lb-stage {
@@ -455,7 +485,16 @@ const linksFor = (p: Project) => [
      the header / Previous-project pill / counter / padding chrome) and never wider
      than the stage itself. With that, Plyr's responsive wrapper fills the box
      exactly, no clipping. */
-  .lb-shot .lb-youtube.plyr { width: min(100%, calc((100vh - 230px) * 16 / 9)); }
+  /* YouTube fits the stage like a landscape clip: 16/9 box capped by BOTH axes (contain),
+     so it is full-width on a portrait phone and height-bound on a wide desktop. The old
+     `calc((100vh - 230px) * 16/9)` shrank it on mobile, where iOS reports the LARGE viewport
+     for 100vh, so the cap came out far too small. aspect-ratio + dual max needs no 100vh. */
+  .lb-shot .lb-youtube.plyr {
+    aspect-ratio: 16 / 9;
+    width: auto; height: auto;
+    max-width: 100%; max-height: 100%;
+    min-width: 0;
+  }
 
   /* ── Embed / web view ──────────────────────────────────────────────────────
      An <iframe> has no intrinsic size (unlike an image), so it must be told one:
@@ -712,6 +751,16 @@ const linksFor = (p: Project) => [
       show(downBtn, !vert.isEnd);
     }
 
+    // Virtualization: keep only the active project panel and its immediate neighbors rendered;
+    // mark the rest .lb-far (content-visibility:hidden, see CSS) so the animated vertical swiper
+    // never rasterizes more than ~3 panels. Called on open and on every vertical slideChange, so
+    // the rendered window of projects slides along with you and never accumulates.
+    function updateFarPanels() {
+      if (!vert) return;
+      const a = vert.activeIndex;
+      projects().forEach((slide, i) => slide.classList.toggle('lb-far', Math.abs(i - a) > 1));
+    }
+
     // Release a local <video>'s decode buffers by detaching its src. iOS WebKit
     // enforces a strict per-tab memory budget (jetsam) and keeps decoded frames
     // resident as long as the src attribute is present. Removing the src and
@@ -965,18 +1014,17 @@ const linksFor = (p: Project) => [
         // "Links" dropdown) still pass through untouched.
         touchAngle: 45,
         threshold: 4,
-        // Instant project snap (speed 0). Animating the vertical settle promotes the whole
-        // .swiper-wrapper (all 7 projects x 100vh of media) to one GPU layer, which blows the
-        // iOS WKWebView budget and jetsam-crashes on release. content-visibility shrank that
-        // for a single swipe but rapid multi-swipes still accumulated past the limit, so the
-        // animated glide stays OFF until the vertical swiper is virtualized (render only the
-        // nearby projects). The finger-drag is real-time and unaffected; only the release
-        // settle is instant. (Horizontal shot-swipes keep their own 340ms animation: one
-        // project's shots is a small layer and never crashed.)
-        speed: 0,
+        // Animated project snap (480ms), made crash-safe by VIRTUALIZATION: updateFarPanels()
+        // keeps only the active +/- 1 project panels rendered (the rest get .lb-far ->
+        // content-visibility:hidden), so the animating .swiper-wrapper rasterizes ~3 panels, not
+        // all 7 x 100vh of media (the whole-stack rasterization was the iOS GPU crash). That is
+        // what the horizontal swiper does implicitly, holding one project at a time, which is
+        // why horizontal animates fine. (Horizontal shot-swipes keep their own 340ms animation.)
+        speed: 480,
         on: {
           slideChange(sw) {
             syncUI();
+            updateFarPanels();   // render the new active's neighbors, drop the now-far ones (caps the animated layer)
             // Incoming project starts on its first shot (both swipe + button paths).
             const h = horiz[sw.activeIndex];
             if (h) h.slideTo(0, 0);
@@ -1075,6 +1123,7 @@ const linksFor = (p: Project) => [
       if (p < 0) p = 0;
       vert!.slideTo(p, 0);
       horiz[p].slideTo(index || 0, 0);
+      updateFarPanels();   // only the opened project + neighbors render
       syncUI();
       syncMedia();
       activateActiveVideo();   // on open there is no glide to wait for; activate the shot now
