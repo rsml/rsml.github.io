@@ -36,6 +36,10 @@ export interface ActionItem {
   label: string;
   href: string;
   external: boolean;
+  /** The project's "Deep dive" case study: rendered as a bordered, icon-led
+   *  primary destination (a hairline box with a document glyph) instead of a
+   *  plain underlined link, so it clearly leads the row. */
+  primary?: boolean;
 }
 interface Props {
   actions: ActionItem[];
@@ -51,10 +55,17 @@ const { actions, label = 'Project links', menu = false } = Astro.props;
   <nav class:list={['actions', { menu }]} aria-label={label}>
     {actions.map((a) => (
       <a
-        class="action"
+        class:list={['action', { primary: a.primary }]}
         href={a.href}
         {...(a.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
       >
+        {a.primary && (
+          <svg class="doc" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+            <path d="M14 3v5h5" />
+            <path d="M9 13h6M9 17h4" />
+          </svg>
+        )}
         <span class="label">{a.label}</span>
         {a.external ? (
           <svg class="arrow arrow-ext" width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -144,6 +155,40 @@ const { actions, label = 'Project links', menu = false } = Astro.props;
     transition: text-decoration-color 200ms ease;
   }
   .action:hover .label { text-decoration-color: currentColor; }
+
+  /* ── Primary destination: the project's "Deep dive" case study ──
+     Marked `primary`, it stops being a plain underlined link and becomes a
+     bordered, icon-led button so it clearly leads the row. The border and tint
+     are built from currentColor, so the same rule reads correctly as ink on the
+     light page and white in the dark lightbox with no extra props. The bordered
+     framing belongs to the inline "destination" row; the menu variant (the
+     lightbox "Links" picker) keeps its list-cell shape and just gains the icon
+     and the heavier label. */
+  .action .doc { flex: none; }
+  .action.primary .label { font-weight: 600; text-decoration: none; }
+  .actions:not(.menu) .action.primary {
+    border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+    border-radius: 999px;
+    /* A pill wants a touch more breathing room at its rounded ends than the
+       default hit-padding gives, so widen the horizontal padding here. */
+    padding-inline: 13px;
+    /* Cancel the row's optical outdent for this one item: with a visible border,
+       we want the PILL edge (not the inner label) flush with the title column, so
+       the button sits on the same left margin as the role and title above it. */
+    margin-left: var(--action-px, 8px);
+    transition: border-color 200ms ease, background 200ms ease;
+  }
+  @media (hover: hover) {
+    .actions:not(.menu) .action.primary:hover {
+      border-color: currentColor;
+      background: color-mix(in srgb, currentColor 6%, transparent);
+    }
+  }
+  /* In the menu (the lightbox "Links" picker) the icon is a third child, so the
+     cell's space-between would strand the label in the centre. Keep the icon and
+     label grouped at the left and let margin-auto pin the arrow to the right. */
+  .actions.menu .action.primary { gap: 8px; }
+  .actions.menu .action.primary .arrow { margin-left: auto; }
 
   .arrow { flex: none; transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1); }
   /* the arrow moves the way it'll take you */

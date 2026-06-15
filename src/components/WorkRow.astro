@@ -37,7 +37,7 @@ function resolveStripSrc(asset: (typeof assets)[number]): string {
 const dims = await Promise.all(assets.map(resolveStripSrc).map(getDims));
 
 const actions = [
-  ...(project.deepDive ? [{ label: 'Deep dive', href: `/work/${project.slug}/` }] : []),
+  ...(project.deepDive ? [{ label: 'Deep dive', href: `/work/${project.slug}/`, primary: true }] : []),
   ...project.links,
 ].map((a) => ({ ...a, external: /^https?:/.test(a.href) }));
 ---

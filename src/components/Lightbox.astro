@@ -29,7 +29,7 @@ const galleries = projects.filter((p) => p.assets.length > 0);
 // component, `menu` variant) tucks behind a per-project "Links" dropdown,
 // rendered as an iOS-style list-picker.
 const linksFor = (p: Project) => [
-  ...(p.deepDive ? [{ label: 'Deep dive', href: `/work/${p.slug}/` }] : []),
+  ...(p.deepDive ? [{ label: 'Deep dive', href: `/work/${p.slug}/`, primary: true }] : []),
   ...p.links,
 ].map((a) => ({ ...a, external: /^https?:/.test(a.href) }));
 
