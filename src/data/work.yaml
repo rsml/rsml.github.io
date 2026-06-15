@@ -263,9 +263,8 @@
   thumbImage: /logos/vivy.jpg
   transition: fade-slide
   links:
-    # TODO: real Vivy App Store URL
     - label: iOS app
-      href: https://apps.apple.com/us/app/id0000000000
+      href: https://apps.apple.com/us/app/vivy-glp1-glp-1-tracker/id6736508784
   assets:
     - type: video
       src: /vivy/log-weight-2.mp4
@@ -332,12 +331,10 @@
   thumbImage: /logos/openpath.webp
   transition: fade-slide
   links:
-    # TODO: real Openpath iOS App Store URL
     - label: iOS app
-      href: https://apps.apple.com/us/app/id0000000000
-    # TODO: real Openpath Google Play URL
+      href: https://apps.apple.com/us/app/avigilon-alta-open/id1306430829
     - label: Android app
-      href: https://play.google.com/store/apps/details?id=com.openpath
+      href: https://play.google.com/store/apps/details?id=com.openpath.mobile
   assets:
     - type: video
       src: /openpath/door-unlock-demo-3.mp4
@@ -476,9 +473,8 @@
   links:
     - label: Website
       href: https://symphonypro.net/
-    # TODO: real Symphony Pro App Store URL
-    - label: iPad app
-      href: https://apps.apple.com/us/app/id0000000000
+    - label: iPhone & iPad app
+      href: https://apps.apple.com/us/app/symphony-pro-music-notation/id412380315
   assets:
     - type: youtube
       src: https://www.youtube.com/embed/kzQQR3i1mrk
