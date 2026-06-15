@@ -384,17 +384,15 @@
   thumbClass: thumb-sms
   thumbImage: /logos/text2order.webp
   transition: fade-slide
+  links:
+    - label: GrubRunner deck
+      href: /Grubrunner_deck.pdf
   assets:
     - type: video
       src: /sms/RPReplay_Final1690306867.mp4
       alt: rpreplay_final1690306867
       orientation: landscape
       poster: /sms/RPReplay_Final1690306867-poster.webp
-    - type: pdf
-      src: /sms/Grub-Runner---Product-Offering.pdf
-      alt: grub runner - product offering
-      orientation: landscape
-      poster: /sms/Grub-Runner---Product-Offering-poster.webp
     - src: /sms/text2order-20230819-8.jpg
       alt: text2order 20230819-8
       orientation: landscape
