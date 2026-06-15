@@ -216,6 +216,19 @@ for (const p of galleries) {
   }
   .lb-vert > .swiper-wrapper > .lb-project.lb-far { content-visibility: hidden; }
 
+  /* Same virtualization, one level down. A project's shots all live in its horizontal swiper, so
+     an image-heavy project (SMS: ~14 full-res JPEGs) otherwise decodes EVERY shot's bitmap the
+     instant it becomes active -- the on-device crash trail caught decoded-image memory spike from
+     ~52 MB to ~136 MB in a single swipe into SMS, which jetsam-OOM'd the tab. The script marks
+     every shot beyond the active +/- 1 as .lb-far-shot; content-visibility:hidden makes the
+     browser skip rendering (and drop the decoded bitmap of) those off-screen shots, so only ~3
+     shot images are ever resident regardless of how many a project has. Shots are navigated
+     sequentially, so the +/- 1 window always has the adjacent shot ready (no decode flash).
+     contain-intrinsic-size keeps a skipped shot's box so Swiper's horizontal positioning stays
+     exact, exactly like the panel rule above. */
+  .lb-horiz > .swiper-wrapper > .lb-shot { contain-intrinsic-size: auto 100vw auto 100vh; }
+  .lb-horiz > .swiper-wrapper > .lb-shot.lb-far-shot { content-visibility: hidden; }
+
   /* Each project slide: header (top) · image (fills) · counter (below image). */
   .lb-stage {
     box-sizing: border-box;
@@ -844,6 +857,20 @@ for (const p of galleries) {
       projects().forEach((slide, i) => slide.classList.toggle('lb-far', Math.abs(i - a) > 1));
     }
 
+    // Shot-level twin of updateFarPanels (see the .lb-far-shot CSS). Within one project's
+    // horizontal swiper, mark every shot beyond the active +/- 1 as .lb-far-shot so the browser
+    // drops its decoded image bitmap. Without this, arriving at an image-heavy project decoded all
+    // its shots at once (SMS: ~14 full-res JPEGs -> ~84 MB image-memory spike -> iOS jetsam OOM,
+    // the imgMP 13->34 jump in the on-device crash trail). Called per horiz on its slideChange,
+    // for the incoming project on a vertical slideChange, and for every project on open.
+    function updateFarShots(h: Swiper | null | undefined) {
+      if (!h) return;
+      const a = h.activeIndex;
+      Array.from(h.slides as ArrayLike<HTMLElement>).forEach((slide, i) =>
+        slide.classList.toggle('lb-far-shot', Math.abs(i - a) > 1),
+      );
+    }
+
     // Release a local <video>'s decode buffers by detaching its src. iOS WebKit
     // enforces a strict per-tab memory budget (jetsam) and keeps decoded frames
     // resident as long as the src attribute is present. Removing the src and
@@ -1081,7 +1108,7 @@ for (const p of galleries) {
         noSwipingSelector: '.plyr__controls, .lb-embed',
         on: {
           init(sw) { updateCount(sw); },
-          slideChange(sw) { updateCount(sw); syncUI(); syncMedia(); scheduleActivate(sw.params.speed); },
+          slideChange(sw) { updateCount(sw); syncUI(); syncMedia(); updateFarShots(sw); scheduleActivate(sw.params.speed); },
           sliderMove: dragStart,
           touchEnd: dragRelease,
           transitionEnd: dragSettle,
@@ -1117,6 +1144,7 @@ for (const p of galleries) {
             // Incoming project starts on its first shot (both swipe + button paths).
             const h = horiz[sw.activeIndex];
             if (h) h.slideTo(0, 0);
+            updateFarShots(h);   // cap the incoming project's decoded shot bitmaps to ~3 (see .lb-far-shot)
             // Prep visuals (poster + pause) now; the active video activates after the glide
             // settles (scheduleActivate), so nothing loads/plays/blanks mid-glide.
             syncMedia();
@@ -1214,6 +1242,7 @@ for (const p of galleries) {
       vert!.slideTo(p, 0);
       horiz[p].slideTo(index || 0, 0);
       updateFarPanels();   // only the opened project + neighbors render
+      horiz.forEach((h) => updateFarShots(h));   // and only ~3 shots per project decode (image-memory cap)
       syncUI();
       syncMedia();
       activateActiveVideo();   // on open there is no glide to wait for; activate the shot now
