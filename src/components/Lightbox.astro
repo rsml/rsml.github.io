@@ -473,6 +473,14 @@ for (const p of galleries) {
      intrinsic-size influence so the box is shaped only by --plyr-ar from first paint. Portrait
      never flashed because it was already pinned. */
   .lb-horiz--landscape .lb-shot .plyr--html5 video { width: 100%; height: 100%; }
+  /* Loading hand-off. While a clip is loading without a painted frame (.lb-arming, toggled by the
+     script), keep its poster ON TOP of the still-black <video> and hide the big play button, so the
+     thumbnail->clip swap never flashes the black video background (the "thumbnail disappears then
+     comes back" gap) and the play button never blips for a beat before an autoplay. The script
+     clears .lb-arming the instant the first frame paints (then Plyr resumes normal control: poster
+     hidden while playing, shown + button while paused). */
+  .lb-shot.lb-arming .plyr__poster { opacity: 1 !important; transition: opacity .2s ease; }
+  .lb-shot.lb-arming .plyr__control--overlaid { opacity: 0 !important; pointer-events: none; }
   /* Portrait clips: shape the box from the clip's own aspect (--plyr-ar, seeded from the poster
      in the script) with a 9/19.5 phone fallback, NOT from the loading <video>'s intrinsic size,
      which defaults to a wide 300x150 and letterboxed the portrait clip to full width with black
@@ -691,6 +699,12 @@ for (const p of galleries) {
     .lb-phead { max-width: calc(100% - 56px); gap: 10px; }
     .lb-ptitle { font-size: 14px; }   /* slightly smaller title; the 52px icon still matches the text column */
     .lb-horiz .lb-shot { padding: 4px 8px; }   /* tight, but ◀ ▶ sit at the edges */
+    /* On a portrait phone a landscape ("desktop-shaped") clip is WIDTH-bound, so give the box a
+       definite width and let --plyr-ar derive the height -- the same anchor the portrait rule gets
+       from height:100%. Without it the box's auto size leaks from the <video>'s intrinsic / native
+       poster size while it loads, so it visibly shrinks then settles. Desktop keeps the dual-max
+       contain (a wide stage must bind on height, see the base .lb-horiz--landscape rule). */
+    .lb-horiz--landscape .lb-shot .plyr--html5 { width: 100%; height: auto; }
     /* PDF/embed are <iframe>s, which on iOS swallow touches meant for the ◀ ▶ arrows that sit
        on top of them (an image or video doesn't). Inset these shots past the arrow zone (~56px)
        so the arrows stay tappable; the iframe simply centers a touch narrower. */
@@ -1003,12 +1017,21 @@ for (const p of galleries) {
           // tryPlay runs now (works first-visit / already-loaded) AND once more on 'canplay'
           // (when a just-restored video becomes ready), guarded to the still-active shot.
           const shot = activeShot;
+          // Arm the loading hand-off NOW (poster held, play button hidden) so the button never
+          // blips during the autoplay attempt; the play/timeupdate listeners (in build) reveal it
+          // on the first frame. Safety: drop the hold after 4s so a clip that never paints can't
+          // leave the poster stuck; if autoplay is refused, drop it immediately so the play button
+          // returns for a manual tap.
+          shot?.classList.add('lb-arming');
+          const disarm = () => shot?.classList.remove('lb-arming');
+          const armSafety = setTimeout(disarm, 4000);
           try { entry.plyr.currentTime = 0; } catch {}   // reset to the top ONCE, not on every retry
           const tryPlay = () => {
             // Skip if no longer the active shot, or already playing: the canplay retry must not
             // seek/restart a play that already began (that interruption broke first-play autoplay).
             if (lastActiveShot !== shot || entry.plyr.playing) return;
-            try { Promise.resolve(entry.plyr.play()).catch(() => {}); } catch {}
+            try { Promise.resolve(entry.plyr.play()).catch(() => { clearTimeout(armSafety); disarm(); }); }
+            catch { clearTimeout(armSafety); disarm(); }
           };
           tryPlay();   // works first-visit / already-loaded
           // Retry once a just-restored (revisit) video becomes ready, if it didn't start above.
@@ -1211,6 +1234,14 @@ for (const p of galleries) {
         video.addEventListener('loadedmetadata', () => {
           if (video.videoWidth > 0) shot.style.setProperty('--plyr-ar', `${video.videoWidth} / ${video.videoHeight}`);
         });
+        // Loading hand-off (see the .lb-arming CSS): hold the poster + hide the play button whenever
+        // a clip starts playing WITHOUT a painted frame yet (cold play / manual tap), and reveal it
+        // the instant the first frame lands (timeupdate). 'emptied' fires when src is released, so a
+        // revisit re-arms from scratch. activateActiveVideo also arms on activation so the button
+        // never blips before an autoplay even begins.
+        video.addEventListener('play', () => { if (video.readyState < 2) shot.classList.add('lb-arming'); });
+        video.addEventListener('timeupdate', () => shot.classList.remove('lb-arming'));
+        video.addEventListener('emptied', () => shot.classList.remove('lb-arming'));
       }
 
       instances = [vert, ...horiz];
