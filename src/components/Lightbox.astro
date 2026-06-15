@@ -464,6 +464,15 @@ for (const p of galleries) {
   /* contain guarantees no crop even before --plyr-ar is known (the 16/9 fallback
      box), and letterboxes rather than stretches a clip when full-screen. */
   .lb-shot .plyr--html5 video { object-fit: contain; }
+  /* Pin the LANDSCAPE video to fill its aspect-ratio box (width/height:100%), the same fix the
+     portrait rule below already applies via height:100%. Without it the box's auto width/height is
+     influenced by the <video>'s own intrinsic size: on iOS the native poster renders at the
+     poster's full size (box goes width-bound, large) until the video element loads, then the box
+     recomputes to the contained clip (height-bound, smaller) -- the "thumbnail flashes bigger then
+     settles smaller while a video loads" jump. Filling the box with the video removes that
+     intrinsic-size influence so the box is shaped only by --plyr-ar from first paint. Portrait
+     never flashed because it was already pinned. */
+  .lb-horiz--landscape .lb-shot .plyr--html5 video { width: 100%; height: 100%; }
   /* Portrait clips: shape the box from the clip's own aspect (--plyr-ar, seeded from the poster
      in the script) with a 9/19.5 phone fallback, NOT from the loading <video>'s intrinsic size,
      which defaults to a wide 300x150 and letterboxed the portrait clip to full width with black
