@@ -2,10 +2,15 @@
 import BaseHead from '../components/BaseHead.astro';
 import RippleCanvas from '../components/RippleCanvas.astro';
 import { ClientRouter } from 'astro:transitions';
+import { execSync } from 'node:child_process';
 import '../styles/fonts.css';
 import '../styles/global.css';
 interface Props { title: string; description?: string; }
 const { title, description } = Astro.props;
+// Build stamp: the deployed commit (GITHUB_SHA in CI, local git otherwise), shown bottom-right
+// so a deploy can be confirmed live at a glance vs a stale cache.
+let buildHash = 'dev';
+try { buildHash = (process.env.GITHUB_SHA ?? execSync('git rev-parse HEAD').toString()).trim().slice(0, 7); } catch {}
 ---
 <!doctype html>
 <html lang="en">
@@ -19,5 +24,14 @@ const { title, description } = Astro.props;
       import '../scripts/transitions.ts';
     </script>
     <RippleCanvas />
+    <div class="build-hash" title="deployed commit">{buildHash}</div>
+    <style>
+      .build-hash {
+        position: fixed; bottom: 3px; right: 6px; z-index: 2147483646;
+        font: 10px/1 ui-monospace, SFMono-Regular, monospace;
+        color: rgba(255, 255, 255, 0.3); letter-spacing: 0.04em;
+        pointer-events: none; user-select: none;
+      }
+    </style>
   </body>
 </html>
