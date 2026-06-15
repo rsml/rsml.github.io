@@ -746,10 +746,28 @@ for (const p of galleries) {
       });
       if (lbTrail.length > 220) lbTrail.splice(0, lbTrail.length - 220);
       localStorage.setItem('lb-trail', JSON.stringify(lbTrail));
+      lbPaintLive();
     } catch {}
   }
+  // Live on-screen readout (debug-only): the last marks, updated each mark, no reload/crash needed.
+  // pointer-events:none so it never eats the autodrive's touches. This is how the WebKit counters get
+  // captured in the simulator (which won't OOM-reload, so the crash-recovery painter never fires).
+  let lbLiveEl: HTMLElement | null = null;
+  function lbPaintLive() {
+    if (!LB_DEBUG || !document.body) return;
+    if (!lbLiveEl) {
+      lbLiveEl = document.createElement('pre');
+      lbLiveEl.style.cssText = 'position:fixed;top:0;left:0;right:0;max-height:46vh;z-index:2147483645;margin:0;padding:6px 8px;overflow:hidden;background:rgba(0,0,0,.86);color:#0f0;font:9px/1.25 ui-monospace,monospace;pointer-events:none;white-space:pre;';
+      document.body.appendChild(lbLiveEl);
+    }
+    const last = lbTrail.slice(-16);
+    const rows = last.map((e) => `${String(e.rendered).padStart(2)} cv:${e.farCV} md:${e.media} src:${e.vidSrc} rdy:${e.ready} mp:${String(e.imgMP).padStart(3)} dom:${e.dom}  ${e.step}`);
+    lbLiveEl.textContent = 'rndrd cv md src rdy  mp  dom   step\n' + rows.join('\n');
+  }
+  let lbRecoverRan = false;
   function lbRecoverTrail() {
-    if (!LB_DEBUG) return;
+    if (!LB_DEBUG || lbRecoverRan) return;
+    lbRecoverRan = true;   // once per real page load; a double astro:page-load must not re-read our own fresh trail
     let prior: string | null = null;
     try { prior = localStorage.getItem('lb-trail'); localStorage.removeItem('lb-trail'); } catch {}
     lbTrail = [];
