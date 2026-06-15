@@ -262,14 +262,11 @@ for (const p of galleries) {
     height: 52px;
     border-radius: 22%;
     overflow: hidden;
-    /* No fill plate behind the icon. The icons are mostly dark app-icon tiles,
-       so on the near-black backdrop they'd dissolve into it. A hairline rim
-       defines the edge and a soft ambient shadow lifts the tile; the .lb-grain
-       overlay dithers that shadow so it can't band. (A light outer glow was
-       rejected — on an app icon it reads as a selected/notification state.) */
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.08),
-      0 6px 18px rgba(0, 0, 0, 0.55);
+    /* No rim/border (owner preference) and no fill plate. A soft ambient shadow
+       lifts the tile; the .lb-grain overlay dithers it so it can't band. Tradeoff:
+       the dark app-icon tiles (tutor, forge, chord-colors) sit on the near-black
+       backdrop (#0b0b0d) with only a faint luminance edge now that the rim is gone. */
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
   }
   .lb-plogo img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .lb-phead-text { min-width: 0; }
