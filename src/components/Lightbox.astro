@@ -519,7 +519,7 @@ for (const p of galleries) {
   .lb-project[data-device="desktop"] .plyr,
   .lb-project[data-device="desktop"] .lb-embed { border-radius: var(--corner-desktop); overflow: hidden; }
   .lb-project[data-device="ipad"]    .plyr,
-  .lb-project[data-device="ipad"]    .lb-embed { border-radius: var(--corner-ipad); overflow: hidden; }
+  .lb-project[data-device="ipad"]    .lb-embed { border-radius: var(--corner-ipad); overflow: hidden; flex: 1; }
   /* Same landscape-in-a-phone-project exception as .lb-media above. */
   .lb-project[data-device="iphone"] .lb-shot[data-orientation="landscape"] .plyr,
   .lb-project[data-device="iphone"] .lb-shot[data-orientation="landscape"] .lb-embed { border-radius: var(--corner-desktop); }
@@ -669,6 +669,10 @@ for (const p of galleries) {
     .lb-phead { max-width: calc(100% - 56px); gap: 10px; }
     .lb-ptitle { font-size: 14px; }   /* slightly smaller title; the 52px icon still matches the text column */
     .lb-horiz .lb-shot { padding: 4px 8px; }   /* tight, but ◀ ▶ sit at the edges */
+    /* PDF/embed are <iframe>s, which on iOS swallow touches meant for the ◀ ▶ arrows that sit
+       on top of them (an image or video doesn't). Inset these shots past the arrow zone (~56px)
+       so the arrows stay tappable; the iframe simply centers a touch narrower. */
+    .lb-horiz .lb-shot--pdf, .lb-horiz .lb-shot--embed { padding-left: 56px; padding-right: 56px; }
     .lb-btn { width: 40px; height: 40px; }
     .lb-btn svg { width: 19px; height: 19px; }
     /* Re-centre on the shorter mobile header (centre ~43px) and mirror the 12px
