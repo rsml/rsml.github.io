@@ -1278,7 +1278,8 @@ for (const p of galleries) {
       open(slugs[0], 0);
       let dir = 1;
       const tick = () => {
-        if (!current || current.el.hidden || !vert) return;
+        if (!current || current.el.hidden) return;          // lightbox actually closed -> stop
+        if (!vert) { setTimeout(tick, 200); return; }       // Swiper not ready yet -> retry, don't give up
         if (vert.isEnd) dir = -1; else if (vert.isBeginning) dir = 1;
         lbMark('auto:' + (dir > 0 ? 'down' : 'up') + ':idx' + vert.activeIndex);
         nav(dir > 0 ? 'ArrowDown' : 'ArrowUp');
