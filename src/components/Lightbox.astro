@@ -144,7 +144,7 @@ for (const p of galleries) {
                       // Web view OR PDF (the browser's native viewer): lazy. `data-src`
                       // becomes `src` only while this project is the open slide (and is
                       // cleared on leave/close) so embeds never load or play off-screen.
-                      <iframe class="lb-media lb-embed" data-src={s.src} title={s.alt}
+                      <iframe class="lb-media lb-embed" data-src={s.type === 'pdf' ? `${s.src}#view=FitH&toolbar=0` : s.src} title={s.alt}
                         loading="lazy" allow="autoplay; fullscreen; clipboard-write; encrypted-media"
                         allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
                     ) : (
@@ -491,10 +491,14 @@ for (const p of galleries) {
      for 100vh, so the cap came out far too small. aspect-ratio + dual max needs no 100vh. */
   .lb-shot .lb-youtube.plyr {
     aspect-ratio: 16 / 9;
-    width: auto; height: auto;
-    max-width: 100%; max-height: 100%;
+    height: 100%; width: auto;
+    max-width: 100%;
     min-width: 0;
   }
+  /* Plyr sizes its YouTube embed with a padding-bottom:56.25% wrapper that needs an explicit
+     box WIDTH; width:auto starved it and the embed collapsed tiny. Drive the box from
+     height + aspect-ratio and let the wrapper fill it (no padding-bottom). */
+  .lb-shot .lb-youtube .plyr__video-wrapper { height: 100%; padding-bottom: 0; }
 
   /* ── Embed / web view ──────────────────────────────────────────────────────
      An <iframe> has no intrinsic size (unlike an image), so it must be told one:
@@ -969,6 +973,10 @@ for (const p of galleries) {
     // in case the timer misjudges the snap's duration.
     const dragRelease = (sw: Swiper) => {
       if (sw !== dragSwiper) return;
+      // Fast vertical FLICKS snap instantly (speed 0 -> no animated transition, so no GPU layer
+      // to crash on); slow, deliberate swipes keep the 480ms glide. Rapid animated project
+      // transitions were the remaining crash; dropping the animation for fast flicks removes it.
+      if (sw.params.direction === 'vertical') sw.params.speed = Math.abs((sw as any).velocity ?? 0) > 0.45 ? 0 : 480;
       setTimeout(() => {
         if (sw !== dragSwiper) return;
         if (!sw.animating) { dragSettle(sw); return; }
@@ -1100,6 +1108,7 @@ for (const p of galleries) {
       if (!vert) return;
       const t = vert.activeIndex + dir;
       if (t < 0 || t > horiz.length - 1) return;
+      vert.params.speed = 480;   // button/key project jumps always glide (no flick velocity to read)
       clearTimeout(fadeTimer);
       lb!.classList.add('lb-dragging', 'lb-dragging-y');
       fadeTimer = setTimeout(() => {
