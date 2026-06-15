@@ -272,10 +272,6 @@ for (const p of galleries) {
       0 6px 18px rgba(0, 0, 0, 0.55);
   }
   .lb-plogo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  /* Tutor's source icon draws the book with extra macOS-style padding, so its
-     artwork reads smaller than the others (~63% vs ~80% for Chord). Zoom it to
-     match their visual weight — same compensation as Thumb.astro. */
-  .lb-plogo.thumb-tutor img { transform: scale(1.25); }
   .lb-phead-text { min-width: 0; }
   /* Title + subtitle share a baseline with a gap, the same pairing as the home
      row (.row-id); when the two can't fit on one line the subtitle drops to its

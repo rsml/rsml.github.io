@@ -43,16 +43,23 @@ const actions = [
 ---
 <section class="row">
   <header class="row-head">
-    <p class="row-role">{project.role}{project.date ? ` · ${project.date}` : ''}</p>
-    <p class="row-id">
-      <span class="row-name">{project.cardTitle}</span>
-      <span class="row-sub">{project.subtitle}</span>
-    </p>
-    {actions.length > 0 && (
-      <div class="row-actions">
-        <ActionLinks actions={actions} label={`${project.cardTitle} links`} />
-      </div>
+    {project.thumbImage && (
+      <span class:list={['row-logo', project.thumbClass]}>
+        <img src={project.thumbImage} alt="" />
+      </span>
     )}
+    <div class="row-head-text">
+      <p class="row-role">{project.role}{project.date ? ` · ${project.date}` : ''}</p>
+      <p class="row-id">
+        <span class="row-name">{project.cardTitle}</span>
+        <span class="row-sub">{project.subtitle}</span>
+      </p>
+      {actions.length > 0 && (
+        <div class="row-actions">
+          <ActionLinks actions={actions} label={`${project.cardTitle} links`} />
+        </div>
+      )}
+    </div>
   </header>
 
   {assets.length > 0 && (
@@ -98,13 +105,37 @@ const actions = [
     border-top: 1px solid var(--hair);
   }
 
-  /* A vertical label cluster: role eyebrow · title + subtitle · destination
-     links — sitting above the screenshot strip. */
+  /* Project header, the same arrangement as the gallery lightbox (.lb-phead) and
+     the case-study page (.dive-header): the app-icon tile at left, vertically
+     centred against a text column (role eyebrow · title + subtitle · destination
+     links). Sits above the screenshot strip. */
   .row-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  /* The text column that used to BE .row-head: role/title/links stacked, hugging
+     the left so each label's left edge lines up under the title. */
+  .row-head-text {
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
   }
+  /* Square app-icon tile, light-theme twin of the lightbox's .lb-plogo (same
+     markup, same role) and identical to the case study's .dive-logo: the inner
+     <img> fills it edge-to-edge and overflow:hidden + border-radius clip every
+     source icon to one rounded-app silhouette. A hairline rim + soft shadow lift
+     it off the white page. flex:none so the 156px source can't stretch the tile. */
+  .row-logo {
+    flex: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 22%;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--hair), 0 4px 14px rgba(17, 17, 17, 0.10);
+  }
+  .row-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
   /* Role as a quiet eyebrow on top: small, lightly tracked, muted. It LABELS the
      title, so it hugs the title/subtitle cluster — line-height:1.1 strips the
      leading and a tight margin pulls it close, leaving a clearly larger gap down

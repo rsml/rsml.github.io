@@ -6,11 +6,11 @@ const { thumbClass, image } = Astro.props;
   {image && <img class="thumb-icon" src={image} alt="" loading="lazy" />}
 </div>
 <style>
-  /* Square app-icon tile. The icon image fills the tile edge-to-edge and the
-     tile's border-radius clips every source icon — full-bleed art (vivy,
-     symphony, text2order) or a squircle sitting on its own matte/light corners
-     (chord, tutor, forge) — to one uniform rounded-app-icon silhouette. Because
-     each icon carries its own field, the tile needs no background of its own. */
+  /* Square app-icon tile. Every source icon is full-bleed app art on its own
+     field (no padding, border, or liquid-glass treatment), so the image fills
+     the tile edge-to-edge and the tile's border-radius clips it to one uniform
+     rounded-app-icon silhouette. The tile needs no background of its own
+     because each icon carries its own field. */
   .thumb {
     aspect-ratio: 1 / 1;
     width: 64px;
@@ -27,9 +27,4 @@ const { thumbClass, image } = Astro.props;
     object-fit: cover;
     display: block;
   }
-  /* Tutor's source icon draws the book with extra macOS-style padding, so its
-     artwork reads smaller than the others (it fills ~63% vs ~80% for Chord).
-     Zoom it in to match their visual weight; the zoom also crops the light
-     squircle corners, leaving a clean black field. */
-  .thumb-tutor .thumb-icon { transform: scale(1.25); }
 </style>
