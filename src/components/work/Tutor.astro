@@ -9,7 +9,7 @@ import Footnotes from '../content/Footnotes.astro';
 import Ref from '../content/Ref.astro';
 ---
 
-<Lede>Tutor is a macOS reading app that generates personalized books, based on your learning style and what you already know.</Lede>
+<Lede>Tutor generates books that adapt to what you already know, how you prefer to learn, and how you perform as you read. Each chapter is written only after you've completed the last one.</Lede>
 <Lede>While reading you can ask questions about the text and get context-aware personalized answers.</Lede>
 <Lede>I've already used Tutor to read dozens of personalized books and it's been a game changer for how I learn. I feel like I have a personal tutor that grows with me over time.</Lede>
 
@@ -36,11 +36,11 @@ import Ref from '../content/Ref.astro';
 
 <Section title="First chapter">
   <p>Approve the outline and Tutor writes the first chapter. Just one. The rest of the book stays intentionally unwritten.</p>
-  <p>Chapters run about 1,500 words, so they only require about five to ten minutes of reading.<Ref id="fn-tutor-1" n={1} /> Short enough to binge read multiple chapters, long enough that each chapter could cover it's subject matter in sufficient depth.</p>
+  <p>Chapters run about 1,500 words, so they only require about five to ten minutes of reading.<Ref id="fn-tutor-1" n={1} /> Short enough to binge read multiple chapters, long enough that each chapter could cover its subject matter in sufficient depth.</p>
 </Section>
 
 <Section title="Chat">
-  <p>Select any passage and an inline chat opens, anchored to that exact text, with the context of the entire chapter and the subject matter of book. When you ask "what does this mean," the model already knows what "this" is.</p>
+  <p>Select any passage and an inline chat opens, anchored to that exact text, with the context of the entire chapter and the subject matter of the book. When you ask "what does this mean," the model already knows what "this" is.</p>
   <p>When you're done with the conversation, simply close the chat and you can continue reading right where you left off. This feature of being able to zoom in, then zoom back out is a major improvement over the experience of learning with a simple LLM chat bot.</p>
   <DesktopFrame>
     <Screen kind="desktop" theme="tutor-chat" src="/tutor/screenshots/inline-chat.webp" alt="A chapter open beside an inline chat answering a question about the highlighted passage" width={2560} height={1600} />
@@ -77,12 +77,12 @@ import Ref from '../content/Ref.astro';
 </Section>
 
 <Section title="End-of-book quiz">
-  <p>At the end of the book, there's a final quiz that synthesizes that that tests if you can synthesize information across multiple chapters. After taking the quiz, you can write the book. So you remember for future use, which books you like most.</p>
+  <p>At the end of the book, there's a final quiz that tests whether you can synthesize information across multiple chapters. After taking the quiz, you can write the book. So you remember for future use, which books you like most.</p>
 </Section>
 
 <Section title="Learning profile">
-  <p>While Tutor was generating each chapter, it was also creating a list of skills associated with each chapter. Once you finish the book, Tutor uses those skills as well as your feedback along to way to give you suggestions on how to update your learning profile.</p>
-  <p>Tutor can propose adding new skills, update your existing skills to a new competency level, updating your learning profile's free text field, or update any of your discrete preferences such as whether you like metaphors or humor in your books.</p>
+  <p>While Tutor was generating each chapter, it was also creating a list of skills associated with each chapter. Once you finish the book, Tutor uses those skills as well as your feedback along the way to give you suggestions on how to update your learning profile.</p>
+  <p>Tutor can propose adding new skills, update your existing skills to a new competency level, update your learning profile's free-text field, or update any of your discrete preferences such as whether you like metaphors or humor in your books.</p>
   <p>All of these proposed changes are easy to view, approve, or override. So the user is always in the loop and always in control, while the AI handles the busy work.</p>
 </Section>
 
@@ -112,7 +112,7 @@ import Ref from '../content/Ref.astro';
 </Section>
 
 <Section title="Advanced generation via MCP">
-  <p>When generating a book, Tutor has an "Advanced" mode where you can copy/paste a prompt into into your terminal that will generate your book for use using Claude Code. Behind the scenes, Claude Code will use a specialized MCP and skills.</p>
+  <p>When generating a book, Tutor has an "Advanced" mode where you can copy/paste a prompt into your terminal that will generate your book for use using Claude Code. Behind the scenes, Claude Code will use a specialized MCP and skills.</p>
   <p>This mode is helpful if you want enhanced coherence, if you want to leverage any MCPs or skills you already have, if you need an agent to search the web for you, and if you want to utilize more sophisticated generation techniques such as "plan mode."</p>
 </Section>
 
