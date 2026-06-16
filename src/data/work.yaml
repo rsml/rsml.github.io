@@ -62,7 +62,8 @@
   title: Chord Colors
   cardTitle: Chord Colors
   role: Creator
-  subtitle: interactive music theory
+  subtitle: Interactive encyclopedia of music theory using color instead of sheet music
+  # subtitle: interactive music theory
   date: "2018-present"
   cardDesc: Innovative music theory app with an intricate design system
   blurb: Music theory you explore by color instead of sheet music.
@@ -146,10 +147,10 @@
   title: Tutor
   cardTitle: Tutor
   role: Creator
-  subtitle: personalized AI books
+  subtitle: AI-written personalized books that learn how your learn
   date: "2026"
   cardDesc: AI-written personalized books that learn how your learn
-  blurb: A macOS app that writes personalized books that adapt to how you learn.
+  blurb: AI-written personalized books that learn how your learn.
   device: desktop
   thumbClass: thumb-tutor
   thumbImage: /logos/tutor.webp
@@ -219,7 +220,7 @@
   title: Forge
   cardTitle: Forge
   role: Creator
-  subtitle: terminal multiplexer for AI agents
+  subtitle: Prompt many AI's in parallel. Focus on what's ready. Forget what isn't.
   date: "2026"
   cardDesc: Native macOS app for efficiently managing many AI coding agents
   blurb: A native macOS workspace for running many AI coding agents at once.
@@ -253,10 +254,10 @@
   title: Vivy
   cardTitle: Vivy
   role: Founder, CTO, Designer
-  subtitle: "#1 doctor-backend GLP-1 companion app"
+  subtitle: "AI health coach helping GLP-1 patients build lasting habits"
   date: "2024-2026"
-  cardDesc: '#1 doctor-backed GLP-1 companion app on the App Store'
-  blurb: "The #1 doctor-backed GLP-1 companion app on the App Store."
+  cardDesc: 'AI health coach helping GLP-1 patients build lasting habits'
+  blurb: "AI health coach helping GLP-1 patients build lasting habits."
   device: iphone
   shotHeight: 300
   thumbClass: thumb-vivy
@@ -321,10 +322,10 @@
   title: Openpath Security
   cardTitle: Openpath Security
   role: "Manager, React Native Lead, UX Designer, #2 Employee"
-  subtitle: Premier cloud-based access control
+  subtitle: Leading cloud-based access control platform
   date: "2017-2023"
-  cardDesc: Premier cloud-based access control. Millions of door unlocks per day. Acquired by Motorola Solutions.
-  blurb: Cloud access control handling millions of door unlocks a day, acquired by Motorola.
+  cardDesc: Leading cloud-based access control platform. Acquired by Motorola Solutions.
+  blurb: Leading cloud-based access control platform. Acquired by Motorola Solutions.
   device: iphone
   shotHeight: 300
   thumbClass: thumb-openpath
@@ -373,10 +374,10 @@
       poster: /openpath/open-admin-demo-2-2-poster.webp
 
 - slug: sms
-  title: SMS ordering
-  cardTitle: SMS ordering
+  title: GrubRunner, Text2Order
+  cardTitle: GrubRunner, Text2Order
   role: Founder, CTO
-  subtitle: SMS-based ordering at festivals and stations
+  subtitle: Order food and drinks at large events via SMS
   date: "2013-2016, 2022-2024"
   cardDesc: SMS food and drink ordering at music festivals and stadium events.
   blurb: SMS food and drink ordering for music festivals and stadium events.
@@ -460,10 +461,10 @@
   title: Symphony Pro
   cardTitle: Symphony Pro
   role: Founder, Developer, UX Designer
-  subtitle: Premier iPad composition app
+  subtitle: World's first iPad app for composing sheet music
   date: "2009-2013"
-  cardDesc: World's first iPad sheet music notation app. Spotlighted by Apple.
-  blurb: The world's first iPad sheet-music notation app, spotlighted by Apple.
+  cardDesc: World's first iPad app for composing sheet music. Spotlighted by Apple.
+  blurb: The world's first iPad app for composing sheet music. Spotlighted by Apple.
   device: ipad
   thumbClass: thumb-symphony
   thumbImage: /logos/symphony.jpg
