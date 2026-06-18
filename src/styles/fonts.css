@@ -43,6 +43,18 @@
   src: url('/fonts/InterVariable-Italic.woff2') format('woff2');
 }
 
+/* Size-adjusted fallback: Arial scaled to match Inter's metrics so font-swap
+   causes zero layout reflow (no new LCP candidate when Inter loads).
+   Values computed from Inter's UPM/ascender/x-height vs Arial's. */
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Arial');
+  size-adjust: 107.295%;
+  ascent-override: 89.999%;
+  descent-override: 22.499%;
+  line-gap-override: 0%;
+}
+
 /* Caveat: latin-ext subset */
 @font-face {
   font-family: 'Caveat';
