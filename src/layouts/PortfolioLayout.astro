@@ -12,6 +12,7 @@ const { title, description } = Astro.props;
   <head>
     <BaseHead title={title} description={description} />
     <ClientRouter />
+    <slot name="head" />
   </head>
   <body>
     <slot />

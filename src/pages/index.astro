@@ -1,12 +1,34 @@
 ---
+import { existsSync } from 'node:fs';
 import PortfolioLayout from '../layouts/PortfolioLayout.astro';
 import WorkRow from '../components/WorkRow.astro';
 import Lightbox from '../components/Lightbox.astro';
 import NowClock from '../components/NowClock.astro';
 import { getWork } from '../data/work';
+import { thumbPath } from '../../tools/optimize-portfolio.mjs';
+
 const work = getWork();
+
+// Compute the strip src for the first project's first asset so we can preload it.
+// Mirrors WorkRow's resolveStripSrc logic (poster > youtube-derived > src), then
+// prefers a '-thumb.webp' sidecar when one exists on disk.
+const firstAsset = work[0]?.assets?.[0];
+function firstStripSrc() {
+  if (!firstAsset) return undefined;
+  const ref =
+    firstAsset.poster
+    ?? ((firstAsset.type == null || firstAsset.type === 'image') ? firstAsset.src : undefined)
+    ?? firstAsset.src;
+  if (ref?.startsWith('/') && firstAsset.type !== 'gif') {
+    const thumb = thumbPath(ref);
+    if (existsSync(`${process.cwd()}/public${thumb}`)) return thumb;
+  }
+  return ref;
+}
+const lcpImageSrc = firstStripSrc();
 ---
 <PortfolioLayout title="Ross Miller">
+  {lcpImageSrc && <link slot="head" rel="preload" as="image" href={lcpImageSrc} fetchpriority="high" />}
   <main class="container" data-rise>
     <h1 class="name" style="--rise-i:0; --rise-fn:focusIn; animation-duration:var(--hero-blur-dur,1.5s)">Ross Miller</h1>
     <p class="title" style="--rise-i:0; --rise-fn:focusIn; animation-duration:var(--hero-blur-dur,1.5s)">Developer, designer, 4x founder</p>

@@ -1,0 +1,537 @@
+.lb-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    /* Near-opaque so the busy page behind doesn't show through. NO backdrop-filter:
+       under 0.95 opacity its blur is invisible anyway, but a full-screen backdrop-filter
+       re-blurs the WHOLE viewport every frame, and during a swipe (content moving behind
+       it) that re-blur-per-frame jetsam-OOM'd iOS WKWebView mid-transition (the tab
+       self-reloaded). The opaque background alone gives the same look at zero GPU cost. */
+    background: rgba(11, 11, 13, 0.95);
+  }
+  /* Fine grain dithers the dark gradients (backdrop + image shadow) so 8-bit
+     colour quantisation can't band. Above the slide, below the controls. */
+  .lb-grain {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .lb-vert.swiper { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
+  .lb-vert > .swiper-wrapper > .lb-project {
+    width: 100%; height: 100%;
+    /* VIRTUALIZED vertical glide. The script marks every project panel beyond the active +/- 1
+       as .lb-far, and content-visibility:hidden makes the browser SKIP rendering it, so the
+       animated .swiper-wrapper only ever rasterizes ~3 panels (just like the horizontal swiper
+       only holds ONE project's shots), not all 7 x 100vh of media. That whole-stack rasterization
+       under the animated transform was the iOS GPU jetsam crash; capping it to the nearby panels
+       keeps the layer small no matter how many projects you swipe past. contain-intrinsic-size
+       keeps a skipped panel full-height so Swiper's vertical positioning stays exact. */
+    contain-intrinsic-size: auto 100vw auto 100vh;
+  }
+  .lb-vert > .swiper-wrapper > .lb-project.lb-far { content-visibility: hidden; }
+
+  /* Same virtualization, one level down. A project's shots all live in its horizontal swiper, so
+     an image-heavy project (SMS: ~14 full-res JPEGs) otherwise decodes EVERY shot's bitmap the
+     instant it becomes active -- the on-device crash trail caught decoded-image memory spike from
+     ~52 MB to ~136 MB in a single swipe into SMS, which jetsam-OOM'd the tab. The script marks
+     every shot beyond the active +/- 1 as .lb-far-shot; content-visibility:hidden makes the
+     browser skip rendering (and drop the decoded bitmap of) those off-screen shots, so only ~3
+     shot images are ever resident regardless of how many a project has. Shots are navigated
+     sequentially, so the +/- 1 window always has the adjacent shot ready (no decode flash).
+     contain-intrinsic-size keeps a skipped shot's box so Swiper's horizontal positioning stays
+     exact, exactly like the panel rule above. */
+  .lb-horiz > .swiper-wrapper > .lb-shot { contain-intrinsic-size: auto 100vw auto 100vh; }
+  .lb-horiz > .swiper-wrapper > .lb-shot.lb-far-shot { content-visibility: hidden; }
+
+  /* Each project slide: header (top) · image (fills) · counter (below image). */
+  .lb-stage {
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 18px 22px 44px;   /* bottom clears the counter + "Next project" */
+  }
+
+  /* Header — top-left, icon column + text column, vertically centred. The icon is
+     sized (below) to match the text column's height so they read as equal-height
+     columns; with the text box trimmed to hug its ink (see .lb-links-summary),
+     centring now lands the icon on the ink's optical centre. Capped width so a
+     long role/title can't crowd the close ✕ or sprawl across the stage. */
+  .lb-phead {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: min(70%, 560px);
+  }
+  /* Square app-icon tile: the inner <img> fills it edge-to-edge and the tile's
+     overflow:hidden + border-radius clip every source icon to one silhouette.
+     Sized to match the text column's height (role + title + Links ≈ 52px) so the
+     icon and the text read as the same height. (A fixed px, not flex-stretch: the
+     1024px source <img> makes stretch+aspect-ratio blow the tile up to its
+     intrinsic size.) */
+  .lb-plogo {
+    flex: none;
+    width: 52px;
+    height: 52px;
+    border-radius: 22%;
+    overflow: hidden;
+    /* No rim/border (owner preference) and no fill plate. A soft ambient shadow
+       lifts the tile; the .lb-grain overlay dithers it so it can't band. Tradeoff:
+       the dark app-icon tiles (tutor, forge, chord-colors) sit on the near-black
+       backdrop (#0b0b0d) with only a faint luminance edge now that the rim is gone. */
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  }
+  .lb-plogo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .lb-phead-text { min-width: 0; }
+  /* Title + subtitle share a baseline with a gap, the same pairing as the home
+     row (.row-id); when the two can't fit on one line the subtitle drops to its
+     own line (and wraps) rather than truncating. */
+  .lb-ptitle {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 8px;
+    row-gap: 1px;
+    font-size: 15px;
+    line-height: 1.3;
+    letter-spacing: -0.012em;
+  }
+  .lb-pname { font-weight: 600; color: #fff; }
+  .lb-psub { font-weight: 460; color: rgba(255, 255, 255, 0.55); }
+  /* Role as a quiet eyebrow ABOVE the title — same arrangement + tracking as the
+     home row (.row-role), so the lightbox header reads in the same order. It
+     LABELS the title, so it belongs to the title/subtitle cluster: line-height:1.1
+     strips the leading and a tight margin hugs it to the title, leaving a clearly
+     larger gap down to the separate "Links" affordance (proximity = grouping). */
+  .lb-prole {
+    margin: 0 0 2px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  /* The home row shows its links inline; here the SAME list tucks behind a
+     per-project "Links" dropdown (a native <details> — declarative + keyboard-
+     accessible, no extra JS) and renders as an iOS-style list-picker menu. The
+     header sits above the carousel so the open panel overlays the image instead
+     of being clipped by it. */
+  .lb-phead { position: relative; z-index: 3; }
+  /* position:relative makes the details itself the panel's containing block, so the
+     panel anchors just under the "Links" summary (not under the whole header). */
+  .lb-links { position: relative; margin: 2px 0 0; }
+  /* The trigger is a word, not a button: flush-left under the title/role column
+     (no horizontal padding, no hover box), carrying a quiet underline that fills
+     to full white on hover and clears once the menu is open — the chevron alone
+     then signals the open state. */
+  .lb-links-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 0;             /* symmetric + tight: keeps the text box hugging the ink (no bottom-heavy bias that pulls the icon low), no L/R padding or box */
+    list-style: none;           /* drop the default disclosure triangle */
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    opacity: 0.62;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 180ms ease;
+  }
+  .lb-links-summary::-webkit-details-marker { display: none; }
+  /* underline rides the word only (not the chevron), so it tracks "Links". */
+  .lb-links-summary span {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    text-decoration-color: rgba(255, 255, 255, 0.32);
+    transition: text-decoration-color 200ms ease;
+  }
+  .lb-links-summary:hover { opacity: 1; }
+  .lb-links-summary:hover span { text-decoration-color: #fff; }
+  .lb-links[open] .lb-links-summary { opacity: 1; }
+  .lb-links[open] .lb-links-summary span { text-decoration-color: transparent; }
+  .lb-links-summary:focus-visible { opacity: 1; outline: 2px solid #fff; outline-offset: 2px; }
+  .lb-links-chev {
+    width: 13px;
+    height: 13px;
+    opacity: 0.8;
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .lb-links[open] .lb-links-chev { transform: rotate(180deg); }
+
+  /* Floating menu: absolutely positioned so opening it overlays the image rather
+     than shoving the carousel down. Near-opaque dark plate + blur reads as a menu
+     on the busy gallery. It sizes to its widest cell (the ActionLinks `menu`
+     variant owns the cell padding + hairline dividers), so the panel is only as
+     wide as its content — no fixed width. overflow:hidden clips the cell hover/
+     press fills to the rounded corners. */
+  .lb-links-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 2;
+    width: max-content;
+    max-width: min(280px, 72vw);
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.92);
+    background: rgba(22, 22, 25, 0.92);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
+  }
+  /* Explicit hide when closed: the absolutely-positioned panel anchors to .lb-phead's
+     stacking context, which sits outside the native <details> hide subtree, so we
+     can't rely on the UA mechanism to collapse it — toggle it on [open] ourselves. */
+  .lb-links:not([open]) .lb-links-panel { display: none; }
+  .lb-links[open] .lb-links-panel { animation: lb-links-in 160ms cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes lb-links-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Image carousel fills the space between header/pill and counter. */
+  .lb-horiz.swiper { flex: 1; min-height: 0; width: 100%; margin-top: 6px; }
+  .lb-horiz .lb-shot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 6px 56px;   /* side padding clears the ◀ ▶ arrows */
+  }
+  .lb-media {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    background: #0c0c0e;
+    /* Tight, lower-contrast shadow, avoids the wide soft gradient that bands. */
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+  }
+  /* Round the enlarged image like the device it was captured on. Same tokens as
+     the home-row thumbnails (global.css); percentages scale to the fit size. */
+  .lb-project[data-device="iphone"] .lb-media { border-radius: var(--corner-iphone); }
+  .lb-project[data-device="desktop"] .lb-media { border-radius: var(--corner-desktop); }
+  .lb-project[data-device="ipad"] .lb-media { border-radius: var(--corner-ipad); }
+  /* Exception, mirrored from WorkRow.astro: a landscape asset in a phone project
+     is a desktop capture, so it gets the Mac-window radius (the iPhone token's
+     percentages only stay circular on a portrait box). */
+  .lb-project[data-device="iphone"] .lb-shot[data-orientation="landscape"] .lb-media { border-radius: var(--corner-desktop); }
+
+  /* ── Video (Plyr) ──────────────────────────────────────────────────────────
+     Plyr wraps the <video> in a .plyr container that takes an <img>'s place, so
+     it gets the same fit (cap to the stage), the same lift shadow, and the same
+     device rounding (below). Controls are themed to the lightbox: white glyphs,
+     an Apple-blue progress/volume fill (matches the page focus ring), near-black
+     field. */
+  .lb .plyr {
+    --plyr-color-main: var(--focus, #0a84ff);
+    --plyr-video-background: #0c0c0e;
+    --plyr-video-control-color: rgba(255, 255, 255, 0.86);
+    --plyr-video-control-color-hover: #fff;
+    --plyr-range-thumb-background: #fff;
+    --plyr-range-track-height: 4px;
+    --plyr-control-radius: 8px;
+    --plyr-font-family: inherit;
+    --plyr-font-size-base: 13px;
+    --plyr-font-size-small: 12px;
+    --plyr-control-spacing: 9px;
+  }
+  /* Fit the player to the stage exactly like .lb-media images: capped by BOTH
+     max-width and max-height so the whole clip is always visible (contain), never
+     cropped, with the box hugging the clip so the lift shadow + device rounding
+     sit on the video, not on a full-stage panel. */
+  .lb-shot .plyr {
+    max-width: 100%;
+    max-height: 100%;
+    background: #0c0c0e;
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+  }
+  /* Landscape clips can't simply be width-bound: on a wide desktop the stage is
+     often proportionally WIDER than the clip, so width:100% derives a height taller
+     than the stage and overflow:hidden crops the bottom (the "only the top shows"
+     bug). Instead the box takes the clip's OWN aspect ratio (--plyr-ar, set from the
+     video's intrinsic size in the script below), and auto width/height + the dual
+     max above let it shrink on whichever axis binds, the same contain the <img> gets.
+     min-width:0 overrides Plyr's 200px floor so a narrow fit still hugs. In
+     fullscreen the dedicated :fullscreen block below overrides this, restoring
+     Plyr's own fill-the-screen sizing. */
+  .lb-horiz--landscape .lb-shot .plyr--html5 {
+    aspect-ratio: var(--plyr-ar, 16 / 9);
+    width: auto;
+    height: auto;
+    min-width: 0;
+  }
+  /* contain guarantees no crop even before --plyr-ar is known (the 16/9 fallback
+     box), and letterboxes rather than stretches a clip when full-screen. */
+  .lb-shot .plyr--html5 video { object-fit: contain; }
+  /* Pin the LANDSCAPE video to fill its aspect-ratio box (width/height:100%), the same fix the
+     portrait rule below already applies via height:100%. Without it the box's auto width/height is
+     influenced by the <video>'s own intrinsic size: on iOS the native poster renders at the
+     poster's full size (box goes width-bound, large) until the video element loads, then the box
+     recomputes to the contained clip (height-bound, smaller) -- the "thumbnail flashes bigger then
+     settles smaller while a video loads" jump. Filling the box with the video removes that
+     intrinsic-size influence so the box is shaped only by --plyr-ar from first paint. Portrait
+     never flashed because it was already pinned. */
+  .lb-horiz--landscape .lb-shot .plyr--html5 video { width: 100%; height: 100%; }
+  /* Loading hand-off. While a clip is loading without a painted frame (.lb-arming, toggled by the
+     script), keep its poster ON TOP of the still-black <video> and hide the big play button, so the
+     thumbnail->clip swap never flashes the black video background (the "thumbnail disappears then
+     comes back" gap) and the play button never blips for a beat before an autoplay. The script
+     clears .lb-arming the instant the first frame paints (then Plyr resumes normal control: poster
+     hidden while playing, shown + button while paused). */
+  .lb-shot.lb-arming .plyr__poster { opacity: 1 !important; transition: opacity .2s ease; }
+  .lb-shot.lb-arming .plyr__control--overlaid { opacity: 0 !important; pointer-events: none; }
+  /* Portrait clips: shape the box from the clip's own aspect (--plyr-ar, seeded from the poster
+     in the script) with a 9/19.5 phone fallback, NOT from the loading <video>'s intrinsic size,
+     which defaults to a wide 300x150 and letterboxed the portrait clip to full width with black
+     bars until metadata landed, then snapped. height:100% + aspect-ratio gives the right narrow
+     box immediately; the dual max-width/height above still contains it. */
+  .lb-horiz--portrait  .lb-shot .plyr--html5 { aspect-ratio: var(--plyr-ar, 9 / 19.5); }
+  .lb-horiz--portrait  .lb-shot .plyr { width: auto; height: 100%; }
+  .lb-horiz--portrait  .lb-shot .plyr video { width: auto; height: 100%; max-height: 100%; }
+
+  /* ── Fullscreen ─────────────────────────────────────────────────────────────
+     Plyr requests NATIVE fullscreen on its .plyr container (hence the browser's
+     "press esc to exit" chrome), so the UA's :fullscreen rules — Plyr ships
+     width/height:100% for them — should fill the screen, and object-fit:contain
+     (above) then centres the clip inside it: pillarbox for a portrait clip,
+     letterbox for landscape, centred on BOTH axes. The per-orientation sizing
+     above outranks Plyr's :fullscreen on specificity, though, so without this it
+     LEAKS into fullscreen — the player keeps the clip's own width (portrait's
+     width:auto) and the browser pins that narrow box to the LEFT. Re-assert
+     fill + contain past that specificity, for either orientation. (Plyr 3.8.4 has
+     no .plyr--fullscreen-active class, only the :fullscreen pseudo-class and the
+     .plyr--fullscreen-fallback class, so we key off the real pseudo-class.) The
+     unprefixed and -webkit- forms are SEPARATE rules on purpose: a browser that
+     doesn't recognise one selector discards the whole rule it sits in, so a
+     combined comma list would break both. */
+  .lb .lb-horiz .lb-shot .plyr:fullscreen { width: 100%; height: 100%; }
+  .lb .lb-horiz .lb-shot .plyr:-webkit-full-screen { width: 100%; height: 100%; }
+  .lb .lb-horiz .lb-shot .plyr:fullscreen video { width: 100%; height: 100%; object-fit: contain; }
+  .lb .lb-horiz .lb-shot .plyr:-webkit-full-screen video { width: 100%; height: 100%; object-fit: contain; }
+
+  /* YouTube (a Plyr embed) is always 16:9 and lays itself out from its width, so
+     cap the width to whatever keeps a 16:9 height within the stage (viewport minus
+     the header / Previous-project pill / counter / padding chrome) and never wider
+     than the stage itself. With that, Plyr's responsive wrapper fills the box
+     exactly, no clipping. */
+  /* YouTube fits the stage like a landscape clip: 16/9 box capped by BOTH axes (contain),
+     so it is full-width on a portrait phone and height-bound on a wide desktop. The old
+     `calc((100vh - 230px) * 16/9)` shrank it on mobile, where iOS reports the LARGE viewport
+     for 100vh, so the cap came out far too small. aspect-ratio + dual max needs no 100vh. */
+  .lb-shot .lb-youtube.plyr {
+    aspect-ratio: 16 / 9;
+    height: 100%; width: auto;
+    max-width: 100%;
+    min-width: 0;
+  }
+  /* Plyr sizes its YouTube embed with a padding-bottom:56.25% wrapper that needs an explicit
+     box WIDTH; width:auto starved it and the embed collapsed tiny. Drive the box from
+     height + aspect-ratio and let the wrapper fill it (no padding-bottom). */
+  .lb-shot .lb-youtube .plyr__video-wrapper { height: 100%; padding-bottom: 0; }
+
+  /* ── Embed / web view ──────────────────────────────────────────────────────
+     An <iframe> has no intrinsic size (unlike an image), so it must be told one:
+     fill the stage, capped to a phone-width column when portrait and a comfortable
+     max when landscape so a live demo doesn't sprawl on wide screens. */
+  .lb-media.lb-embed {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #0c0c0e;
+  }
+  .lb-horiz--portrait  .lb-media.lb-embed { max-width: 440px; }
+  .lb-horiz--landscape .lb-media.lb-embed { max-width: 1100px; }
+
+  /* Round the player + embed like the device, same tokens as the images above. */
+  .lb-project[data-device="iphone"]  .plyr,
+  .lb-project[data-device="iphone"]  .lb-embed { border-radius: var(--corner-iphone); overflow: hidden; }
+  .lb-project[data-device="desktop"] .plyr,
+  .lb-project[data-device="desktop"] .lb-embed { border-radius: var(--corner-desktop); overflow: hidden; }
+  .lb-project[data-device="ipad"]    .plyr,
+  .lb-project[data-device="ipad"]    .lb-embed { border-radius: var(--corner-ipad); overflow: hidden; flex: 1; }
+  /* Same landscape-in-a-phone-project exception as .lb-media above. */
+  .lb-project[data-device="iphone"] .lb-shot[data-orientation="landscape"] .plyr,
+  .lb-project[data-device="iphone"] .lb-shot[data-orientation="landscape"] .lb-embed { border-radius: var(--corner-desktop); }
+
+  .lb-pcount {
+    flex: none;
+    margin: 7px 0 0;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  /* Round controls: circular hit target; fill/emphasis set per control below. */
+  .lb-btn {
+    position: absolute;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    transition: background 160ms ease, opacity 160ms ease, visibility 200ms ease;
+  }
+  .lb-btn:focus-visible { opacity: 1; outline: 2px solid #fff; outline-offset: 3px; }
+  .lb-btn svg { width: 22px; height: 22px; }
+
+  /* Image arrows: clearly tappable by default — a solid translucent disc with a
+     hairline rim at high opacity. They're the primary in-gallery action, so
+     they read as buttons rather than ghosting in only on hover. */
+  .lb-arrow {
+    opacity: 0.92;
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    -webkit-backdrop-filter: blur(7px);
+    backdrop-filter: blur(7px);
+  }
+  .lb-arrow:hover { opacity: 1; background: rgba(255, 255, 255, 0.27); }
+
+  /* Close: de-emphasised window chrome. Just the ✕ glyph by default; the disc
+     materialises only on hover/focus so it's discoverable without competing.
+     Position: pinned to the top-right CORNER of the content frame, NOT centred on
+     the header. A close control is chrome, not content — centring it on the tall
+     header dragged it to mid-header and left it adrift (tied to the header's axis
+     yet split from it by a void). Here its glyph sits at the SAME top inset as the
+     content (the stage padding-top) and the same right inset as the logo's left
+     gutter, mirroring the logo's top-left position into the top-right corner.
+     top:7px = stage-top(18) − the 42px button's 11px glyph-pad. */
+  .lb-close {
+    top: 7px; right: 11px;
+    width: 42px; height: 42px;
+    opacity: 0.5;
+    z-index: 8;   /* above the slide content even while it's lifted mid-swipe (see .lb-dragging .lb-vert) */
+  }
+  .lb-close svg { width: 20px; height: 20px; }
+  /* Disc on hover only — the user asked for the circle to appear on hover, not
+     at rest. Keyboard focus is still signalled by the base .lb-btn outline ring
+     (and opacity:1), so the control stays accessible without the disc. */
+  .lb-close:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.18);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+
+  .lb-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+  .lb-next { right: 16px; top: 50%; transform: translateY(-50%); }
+
+  /* Project jump: the same quiet text pill twice. "Next project" is fixed chrome
+     at bottom centre. "Previous project" is IN-SLIDE: centred in the stage between
+     the header and the image, so it reads as the gallery's control (not part of
+     the top-left text cluster) and, being in flow, can never overlap the header no
+     matter how the role line wraps. It fades on vertical moves via the same
+     .lb-dragging-y rule as the fixed pill, so the two animate identically; the
+     first project simply renders none (nothing above it to jump to). */
+  .lb-pjump {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 160ms ease, visibility 200ms ease, background 160ms ease;
+  }
+  .lb-pjump:hover { opacity: 1; background: rgba(255, 255, 255, 0.1); }
+  .lb-pjump:focus-visible { opacity: 1; outline: 2px solid #fff; outline-offset: 3px; }
+  .lb-pjump svg { width: 15px; height: 15px; opacity: 0.85; }
+  .lb-down { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: 10px; }
+  .lb-up { flex: none; align-self: center; margin: 10px 0 0; }
+
+  /* Hidden control = at the first/last image, or the last project (the first
+     project's "Previous project" control is simply not rendered). */
+  .lb-btn.is-hidden,
+  .lb-pjump.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+  /* While a slide transition is in flight, the fixed directional nav fades out so
+     it isn't left pinned over the moving content, then fades back in as the slide
+     settles. The ◀ ▶ image arrows fade on any move; the project pills (fixed Next,
+     in-slide Previous) fade only on a vertical (between-projects) move
+     (.lb-dragging-y), whether swiped or driven by the project controls and ↑/↓
+     keys (see goProject), since a left/right page stays within one project and
+     keeps them relevant. The header and counter sit inside the slide and keep
+     travelling with it, so only this global chrome dims; close ✕ stays put as an
+     always-available escape.
+       Timing: the fade-OUT is fast and immediate (50ms, fired on the swiper's
+     sliderMove or the instant a project jump starts) so the chrome clears as soon
+     as the content moves. The fade-IN rides the slide's deceleration tail: the
+     classes come off 160ms (FADE_IN_MS in the script) before the transition lands,
+     on every path (goProject's timer for button/key jumps, dragRelease's timer for
+     released swipes), so the 160ms base opacity transition above finishes right as
+     the slide stops. The chrome is never pinned over fast-moving content and never
+     pops in abruptly. */
+  .lb-dragging .lb-arrow { opacity: 0; transition: opacity 50ms ease; }
+  .lb-dragging-y .lb-pjump { opacity: 0; transition: opacity 50ms ease; }
+  /* Belt and suspenders for the iOS GPU crash: drop EVERY remaining backdrop-filter (the
+     chrome pills) while a swipe animates, so none of them re-blur over moving content.
+     They return, statically, the instant the slide settles (.lb-dragging is removed). */
+  .lb-dragging *, .lb-dragging-y * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* During the swipe, lift the slide content (image + header + counter) above the
+     fixed pills and arrows so it slides OVER them, not under. Drag-only: at rest the
+     pills/arrows sit above the slide so they stay clickable, and the chrome is faded
+     while dragging anyway. Close ✕ (z-index 8) stays above even this lifted content. */
+  .lb-dragging .lb-vert.swiper { z-index: 7; }
+
+  @media (max-width: 600px) {
+    .lb-stage { padding: 14px 12px 46px; }
+    .lb-down { bottom: 8px; }   /* taller pill on mobile needs more clearance */
+    .lb-phead { max-width: calc(100% - 56px); gap: 10px; }
+    .lb-ptitle { font-size: 14px; }   /* slightly smaller title; the 52px icon still matches the text column */
+    .lb-horiz .lb-shot { padding: 4px 8px; }   /* tight, but ◀ ▶ sit at the edges */
+    /* On a portrait phone a landscape ("desktop-shaped") clip is WIDTH-bound, so give the box a
+       definite width and let --plyr-ar derive the height -- the same anchor the portrait rule gets
+       from height:100%. Without it the box's auto size leaks from the <video>'s intrinsic / native
+       poster size while it loads, so it visibly shrinks then settles. Desktop keeps the dual-max
+       contain (a wide stage must bind on height, see the base .lb-horiz--landscape rule). */
+    .lb-horiz--landscape .lb-shot .plyr--html5 { width: 100%; height: auto; }
+    /* PDF/embed are <iframe>s, which on iOS swallow touches meant for the ◀ ▶ arrows that sit
+       on top of them (an image or video doesn't). Inset these shots past the arrow zone (~56px)
+       so the arrows stay tappable; the iframe simply centers a touch narrower. */
+    .lb-horiz .lb-shot--pdf, .lb-horiz .lb-shot--embed { padding-left: 56px; padding-right: 56px; }
+    .lb-btn { width: 40px; height: 40px; }
+    .lb-btn svg { width: 19px; height: 19px; }
+    /* Re-centre on the shorter mobile header (centre ~43px) and mirror the 12px
+       mobile gutter: 40px button around a 19px glyph → right:2px lands the glyph
+       edge ~12px from the screen edge. */
+    .lb-close { top: 4px; right: 2px; }   /* top:4 = stage-top(14) − the 40px button's 10.5px glyph-pad → glyph at the content top inset */
+    .lb-prev { left: 4px; }
+    .lb-next { right: 4px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lb, .lb-btn, .lb-pjump, .lb-dragging .lb-arrow, .lb-dragging-y .lb-pjump, .lb-links-summary, .lb-links-summary span, .lb-links-chev { transition: none; }
+    .lb-links[open] .lb-links-chev { transform: rotate(180deg); }
+    .lb-links[open] .lb-links-panel { animation: none; }
+  }
