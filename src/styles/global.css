@@ -30,6 +30,7 @@
   --r: 0px;
   /* overridden to fallIn by transitions.ts on back navigation */
   --rise-default: riseIn;
+  --hero-blur-dur: 1.2s;
 }
 * { box-sizing: border-box; }
 html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
@@ -103,6 +104,44 @@ body {
   }
 }
 
+/* Top-edge scroll blur */
+:root {
+  --blur-radius: 2px;
+  --blur-height: 80px;
+  --blur-hold: 12%;
+  --edge-reach: 0px;
+  --edge-intensity: 0;
+  --corner-size: 0px;
+}
+.top-blur {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--blur-height);
+  backdrop-filter: blur(var(--blur-radius));
+  -webkit-backdrop-filter: blur(var(--blur-radius));
+  -webkit-mask-image: linear-gradient(to bottom, black var(--blur-hold), transparent 100%);
+  mask-image: linear-gradient(to bottom, black var(--blur-hold), transparent 100%);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Edge shadow + CRT corner rounding */
+.crt-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: inset 0 0 var(--edge-reach) rgb(0 0 0 / var(--edge-intensity));
+  /* Each gradient is sized to its corner only — no-repeat + background-size keeps them from covering the whole element */
+  background:
+    radial-gradient(circle at 0    0,    transparent var(--corner-size), var(--bg) var(--corner-size)) top    left  / var(--corner-size) var(--corner-size) no-repeat,
+    radial-gradient(circle at 100% 0,    transparent var(--corner-size), var(--bg) var(--corner-size)) top    right / var(--corner-size) var(--corner-size) no-repeat,
+    radial-gradient(circle at 0    100%, transparent var(--corner-size), var(--bg) var(--corner-size)) bottom left  / var(--corner-size) var(--corner-size) no-repeat,
+    radial-gradient(circle at 100% 100%, transparent var(--corner-size), var(--bg) var(--corner-size)) bottom right / var(--corner-size) var(--corner-size) no-repeat;
+}
+
 /* Fixed bottom vignette: implies depth and ground, stays at viewport edge */
 :root {
   --vignette-color: hsl(240 22% 7%);
@@ -119,7 +158,7 @@ body::after {
   background: linear-gradient(to bottom, transparent, var(--vignette-color));
   opacity: var(--vignette-opacity);
   pointer-events: none;
-  z-index: 9999;
+  z-index: 10;
 }
 
 a         { color: oklch(42% 0.17 256); }

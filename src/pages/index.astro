@@ -8,27 +8,26 @@ const work = getWork();
 ---
 <PortfolioLayout title="Ross Miller">
   <main class="container" data-rise>
-    <h1 class="name" style="--rise-i:0; --rise-fn:focusIn">Ross Miller</h1>
-    <p class="updated" style="--rise-i:0; --rise-fn:focusIn">Updated June 3, 2026</p>
+    <h1 class="name" style="--rise-i:0; --rise-fn:focusIn; animation-duration:var(--hero-blur-dur,1.5s)">Ross Miller</h1>
+    <p class="title" style="--rise-i:0; --rise-fn:focusIn; animation-duration:var(--hero-blur-dur,1.5s)">Developer, designer, 4x founder</p>
     <div class="bio" style="--rise-i:0">
-      <p>Hi, I'm a full-stack engineer, designer, and 4x founder. My work has reached millions of users.</p>
-      <p>I care about building things that matter, leading with empathy, and leveling up the people around me.</p>
-      <p>I believe design is an engineering discipline.</p>
+      <p>I lead with empathy, level up the people around me, build things that matter, and care deeply about craft.</p>
+      <p>Currently exploring how best to work with AI and building things that could have never before been possible.</p>
 
       <p>You can find me on <a href="https://www.linkedin.com/in/rossnmiller/" target="_blank" rel="noopener noreferrer">LinkedIn</a>, <a href="https://github.com/rsml" target="_blank" rel="noopener noreferrer">GitHub</a>, <a href="https://x.com/coding_ross" target="_blank" rel="noopener noreferrer">X</a>, or reach me via <a href="mailto:rossnmiller@gmail.com">email</a>.</p>
     </div>
     <h2 class="home-section-h" style="--rise-i:0; --rise-base:1000ms">Selected works</h2>
-    <div class="work" style="--rise-i:0; --rise-base:1000ms">
+    <div class="work" style="--rise-i:1; --rise-base:1000ms">
       {work.map((p, i) => <WorkRow project={p} eager={i === 0} />)}
     </div>
-    <NowClock style="--rise-i:1; --rise-base:1000ms" />
+    <NowClock style="--rise-i:2; --rise-base:1000ms" />
   </main>
   <Lightbox projects={work} />
 </PortfolioLayout>
 <style>
-  h1.name { margin: 0; font-size: 14px; font-weight: 500; }
-  .updated { margin: 0; color: var(--muted); }
-  .bio { margin: 32px 0 32px; }
+  h1.name { margin: 0 0 2px; padding-top: 30px; font-size: 14px; font-weight: 500; }
+  .title { margin: 0; color: var(--muted); }
+  .bio { margin: 40px 0 50px; }
   .bio p { margin: 0 0 12px; }
   .bio p:last-child { margin-bottom: 0; }
   /* Same treatment as the work links: a quiet underline at rest that fills to
