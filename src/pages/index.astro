@@ -37,11 +37,11 @@ const lcpImageSrc = firstStripSrc();
 
       <p>You can find me on <a href="https://www.linkedin.com/in/rossnmiller/" target="_blank" rel="noopener noreferrer">LinkedIn</a>, <a href="https://github.com/rsml" target="_blank" rel="noopener noreferrer">GitHub</a>, <a href="https://x.com/coding_ross" target="_blank" rel="noopener noreferrer">X</a>, or reach me via <a href="mailto:rossnmiller@gmail.com">email</a>.</p>
     </div>
-    <h2 class="home-section-h" style="--rise-i:0; --rise-base:1000ms">Selected works</h2>
-    <div class="work" style="--rise-i:1; --rise-base:1000ms">
+    <h2 class="home-section-h" style="--rise-i:1">Selected works</h2>
+    <div class="work">
       {work.map((p, i) => <WorkRow project={p} eager={i === 0} />)}
     </div>
-    <NowClock style="--rise-i:2; --rise-base:1000ms" />
+    <NowClock style="--rise-i:3" />
   </main>
   <Lightbox projects={work} />
 </PortfolioLayout>
@@ -51,6 +51,13 @@ const lcpImageSrc = firstStripSrc();
   .bio { margin: 40px 0 50px; }
   .bio p { margin: 0 0 12px; }
   .bio p:last-child { margin-bottom: 0; }
+  /*
+    The work section is visible from the start so the preloaded LCP image can
+    be painted as soon as it arrives, before JS fires to trigger rise animations.
+    Suppress the rise-system animation on it entirely.
+  */
+  [data-rise] > .work { opacity: 1; }
+  [data-rise].rise-ready > .work { animation: none; }
   /* Same treatment as the work links: a quiet underline at rest that fills to
      full ink on hover. text-decoration-color animates (background-image can't),
      so the fill is a smooth fade, not a snap. */
