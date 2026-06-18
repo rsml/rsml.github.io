@@ -720,10 +720,8 @@ for (const p of galleries) {
 </style>
 
 <script>
-  import Swiper from 'swiper';
-  import 'swiper/css';
-  import Plyr from 'plyr';
-  import 'plyr/dist/plyr.css';
+  import type Swiper from 'swiper';
+  import type Plyr from 'plyr';
 
   type Controller = {
     el: HTMLElement;
@@ -837,6 +835,7 @@ for (const p of galleries) {
     let vert: Swiper | null = null;
     let horiz: Swiper[] = [];
     let built = false;
+    let buildPromise: Promise<void> | null = null;
     let lastFocus: HTMLElement | null = null;
     // The shot we last autoplayed. syncMedia restarts a clip only when this changes,
     // so a project-change's double syncMedia (or any re-sync that doesn't move the
@@ -1119,9 +1118,17 @@ for (const p of galleries) {
 
     // Init Swipers lazily on first open — the overlay has real layout by then,
     // so Swiper measures correct sizes (a hidden container measures 0).
-    function build() {
+    async function build() {
       if (built) return;
-      horiz = projects().map((slide) => new Swiper(slide.querySelector('.lb-horiz') as HTMLElement, {
+      // Kick off CSS side-effects in parallel; we only need to await the JS modules.
+      void import('swiper/css');
+      void import('plyr/dist/plyr.css');
+      const [{ default: SwiperLib }, { default: PlyrLib }] = await Promise.all([
+        import('swiper'),
+        import('plyr'),
+      ]);
+      if (built) return;  // guard against a concurrent open() that finished first
+      horiz = projects().map((slide) => new SwiperLib(slide.querySelector('.lb-horiz') as HTMLElement, {
         slidesPerView: 1,
         speed: 340,
         threshold: 4,
@@ -1139,7 +1146,7 @@ for (const p of galleries) {
           transitionEnd: dragSettle,
         },
       }));
-      vert = new Swiper(vertEl, {
+      vert = new SwiperLib(vertEl, {
         direction: 'vertical',
         slidesPerView: 1,
         // Swipe up/down moves between projects, mirroring the horizontal
@@ -1187,7 +1194,7 @@ for (const p of galleries) {
       // are destroyed in destroyInstances() before any view-transition swaps the DOM.
       players = (Array.from(vertEl.querySelectorAll('.lb-video, .lb-youtube')) as HTMLElement[]).map((el) => ({
         shot: el.closest('.lb-shot') as HTMLElement | null,   // captured before Plyr wraps el
-        plyr: new Plyr(el, {
+        plyr: new PlyrLib(el, {
           // No mute/volume controls: playback is pinned to full volume (below), so a
           // sound UI would only offer a way to break that. play-large stays as the
           // fallback affordance if a browser refuses the unmuted autoplay.
@@ -1261,12 +1268,14 @@ for (const p of galleries) {
       if (dir > 0) vert.slideNext(); else vert.slidePrev();
     }
 
-    function open(slug: string, index: number) {
+    async function open(slug: string, index: number) {
       lastFocus = document.activeElement as HTMLElement;
+      // Show the backdrop immediately (opacity:0 → fades in after build); body scroll locks now.
       lb!.hidden = false;
       lb!.setAttribute('aria-hidden', 'false');
       document.documentElement.classList.add('lb-open');
-      build();
+      if (!buildPromise) buildPromise = build();
+      await buildPromise;
       // Always open the lightbox with the per-project "Links" dropdown CLOSED, even if it was
       // left open on a previous view (the <details> elements persist in the built DOM).
       lb!.querySelectorAll('details.lb-links[open]').forEach((d) => ((d as HTMLDetailsElement).open = false));
