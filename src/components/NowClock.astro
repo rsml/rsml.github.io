@@ -321,7 +321,7 @@ const [CAT_BEFORE_MOUTH, CAT_AFTER_MOUTH] = CAT_INITIAL.split('ㅅ');
       paintEyes();                             // revert to the resting cat
     }, ms);
   }
-  function meow() { oneShot(MEOW_FRAME, 1000); }                      // click
+  function meow() { oneShot(MEOW_FRAME, 1000); lastPurr = Date.now(); }   // click
   function purr() { oneShot(PURR_FRAME, 1000); lastPurr = Date.now(); }   // mouse-move
 
   // Bind interactions once at document level (survives view transitions). The

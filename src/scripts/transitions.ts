@@ -12,7 +12,20 @@
  * without a white flash.
  */
 
+// Set when the user navigates back, cleared each time triggerRise runs.
+// Two sources: browser back button (popstate) and the in-page back link.
+let pendingBack = false;
+window.addEventListener('popstate', () => { pendingBack = true; });
+document.addEventListener('click', (e) => {
+  if ((e.target as Element)?.closest('[data-back-nav]')) pendingBack = true;
+});
+
 function triggerRise() {
+  const goingBack = pendingBack;
+  pendingBack = false;
+  // On back navigation, elements fall from above instead of rising from below.
+  document.documentElement.style.setProperty('--rise-default', goingBack ? 'fallIn' : 'riseIn');
+
   document.querySelectorAll<HTMLElement>('[data-rise]').forEach((el) => {
     // Remove and re-add the class in the same microtask tick so the browser
     // sees a genuine class change and restarts the animation.

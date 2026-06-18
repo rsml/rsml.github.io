@@ -34,6 +34,14 @@ Astro static site (SSG). Deploys to GitHub Pages via GitHub Actions on push to `
   with new media dies mid-upload ("broken pipe" / "RPC failed"): some
   networks reset large sustained uploads. A single file can't be sliced, so
   one bigger than the network can sustain has to be shrunk, not re-pushed.
+- `pnpm favicons` regenerates the rasterized icons from `public/favicon.svg`
+  (the single source of truth). Writes `favicon.ico` (16/32/48, transparent,
+  matching the SVG so the tab icon is identical whichever file a browser picks)
+  and `apple-touch-icon.png` (180px, opaque tile on `#111111` because iOS turns
+  transparency black and masks its own corners). The mark and brand color come
+  from the SVG; only the touch-tile background lives in the script. Run after
+  editing `favicon.svg`. Settings live in `tools/gen-favicons.mjs`. Needs sharp
+  (already a devDependency).
 - `pnpm build` static build to `dist/`
 - `pnpm check` Astro + TypeScript diagnostics
 - `pnpm test` Vitest unit tests

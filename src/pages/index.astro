@@ -18,10 +18,10 @@ const work = getWork();
       <p>You can find me on <a href="https://www.linkedin.com/in/rossnmiller/" target="_blank" rel="noopener noreferrer">LinkedIn</a>, <a href="https://github.com/rsml" target="_blank" rel="noopener noreferrer">GitHub</a>, <a href="https://x.com/coding_ross" target="_blank" rel="noopener noreferrer">X</a>, or reach me via <a href="mailto:rossnmiller@gmail.com">email</a>.</p>
     </div>
     <h2 class="home-section-h" style="--rise-i:0; --rise-base:1000ms">Selected works</h2>
-    <div class="work" style="--rise-i:1; --rise-base:1000ms">
+    <div class="work" style="--rise-i:0; --rise-base:1000ms">
       {work.map((p, i) => <WorkRow project={p} eager={i === 0} />)}
     </div>
-    <NowClock style="--rise-i:2; --rise-base:1000ms" />
+    <NowClock style="--rise-i:1; --rise-base:1000ms" />
   </main>
   <Lightbox projects={work} />
 </PortfolioLayout>

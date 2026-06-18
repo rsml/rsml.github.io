@@ -11,6 +11,7 @@
     "check": "astro check",
     "test": "vitest run",
     "optimize": "node tools/optimize-portfolio.mjs",
+    "favicons": "node tools/gen-favicons.mjs",
     "push-chunked": "node tools/chunked-push.mjs"
   },
   "dependencies": {

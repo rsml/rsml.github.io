@@ -49,6 +49,16 @@ const Body = bodies[project.slug];
         </a>
       )}
     </div>
+    {project.links && project.links.length > 0 && (
+      <div class="dive-links" style="--rise-i:2">
+        {project.links.map((link: { label: string; href: string }) => {
+          const external = /^https?:/.test(link.href);
+          return external
+            ? <a class="dive-link" href={link.href} target="_blank" rel="noopener">{link.label} ↗</a>
+            : <a class="dive-link" href={link.href} data-astro-reload>{link.label} →</a>;
+        })}
+      </div>
+    )}
     <div class="dive-body case-body" style="--rise-i:3"><Body /></div>
   </main>
 </PortfolioLayout>
@@ -89,6 +99,13 @@ const Body = bodies[project.slug];
   .appstore-badge { margin-left: auto; flex: none; line-height: 0; transition: opacity 160ms ease; }
   .appstore-badge:hover { opacity: 0.7; }
   .appstore-badge img { display: block; height: 40px; width: auto; }
+  .dive-links { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 32px; }
+  .dive-link {
+    font-size: 13px; color: var(--ink); text-decoration: none;
+    border: 1px solid var(--hair); border-radius: 999px; padding: 6px 14px;
+    transition: border-color 160ms ease, background 160ms ease;
+  }
+  .dive-link:hover { border-color: var(--hairHigh); background: rgba(17,17,17,0.025); }
   .dive-body p { margin: 0 0 20px; }
   .case-body p { margin: 0 0 14px; max-width: 62ch; }
   .case-body code {
