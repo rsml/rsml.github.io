@@ -358,7 +358,7 @@ import BaseHead from '../../components/BaseHead.astro';
 
     <main>
       <!-- HERO -->
-      <section class="hero-glow relative pt-[clamp(64px,10vw,112px)] text-center">
+      <section class="hero-glow relative pt-[clamp(64px,10vw,112px)] pb-[clamp(64px,10vw,112px)] text-center">
         <div class="max-w-container mx-auto px-5 sm:px-8 relative z-10">
           <!-- Badge -->
           <a href="https://github.com/rsml/forge" class="animate inline-flex items-center gap-1.5 bg-ember-dim border border-ember/[0.15] rounded-full px-4 py-1.5 font-mono text-xs text-ember-light tracking-wide no-underline hover:bg-ember/[0.14] transition-colors">
@@ -401,36 +401,6 @@ import BaseHead from '../../components/BaseHead.astro';
           </div>
         </div>
 
-        <!-- Hero screenshot -->
-        <div class="max-w-container mx-auto px-5 sm:px-8 relative z-10">
-          <div class="screenshot-glow relative mt-[clamp(40px,6vw,64px)] max-w-[960px] mx-auto">
-            <div class="screenshot-fade relative z-10 rounded-xl border border-white/[0.08] overflow-hidden bg-surface
-                        shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_80px_rgba(0,0,0,0.5),0_0_120px_rgba(232,120,10,0.06)]">
-              <img
-                src="/forge/screenshots/list-mode.webp"
-                alt="Forge in list mode showing sidebar with projects and terminal"
-                data-lightbox
-                class="block w-full h-auto animate animate-d4"
-                width="2560"
-                height="1600"
-                decoding="async"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- SESSION RESTORE: TOP FEATURE -->
-      <section class="py-[clamp(64px,10vw,100px)]" id="persistence">
-        <div class="max-w-container mx-auto px-5 sm:px-8 relative z-10">
-          <div class="font-mono text-[11.5px] font-medium tracking-[0.14em] uppercase text-ember mb-2.5 text-center">Always running</div>
-          <h2 class="font-display text-[clamp(2rem,4.5vw,3rem)] font-bold tracking-[-0.035em] leading-[1.05] mb-5 max-w-[760px] mx-auto text-center">
-            Close it. Open it.<br/>Right where you left it.
-          </h2>
-          <p class="text-muted text-center max-w-[520px] mx-auto text-[clamp(1rem,1.6vw,1.08rem)] leading-relaxed">
-            Quit anytime. Reopen later. Every shell, split, and AI conversation is right where you left it.
-          </p>
-        </div>
       </section>
 
       <!-- TWO MODES -->
@@ -460,14 +430,13 @@ import BaseHead from '../../components/BaseHead.astro';
                 </p>
               </div>
               <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
-                <img
-                  src="/forge/screenshots/list-mode.webp"
-                  alt="List mode with sidebar showing projects and tabs"
-                  data-lightbox
+                <video
+                  src="/forge/screenshots/list-mode-2.mp4"
+                  poster="/forge/screenshots/list-mode-2-poster.webp"
+                  controls playsinline preload="none"
                   class="block w-full h-auto"
-                  width="2560" height="1600"
-                  loading="lazy" decoding="async"
-                />
+                  aria-label="List mode with sidebar showing projects and tabs"
+                ></video>
               </div>
             </div>
 
@@ -486,17 +455,29 @@ import BaseHead from '../../components/BaseHead.astro';
                 </p>
               </div>
               <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
-                <img
-                  src="/forge/screenshots/stack-mode.webp"
-                  alt="Stack mode showing full-screen terminal with triage actions"
-                  data-lightbox
+                <video
+                  src="/forge/screenshots/stack-mode-2.mp4"
+                  poster="/forge/screenshots/stack-mode-2-poster.webp"
+                  controls playsinline preload="none"
                   class="block w-full h-auto"
-                  width="2560" height="1600"
-                  loading="lazy" decoding="async"
-                />
+                  aria-label="Stack mode showing full-screen terminal with triage actions"
+                ></video>
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- SESSION RESTORE -->
+      <section class="py-[clamp(64px,10vw,100px)] border-t border-hair" id="persistence">
+        <div class="max-w-container mx-auto px-5 sm:px-8 relative z-10">
+          <div class="font-mono text-[11.5px] font-medium tracking-[0.14em] uppercase text-ember mb-2.5 text-center">Always running</div>
+          <h2 class="font-display text-[clamp(2rem,4.5vw,3rem)] font-bold tracking-[-0.035em] leading-[1.05] mb-5 max-w-[760px] mx-auto text-center">
+            Close it. Open it.<br/>Right where you left it.
+          </h2>
+          <p class="text-muted text-center max-w-[520px] mx-auto text-[clamp(1rem,1.6vw,1.08rem)] leading-relaxed">
+            Quit anytime. Reopen later. Every shell, split, and AI conversation is right where you left it.
+          </p>
         </div>
       </section>
 
