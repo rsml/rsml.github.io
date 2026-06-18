@@ -5,4 +5,7 @@ import sitemap from '@astrojs/sitemap';
 export default defineConfig({
   site: 'https://rossmiller.dev',
   integrations: [sitemap()],
+  build: {
+    inlineStylesheets: 'always',
+  },
 });
