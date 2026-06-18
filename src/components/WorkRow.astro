@@ -84,7 +84,7 @@ const actions = [
             height={dims[i]?.height}
             loading={eager && i < 4 ? 'eager' : 'lazy'}
             fetchpriority={eager && i === 0 ? 'high' : undefined}
-            decoding="async"
+            decoding={eager && i === 0 ? 'sync' : 'async'}
             draggable="false"
           />
           {(s.type === 'video' || s.type === 'youtube') && <span class="shot-play" aria-hidden="true"></span>}
