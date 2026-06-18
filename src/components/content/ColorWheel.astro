@@ -1,7 +1,8 @@
 ---
 import Caption from '../content/Caption.astro';
 ---
-<p class="color-wheel-title">The Circle of Fifths with my colors added</p>
+<div class="color-wheel-figure">
+<p class="color-wheel-title">Consonant notes are next to each other</p>
 <div class="color-wheel-demo">
   <svg viewBox="0 0 400 400" role="img" aria-label="Circle of Fifths with neighboring notes connected by OKLCH-uniform gradients">
     <!-- 12 neighbor gradients. Intermediate stops are computed along the OKLCH path
@@ -168,9 +169,11 @@ import Caption from '../content/Caption.astro';
     <text   class="note-label"  x="125" y="70" fill="#fff">F</text>
   </svg>
 </div>
-<Caption>Neighbors are a perfect fifth apart, the most consonant interval in music.</Caption>
+<div class="cw-caption"><Caption>Neighbors are a perfect fifth apart, the most consonant interval in music.</Caption></div>
+</div>
 
-<p class="color-wheel-title">Tritones</p>
+<div class="color-wheel-figure">
+<p class="color-wheel-title">Dissonant notes are opposite from each other</p>
 <div class="color-wheel-demo">
   <svg viewBox="0 0 400 400" role="img" aria-label="Tritone pairs shown as solid-color dashed lines with a one-missing-dash gap at the wheel center">
     <!-- Each note projects a solid-color dashed line toward the wheel center.
@@ -217,14 +220,11 @@ import Caption from '../content/Caption.astro';
     <text   class="note-label"  x="125" y="70" fill="#fff">F</text>
   </svg>
 </div>
-<Caption>Notes opposite each other (aka "tritones") on the Circle of Fifths sound most dissonant.</Caption>
+<div class="cw-caption"><Caption>Notes opposite each other (aka "tritones") on the Circle of Fifths sound most dissonant.</Caption></div>
+</div>
 <style>
   .color-wheel-demo {
-    margin: 8px 0 6px;
-    padding: 28px;
-    background: #fcfcfc;
-    border: 1px solid var(--hair);
-    border-radius: 10px;
+    margin: 0;
     display: flex;
     justify-content: center;
   }
@@ -245,10 +245,17 @@ import Caption from '../content/Caption.astro';
     user-select: none;
     pointer-events: none;
   }
+  .color-wheel-figure {
+    margin: 40px 0;
+  }
+  .cw-caption {
+    text-align: center;
+  }
   .color-wheel-title {
-    margin: 24px 0 8px;
+    margin: 0 0 2px;
     font-size: 17px;
     font-weight: 600;
     letter-spacing: -0.1px;
+    text-align: center;
   }
 </style>

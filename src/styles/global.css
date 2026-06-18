@@ -63,7 +63,7 @@ body {
 }
 
 @keyframes fallIn {
-  from { opacity: 0; filter: blur(2px); transform: translateY(8px); }
+  from { opacity: 0; filter: blur(2px); transform: translateY(-8px); }
   to   { opacity: 1; filter: blur(0);   transform: translateY(0); }
 }
 
@@ -122,6 +122,9 @@ body::after {
   z-index: 9999;
 }
 
+a         { color: oklch(42% 0.17 256); }
+a:visited { color: oklch(38% 0.12 290); }
+
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #111111;
@@ -134,4 +137,6 @@ body::after {
     --vignette-opacity: 0.70;
     --vignette-height: 160px;
   }
+  a         { color: oklch(72% 0.14 256); }
+  a:visited { color: oklch(68% 0.10 290); }
 }
