@@ -100,7 +100,7 @@ export const ProjectSchema = z.object({
   thumbClass: z.string(), // e.g. "thumb-chord" (drives Thumb.astro variant)
   thumbImage: z.string().optional(), // e.g. "/logos/chord-colors.jpg"
   transition: TransitionSchema,
-  /** Prepends a "Deep dive" link (to /work/<slug>/) on the home row + lightbox. */
+  /** Prepends a "Deep dive" link (to /craft/<slug>/) on the home row + lightbox. */
   deepDive: z.boolean().default(false),
   /** Platform/store links on the home row + the lightbox "Links" dropdown. */
   links: z.array(LinkSchema).default([]),

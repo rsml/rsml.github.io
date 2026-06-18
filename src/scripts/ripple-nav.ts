@@ -8,7 +8,7 @@
  * viewport for the duration, so ClientRouter's brief default crossfade is hidden
  * behind it. The band sweeps outward from the click point; behind it the
  * destination page is already in place, so it reads as a wavefront revealing
- * `/work/chord-colors/`. The canvas survives the swap because it is
+ * `/craft/chord-colors/`. The canvas survives the swap because it is
  * `transition:persist`.
  *
  * Why B over A (a View-Transitions `clip-path` reveal of `::view-transition-new`):
@@ -22,7 +22,7 @@
  * invalid state". The opaque band makes suppression unnecessary anyway.
  *
  * Behavior matrix (see Phase 3 spec):
- *  1. Chord Colors click (in-app)      -> ripple from click point, then URL is /work/chord-colors/
+ *  1. Chord Colors click (in-app)      -> ripple from click point, then URL is /craft/chord-colors/
  *  2. Any other project click          -> untouched (Phase 2 fade/intro); we don't bind those
  *  3. Deep-link / refresh / direct load -> no ripple (no pointer origin; we only act on the click)
  *  4. Browser Back                      -> no reverse ripple (popstate never enters this path)

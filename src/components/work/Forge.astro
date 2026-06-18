@@ -1,8 +1,7 @@
 ---
 import Lede from '../content/Lede.astro';
 import Section from '../content/Section.astro';
-import DesktopFrame from '../content/DesktopFrame.astro';
-import Screen from '../content/Screen.astro';
+import VideoFrame from '../content/VideoFrame.astro';
 import Caption from '../content/Caption.astro';
 import StackTrailer from '../content/StackTrailer.astro';
 import Footnotes from '../content/Footnotes.astro';
@@ -15,13 +14,9 @@ import Ref from '../content/Ref.astro';
 
 <Section title="Two modes">
   <p>Overseeing many parallel agents is two jobs. List Mode organizes: a sidebar of projects, tabs, splits, everything visible at once. Stack Mode triages: one agent fills the screen and you cycle through whoever is ready.</p>
-  <DesktopFrame>
-    <Screen kind="desktop" theme="forge-list" src="/forge/screenshots/list-mode.webp" alt="Forge in List Mode: projects and their tabs in the sidebar, the active terminal beside them" width={2658} height={1810} />
-  </DesktopFrame>
+  <VideoFrame src="/forge/screenshots/list-mode-2.mp4" poster="/forge/screenshots/list-mode-2-poster.webp" alt="Forge in List Mode: projects and their tabs in the sidebar, the active terminal beside them" />
   <Caption>List Mode. Projects and their tabs in the sidebar, the active terminal beside them.</Caption>
-  <DesktopFrame>
-    <Screen kind="desktop" theme="forge-stack" src="/forge/screenshots/stack-mode.webp" alt="Forge in Stack Mode: one terminal fills the window, with done, mute, and skip actions in the bottom toolbar" width={2658} height={1810} />
-  </DesktopFrame>
+  <VideoFrame src="/forge/screenshots/stack-mode-2.mp4" poster="/forge/screenshots/stack-mode-2-poster.webp" alt="Forge in Stack Mode: one terminal fills the window, with done, mute, and skip actions in the bottom toolbar" />
   <Caption>Stack Mode. One terminal fills the window; mark done, mute, or skip from the toolbar.</Caption>
 </Section>
 
@@ -39,6 +34,7 @@ import Ref from '../content/Ref.astro';
 <Section title="Customization">
   <p>Thirty-one bundled color themes including Catppuccin, Tokyo Night, Dracula, and Gruvbox, attribution preserved. Themes preview live, no relaunch. Keyboard shortcuts route through the Kitty progressive enhancement protocol so modifier combinations actually reach the agent. Command palette, arbitrary pane nesting, workspace state in plain JSON at <code>~/.config/forge/workspace.json</code> so you can diff it or hand-edit it.</p>
   <p>Native macOS throughout: sidebars, traffic lights, vibrancy, the keyboard model people already know.</p>
+  <VideoFrame src="/forge/screenshots/settings-2.mp4" poster="/forge/screenshots/settings-2-poster.webp" alt="Forge settings: themes, shortcuts, and workspace configuration" />
 </Section>
 
 <Section title="Built on Ghostty">

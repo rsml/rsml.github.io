@@ -2,6 +2,7 @@
 import Lede from '../content/Lede.astro';
 import Section from '../content/Section.astro';
 import Screen from '../content/Screen.astro';
+import VideoFrame from '../content/VideoFrame.astro';
 import Caption from '../content/Caption.astro';
 import StackTrailer from '../content/StackTrailer.astro';
 import Footnotes from '../content/Footnotes.astro';
@@ -20,7 +21,7 @@ import Ref from '../content/Ref.astro';
 <Section title="Title and description">
   <p>Every book starts with a title and a description. Type your own, or let the AI propose both.</p>
   <p>If you don't know what to put, you can ask the AI to expand your existing skills, learn a new complementary skill, or explore a completely new topic and it'll choose an appropriate title and description for you.</p>
-  <Screen kind="desktop" theme="tutor-create" src="/tutor/screenshots/new-book.webp" alt="The New Book dialog: a topic field, optional details, and a length slider" width={2560} height={1600} />
+  <VideoFrame src="/tutor/screenshots/book-generation.mp4" poster="/tutor/screenshots/book-generation-poster.webp" alt="The New Book dialog: a topic field, optional details, and a length slider" />
   <Caption>A topic, optional details, and a length. Suggest proposes the book for you; everything stays editable before generation.</Caption>
 </Section>
 
@@ -37,8 +38,9 @@ import Ref from '../content/Ref.astro';
 <Section title="Chat">
   <p>Select any passage and an inline chat opens, anchored to that exact text, with the context of the entire chapter and the subject matter of the book. When you ask "what does this mean," the model already knows what "this" is.</p>
   <p>When you're done with the conversation, simply close the chat and you can continue reading right where you left off. This feature of being able to zoom in, then zoom back out is a major improvement over the experience of learning with a simple LLM chat bot.</p>
-  <Screen kind="desktop" theme="tutor-chat" src="/tutor/screenshots/inline-chat.webp" alt="A chapter open beside an inline chat answering a question about the highlighted passage" width={2560} height={1600} />
+  <VideoFrame src="/tutor/screenshots/chat-with-book.mp4" poster="/tutor/screenshots/chat-with-book-poster.webp" alt="A chapter open beside an inline chat answering a question about the highlighted passage" />
   <Caption>Highlight a sentence, ask a question, start a conversation. The AI has context on the chapter and the selected text.</Caption>
+  <VideoFrame src="/tutor/screenshots/CleanShot-2026-06-11-at-16.55.11.mp4" poster="/tutor/screenshots/CleanShot-2026-06-11-at-16.55.11-poster.webp" alt="Inline chat open on a chapter about cognitive architecture" />
 </Section>
 
 <Section title="Rich content">
@@ -79,10 +81,13 @@ import Ref from '../content/Ref.astro';
 
 <Section title="Organize">
   <p>Powerful sort and filter tools help you find the right book at the right time. You can use Gemini to create a unique personalized cover image for each book.</p>
+  <VideoFrame src="/tutor/screenshots/peek.mp4" poster="/tutor/screenshots/peek-poster.webp" alt="The Tutor library: a grid of personalized books with covers and metadata" />
 </Section>
 
 <Section title="Audiobook">
   <p>Generate a narrated version of any book, with chapter markers and a voice you choose. The audiobook generation happens completely offline and for free using an open source model, with many voices to choose from.</p>
+  <VideoFrame src="/tutor/screenshots/generate-audiobook.mp4" poster="/tutor/screenshots/generate-audiobook-poster.webp" alt="Generating an audiobook with voice selection and chapter markers" />
+  <VideoFrame src="/tutor/screenshots/play-audiobook.mp4" poster="/tutor/screenshots/play-audiobook-poster.webp" alt="Playing back the generated audiobook" />
 </Section>
 
 <Section title="Import and export">

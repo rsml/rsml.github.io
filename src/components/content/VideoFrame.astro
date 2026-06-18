@@ -1,0 +1,25 @@
+---
+interface Props {
+  src: string;
+  poster?: string;
+  alt?: string;
+}
+const { src, poster, alt = '' } = Astro.props;
+---
+<div class="vf-wrap">
+  <video class="vf-video" src={src} poster={poster} controls playsinline preload="none" aria-label={alt}></video>
+</div>
+<style>
+  .vf-wrap {
+    margin: 8px 0 6px;
+    border: 1px solid var(--hair);
+    border-radius: 10px;
+    overflow: hidden;
+    background: #111;
+  }
+  .vf-video {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+</style>

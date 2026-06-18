@@ -40,7 +40,7 @@ function triggerRise() {
 document.addEventListener('astro:page-load', triggerRise);
 
 /**
- * The cross-origin chordcolors.com iframes on /work/chord-colors break the
+ * The cross-origin chordcolors.com iframes on /craft/chord-colors break the
  * browser's View Transition snapshot, so ClientRouter's startViewTransition
  * rejects with a benign InvalidStateError ("Transition was aborted because of
  * invalid state"). The navigation still completes (and on the Chord Colors
