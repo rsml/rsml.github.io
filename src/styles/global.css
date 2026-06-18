@@ -4,6 +4,7 @@
   --muted: rgb(110, 110, 110);
   --hair: rgba(17, 17, 17, 0.10);
   --hairHigh: rgba(17, 17, 17, 0.30);
+  --shot-bg: #f1f1f1;
   --container: 706px;
   --gutter: 24px;
   /* Keyboard focus ring (Apple system blue). Reads clearly on the white page. */
@@ -55,8 +56,13 @@ body {
 /* ── Phase 2: staggered fade + slide-up reveal ── */
 
 @keyframes riseIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; filter: blur(2px); transform: translateY(8px); }
+  to   { opacity: 1; filter: blur(0);   transform: translateY(0); }
+}
+
+@keyframes focusIn {
+  from { opacity: 0; filter: blur(8px); }
+  to   { opacity: 1; filter: blur(0); }
 }
 
 @keyframes fadeOut {
@@ -74,8 +80,11 @@ body {
 }
 
 [data-rise].rise-ready > * {
-  animation: riseIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: calc(var(--rise-i, 0) * 80ms);
+  animation-name: var(--rise-fn, riseIn);
+  animation-duration: 1.0s;
+  animation-timing-function: cubic-bezier(0.165, 0.84, 0.44, 1);
+  animation-fill-mode: forwards;
+  animation-delay: calc(200ms + var(--rise-base, 0ms) + var(--rise-i, 0) * 150ms);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -84,5 +93,16 @@ body {
     opacity: 1;
     transform: none;
     animation: none;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111111;
+    --ink: #ebebeb;
+    --muted: #808080;
+    --hair: rgba(255, 255, 255, 0.10);
+    --hairHigh: rgba(255, 255, 255, 0.30);
+    --shot-bg: #252525;
   }
 }

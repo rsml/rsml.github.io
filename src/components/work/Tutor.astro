@@ -1,7 +1,6 @@
 ---
 import Lede from '../content/Lede.astro';
 import Section from '../content/Section.astro';
-import DesktopFrame from '../content/DesktopFrame.astro';
 import Screen from '../content/Screen.astro';
 import Caption from '../content/Caption.astro';
 import StackTrailer from '../content/StackTrailer.astro';
@@ -15,17 +14,13 @@ import Ref from '../content/Ref.astro';
 
 <Section title="Personalize">
   <p>You can't tutor a reader you've never met, so after entering your OpenAI, Anthropic, or Gemini keys, the app first has you fill out your learning profile. To save time, an AI-led interview can gather all the answers with a series of simple questions.</p>
-  <DesktopFrame>
-    <Screen kind="desktop" theme="tutor-personalize" src="/tutor/screenshots/personalize.webp" alt="The Learning Profile: prior knowledge, an About Me interview, teaching preferences, and style sliders" width={2560} height={1600} />
-  </DesktopFrame>
+  <Screen kind="desktop" theme="tutor-personalize" src="/tutor/screenshots/personalize.webp" alt="The Learning Profile: prior knowledge, an About Me interview, teaching preferences, and style sliders" width={2560} height={1600} />
 </Section>
 
 <Section title="Title and description">
   <p>Every book starts with a title and a description. Type your own, or let the AI propose both.</p>
   <p>If you don't know what to put, you can ask the AI to expand your existing skills, learn a new complementary skill, or explore a completely new topic and it'll choose an appropriate title and description for you.</p>
-  <DesktopFrame>
-    <Screen kind="desktop" theme="tutor-create" src="/tutor/screenshots/new-book.webp" alt="The New Book dialog: a topic field, optional details, and a length slider" width={2560} height={1600} />
-  </DesktopFrame>
+  <Screen kind="desktop" theme="tutor-create" src="/tutor/screenshots/new-book.webp" alt="The New Book dialog: a topic field, optional details, and a length slider" width={2560} height={1600} />
   <Caption>A topic, optional details, and a length. Suggest proposes the book for you; everything stays editable before generation.</Caption>
 </Section>
 
@@ -42,33 +37,25 @@ import Ref from '../content/Ref.astro';
 <Section title="Chat">
   <p>Select any passage and an inline chat opens, anchored to that exact text, with the context of the entire chapter and the subject matter of the book. When you ask "what does this mean," the model already knows what "this" is.</p>
   <p>When you're done with the conversation, simply close the chat and you can continue reading right where you left off. This feature of being able to zoom in, then zoom back out is a major improvement over the experience of learning with a simple LLM chat bot.</p>
-  <DesktopFrame>
-    <Screen kind="desktop" theme="tutor-chat" src="/tutor/screenshots/inline-chat.webp" alt="A chapter open beside an inline chat answering a question about the highlighted passage" width={2560} height={1600} />
-  </DesktopFrame>
+  <Screen kind="desktop" theme="tutor-chat" src="/tutor/screenshots/inline-chat.webp" alt="A chapter open beside an inline chat answering a question about the highlighted passage" width={2560} height={1600} />
   <Caption>Highlight a sentence, ask a question, start a conversation. The AI has context on the chapter and the selected text.</Caption>
 </Section>
 
 <Section title="Rich content">
   <p>Chapters are more than prose. Math renders as real equations, code arrives syntax-highlighted, and ideas easier seen than said become Mermaid diagrams.</p>
   <p>Callouts lift the one thing you shouldn't miss out of the paragraph and onto the page.</p>
-  <DesktopFrame>
-    <Screen kind="desktop" theme="tutor-rich" src="/tutor/screenshots/reader.webp" alt="A chapter with rendered math, a key-insight callout, and syntax-highlighted code, with the reading settings open" width={2560} height={1600} />
-  </DesktopFrame>
+  <Screen kind="desktop" theme="tutor-rich" src="/tutor/screenshots/reader.webp" alt="A chapter with rendered math, a key-insight callout, and syntax-highlighted code, with the reading settings open" width={2560} height={1600} />
   <Caption>KaTeX math, highlighted code, and callouts, generated inline wherever the subject calls for them. You can also customize the reading mode settings to suit your preferences.</Caption>
 </Section>
 
 <Section title="Chapter quiz">
   <p>Every chapter ends with a short, skippable, multiple-choice quiz on what you just read. The quiz serves two purposes. First it helps you reflect on what you just read to aid retention. Second, it provides feedback to the AI to tailor the next chapter to your needs.</p>
-  <DesktopFrame>
-    <Screen kind="desktop" theme="tutor-quiz" src="/tutor/screenshots/quiz.webp" alt="A graded chapter quiz: correct answers marked in green, a miss marked in red" width={2560} height={1600} />
-  </DesktopFrame>
+  <Screen kind="desktop" theme="tutor-quiz" src="/tutor/screenshots/quiz.webp" alt="A graded chapter quiz: correct answers marked in green, a miss marked in red" width={2560} height={1600} />
 </Section>
 
 <Section title="Feedback">
   <p>After each chapter you can say what worked and what didn't, or just skip ahead. This info will be used to generate all subsequent chapters, as well as the suggested updates to your learning profile when you finish the book.</p>
-  <DesktopFrame>
-    <Screen kind="desktop" theme="tutor-adapt" src="/tutor/screenshots/feedback.webp" alt="The chapter feedback form: what worked well, what could be better, and a Generate Next Chapter button" width={2560} height={1600} />
-  </DesktopFrame>
+  <Screen kind="desktop" theme="tutor-adapt" src="/tutor/screenshots/feedback.webp" alt="The chapter feedback form: what worked well, what could be better, and a Generate Next Chapter button" width={2560} height={1600} />
   <Caption>Plain-language feedback on the chapter you just finished, captured while it's still fresh.</Caption>
 </Section>
 
