@@ -77,6 +77,11 @@ body {
     transform: translateY(var(--rise-from-y, 8px));
     filter: blur(var(--rise-blur-from, 2px));
   }
+  /* Work section is immediately visible for LCP. Images still slide+blur in
+     but are never at opacity < 1, so Chrome records LCP on image load. */
+  [data-rise] > .work {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
