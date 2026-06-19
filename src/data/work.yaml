@@ -75,12 +75,12 @@
   deepDive: true
   appStoreUrl: https://apps.apple.com/us/app/chord-colors-piano-and-guitar/id1422598441
   links:
+    - label: Website
+      href: https://chordcolors.app
     - label: iOS app
       href: https://apps.apple.com/us/app/chord-colors-piano-and-guitar/id1422598441
     - label: Web app
       href: https://chordcolors.com/
-    - label: Marketing site
-      href: https://chordcolors.app
   assets:
     - src: /chord-colors/IMG_7054.webp
       alt: img_7054
@@ -161,7 +161,7 @@
   marketingUrl: /tutor
   marketingLabel: Visit Tutor
   links:
-    - label: Marketing site
+    - label: Website
       href: /tutor
     - label: Product demo
       href: https://youtu.be/XIXhGluiswI?si=1O2gpkRyb2recDI4&t=138
@@ -233,7 +233,7 @@
   marketingUrl: /forge
   marketingLabel: Visit Forge
   links:
-    - label: Marketing site
+    - label: Website
       href: /forge
   assets:
     - type: video
