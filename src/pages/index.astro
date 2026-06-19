@@ -38,7 +38,7 @@ const lcpImageSrc = firstStripSrc();
       <p>You can find me on <a href="https://www.linkedin.com/in/rossnmiller/" target="_blank" rel="noopener noreferrer">LinkedIn</a>, <a href="https://github.com/rsml" target="_blank" rel="noopener noreferrer">GitHub</a>, <a href="https://x.com/coding_ross" target="_blank" rel="noopener noreferrer">X</a>, or reach me via <a href="mailto:rossnmiller@gmail.com">email</a>.</p>
     </div>
     <h2 class="home-section-h" style="--rise-i:1">Selected works</h2>
-    <div class="work">
+    <div class="work" style="--rise-i:1">
       {work.map((p, i) => <WorkRow project={p} eager={i === 0} />)}
     </div>
     <NowClock style="--rise-i:3" />
@@ -51,25 +51,6 @@ const lcpImageSrc = firstStripSrc();
   .bio { margin: 40px 0 50px; }
   .bio p { margin: 0 0 12px; }
   .bio p:last-child { margin-bottom: 0; }
-  /*
-    The work section must be visible from the start so the preloaded LCP image
-    is painted immediately (opacity never 0). We skip the opacity-based riseIn
-    and instead do a transform-only slide so the section still eases in visually
-    without blocking LCP.
-  */
-  [data-rise] > .work { opacity: 1; transform: translateY(8px); }
-  [data-rise].rise-ready > .work {
-    animation: workSlide 1s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
-    animation-delay: 200ms;
-  }
-  @keyframes workSlide {
-    from { transform: translateY(8px); }
-    to   { transform: translateY(0); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    [data-rise] > .work { transform: none; }
-    [data-rise].rise-ready > .work { animation: none; }
-  }
   /* Same treatment as the work links: a quiet underline at rest that fills to
      full ink on hover. text-decoration-color animates (background-image can't),
      so the fill is a smooth fade, not a snap. */
