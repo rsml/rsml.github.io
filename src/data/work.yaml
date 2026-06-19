@@ -396,19 +396,19 @@
       alt: rpreplay_final1690306867
       orientation: landscape
       poster: /sms/RPReplay_Final1690306867-poster.webp
-    - src: /sms/text2order-20230819-8.jpg
+    - src: /sms/text2order-20230819-8.webp
       alt: text2order 20230819-8
       orientation: landscape
-    - src: /sms/IMG_1244.jpg
+    - src: /sms/IMG_1244.webp
       alt: img_1244
       orientation: landscape
-    - src: /sms/IMG_0130.jpg
+    - src: /sms/IMG_0130.webp
       alt: img_0130
       orientation: landscape
     - src: /sms/Select-Venue-2.webp
       alt: select venue-2
       orientation: landscape
-    - src: /sms/Operator.jpg
+    - src: /sms/Operator.webp
       alt: operator
       orientation: landscape
     - type: pdf
@@ -426,10 +426,10 @@
       alt: 3020-1p_drawings-final
       orientation: landscape
       poster: /sms/3020-1P_Drawings-FINAL-poster.webp
-    - src: /sms/text2order-20230813-38.jpg
+    - src: /sms/text2order-20230813-38.webp
       alt: text2order 20230813-38
       orientation: landscape
-    - src: /sms/text2order-20230819-4.jpg
+    - src: /sms/text2order-20230819-4.webp
       alt: text2order 20230819-4
       orientation: landscape
     - type: video
@@ -437,25 +437,25 @@
       alt: output
       orientation: landscape
       poster: /sms/output-poster.webp
-    - src: /sms/text2order-20230813-31.jpg
+    - src: /sms/text2order-20230813-31.webp
       alt: text2order 20230813-31
       orientation: landscape
-    - src: /sms/scenario-10.jpg
+    - src: /sms/scenario-10.webp
       alt: scenario 10
       orientation: landscape
     - src: /sms/IMG_3823.webp
       alt: img_3823
       orientation: landscape
-    - src: /sms/IMG_3425.jpg
+    - src: /sms/IMG_3425.webp
       alt: img_3425
       orientation: landscape
-    - src: /sms/IMG_3865.jpg
+    - src: /sms/IMG_3865.webp
       alt: img_3865
       orientation: landscape
-    - src: /sms/IMG_5082-2.jpeg
+    - src: /sms/IMG_5082-2.webp
       alt: img_5082 2
       orientation: landscape
-    - src: /sms/IMG_4935.jpeg
+    - src: /sms/IMG_4935.webp
       alt: img_4935
       orientation: landscape
 
@@ -504,11 +504,11 @@
       alt: Symphony Pro's popover menus on the iPad
       orientation: landscape
     - type: image
-      src: /symphonypro/Mixer-menu.jpg
+      src: /symphonypro/Mixer-menu.webp
       alt: The Symphony Pro mixer
       orientation: landscape
     - type: image
-      src: /symphonypro/Popup-Top-Bar-v.1.0.jpg
+      src: /symphonypro/Popup-Top-Bar-v.1.0.webp
       alt: Symphony Pro's pop-up top toolbar
       orientation: landscape
     - src: /symphonypro/sp3_intro-ipads.webp
