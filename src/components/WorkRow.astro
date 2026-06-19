@@ -62,7 +62,7 @@ const actions = [
   ...project.links,
 ].map((a) => ({ ...a, external: /^https?:/.test(a.href) }));
 ---
-<section class="row">
+<section class="row" data-eager={eager || undefined}>
   <header class="row-head">
     {project.thumbImage && (
       <span class:list={['row-logo', project.thumbClass]}>
@@ -104,7 +104,7 @@ const actions = [
             alt={s.alt}
             width={dims[i]?.width}
             height={dims[i]?.height}
-            loading={eager && i < 4 ? 'eager' : 'lazy'}
+            loading={eager && i === 0 ? 'eager' : 'lazy'}
             fetchpriority={eager && i === 0 ? 'high' : undefined}
             decoding={eager && i === 0 ? 'sync' : 'async'}
             draggable="false"
@@ -125,6 +125,10 @@ const actions = [
   .row {
     padding: 20px 0 22px;
     border-top: 1px solid var(--hair);
+  }
+  .row:not([data-eager]) {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 280px;
   }
 
   /* Project header, the same arrangement as the gallery lightbox (.lb-phead) and

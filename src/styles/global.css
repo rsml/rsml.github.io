@@ -73,7 +73,7 @@ body {
 
 @starting-style {
   [data-rise] > * {
-    opacity: 0;
+    opacity: 0.01;
     transform: translateY(var(--rise-from-y, 8px));
     filter: blur(var(--rise-blur-from, 2px));
   }
