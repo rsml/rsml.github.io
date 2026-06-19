@@ -1,43 +1,22 @@
 /**
  * Phase 2 transition controller.
  *
- * Drives the [data-rise] staggered reveal from the astro:page-load lifecycle
- * event so the animation replays on every ClientRouter swap, not just on hard
- * load. Pure CSS @keyframes alone won't re-trigger on swap because the elements
- * persist in the DOM and the animation already ran. The class toggle forces a
- * new animation lifecycle each time.
- *
- * Outgoing page: ClientRouter's default fade handles the leave. We apply a
- * short custom fadeOut via the page-swap lifecycle so the exit feels clean
- * without a white flash.
+ * Sets --rise-from-y on :root before each ClientRouter swap so @starting-style
+ * picks up the correct direction (8px = forward/riseIn, -8px = back/fallIn).
+ * The transition re-fires automatically on every SPA navigation because
+ * ClientRouter re-inserts the main content, triggering @starting-style fresh.
  */
 
-// Set when the user navigates back, cleared each time triggerRise runs.
-// Two sources: browser back button (popstate) and the in-page back link.
 let pendingBack = false;
 window.addEventListener('popstate', () => { pendingBack = true; });
 document.addEventListener('click', (e) => {
   if ((e.target as Element)?.closest('[data-back-nav]')) pendingBack = true;
 });
 
-function triggerRise() {
-  const goingBack = pendingBack;
+document.addEventListener('astro:before-swap', () => {
+  document.documentElement.style.setProperty('--rise-from-y', pendingBack ? '-8px' : '8px');
   pendingBack = false;
-  // On back navigation, elements fall from above instead of rising from below.
-  document.documentElement.style.setProperty('--rise-default', goingBack ? 'fallIn' : 'riseIn');
-
-  document.querySelectorAll<HTMLElement>('[data-rise]').forEach((el) => {
-    // Remove and re-add the class in the same microtask tick so the browser
-    // sees a genuine class change and restarts the animation.
-    el.classList.remove('rise-ready');
-    // Force a reflow so the browser registers the removal before adding back.
-    void el.offsetWidth;
-    el.classList.add('rise-ready');
-  });
-}
-
-// Fires on every page load: initial hard load AND after each ClientRouter swap.
-document.addEventListener('astro:page-load', triggerRise);
+});
 
 /**
  * The cross-origin chordcolors.com iframes on /craft/chord-colors break the
