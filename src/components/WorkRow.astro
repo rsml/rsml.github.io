@@ -1,6 +1,6 @@
 ---
 import { existsSync } from 'node:fs';
-import { thumbPath } from '../../tools/optimize-portfolio.mjs';
+import { thumbPath, thumbPath1x } from '../../tools/optimize-portfolio.mjs';
 import { youtubePoster, type Project } from '../data/work';
 import ActionLinks from './ActionLinks.astro';
 import { getDims } from '../../tools/image-dims.mjs';
@@ -10,31 +10,37 @@ const { project, eager = false } = Astro.props;
 const assets = project.assets;
 
 /**
- * Resolve the strip thumbnail src for one asset. Priority:
- *   1. asset.poster  (explicit still; video/embed/pdf always have one)
- *   2. youtubePoster(asset.src)  for youtube assets (external URL, no thumb)
- *   3. asset.src  for image assets (type='image' or missing type)
- * Then: if the chosen ref is a local absolute path and a '-thumb.webp' sibling
- * exists in public/, use the thumb. WorkRow renders at --shot-h (max ~300px),
- * so the thumb (2x shotHeight tall) is more than sharp enough while being a
- * fraction of the full-resolution source size.
- * GIF src paths are returned as-is: generating a lossy WebP thumb would kill
- * the animation. YouTube and external poster URLs bypass the thumb check.
+ * Resolve the strip thumbnail src and srcset for one asset. Priority for the
+ * base ref: poster > youtubePoster > asset.src. Then for local absolute paths
+ * (non-gif), if 2x and 1x thumb sidecars exist in public/, returns:
+ *   src    = 1x thumb (correct size for standard-DPR displays, Lighthouse)
+ *   srcset = "1x-thumb 1x, 2x-thumb 2x" (browser picks by device DPR)
+ * If only the 2x thumb exists (legacy, pre-1x-thumb generation), returns the
+ * 2x thumb as src with no srcset (existing behavior). GIF and external URLs
+ * bypass the thumb check.
  */
-function resolveStripSrc(asset: (typeof assets)[number]): string {
+function resolveStripSrcs(asset: (typeof assets)[number]): { src: string; srcset?: string } {
   const ref: string =
     asset.poster
     ?? (asset.type === 'youtube' ? youtubePoster(asset.src) : undefined)
     ?? ((asset.type == null || asset.type === 'image') ? asset.src : undefined)
     ?? asset.src;
   if (ref.startsWith('/') && asset.type !== 'gif') {
-    const thumb = thumbPath(ref);
-    if (existsSync(`${process.cwd()}/public${thumb}`)) return thumb;
+    const thumb2x = thumbPath(ref);
+    if (existsSync(`${process.cwd()}/public${thumb2x}`)) {
+      const thumb1x = thumbPath1x(ref);
+      const has1x = existsSync(`${process.cwd()}/public${thumb1x}`);
+      return {
+        src: has1x ? thumb1x : thumb2x,
+        srcset: has1x ? `${thumb1x} 1x, ${thumb2x} 2x` : undefined,
+      };
+    }
   }
-  return ref;
+  return { src: ref };
 }
 
-const dims = await Promise.all(assets.map(resolveStripSrc).map(getDims));
+const stripSrcs = assets.map(resolveStripSrcs);
+const dims = await Promise.all(stripSrcs.map(s => getDims(s.src)));
 
 const actions = [
   ...(project.deepDive ? [{ label: 'Deep dive', href: `/craft/${project.slug}/`, primary: true }] : []),
@@ -78,7 +84,8 @@ const actions = [
               their own `src` (a GIF animates). resolveStripSrc also swaps in a
               '-thumb.webp' sidecar when one exists, keeping download weight low. */}
           <img
-            src={resolveStripSrc(s)}
+            src={stripSrcs[i].src}
+            srcset={stripSrcs[i].srcset}
             alt={s.alt}
             width={dims[i]?.width}
             height={dims[i]?.height}

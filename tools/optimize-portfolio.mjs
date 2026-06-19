@@ -148,9 +148,9 @@ export function targetPath(ref) {
 }
 
 /**
- * The thumbnail path for a strip image ref: replaces the final extension with
- * '-thumb.webp'. Used by the thumbnail generation step and by WorkRow.astro to
- * check whether a thumb exists before falling back to the full-resolution file.
+ * The 2x thumbnail path for a strip image ref: replaces the final extension
+ * with '-thumb.webp'. This is the retina (2x DPR) sidecar. WorkRow.astro uses
+ * it as the `2x` srcset entry when the 1x sidecar also exists.
  * Examples: '/a/shot.webp' -> '/a/shot-thumb.webp'
  *           '/a/shot.png'  -> '/a/shot-thumb.webp'
  */
@@ -158,6 +158,18 @@ export function thumbPath(ref) {
   const ext = path.extname(ref);
   const stem = ref.slice(0, ref.length - ext.length);
   return `${stem}-thumb.webp`;
+}
+
+/**
+ * The 1x thumbnail path for a strip image ref: the standard-DPR sidecar served
+ * to non-retina displays via srcset. WorkRow.astro uses both: src=1x, srcset
+ * includes 1x and 2x so each display gets exactly what it needs.
+ * Examples: '/a/shot.webp' -> '/a/shot-thumb-1x.webp'
+ */
+export function thumbPath1x(ref) {
+  const ext = path.extname(ref);
+  const stem = ref.slice(0, ref.length - ext.length);
+  return `${stem}-thumb-1x.webp`;
 }
 
 /**
@@ -450,7 +462,7 @@ async function main() {
   // Thumbs are derived files: exclude any '-thumb.webp' path from the orphan
   // filter so a re-run never treats freshly generated thumbs as unreferenced.
   const orphansFiltered = listPublicMedia().filter(
-    (f) => !refs.has(f) && !chromeRefs.has(f) && !f.endsWith('-thumb.webp'),
+    (f) => !refs.has(f) && !chromeRefs.has(f) && !f.endsWith('-thumb.webp') && !f.endsWith('-thumb-1x.webp'),
   );
   if (orphansFiltered.length) console.log(`\norphans (in public/ but unreferenced):\n  ${orphansFiltered.join('\n  ')}`);
 
@@ -481,12 +493,16 @@ async function main() {
       if (!existsSync(srcAbs)) continue;
       // Skip thumb inputs that are themselves thumbs (guards against YAML listing
       // a thumb directly, which would produce a thumb-thumb chain).
-      if (ref.endsWith('-thumb.webp')) continue;
+      if (ref.endsWith('-thumb.webp') || ref.endsWith('-thumb-1x.webp')) continue;
       const dest = thumbPath(ref);
       const destAbs = onDisk(dest);
-      // Skip when an up-to-date thumb already exists (mtime compare).
-      if (existsSync(destAbs) && statSync(destAbs).mtimeMs >= statSync(srcAbs).mtimeMs) continue;
-      thumbJobs.push({ ref, dest, srcAbs, destAbs, shotH });
+      const dest1x = thumbPath1x(ref);
+      const dest1xAbs = onDisk(dest1x);
+      // Skip only when BOTH 1x and 2x thumbs exist and are current.
+      const twoXOk = existsSync(destAbs) && statSync(destAbs).mtimeMs >= statSync(srcAbs).mtimeMs;
+      const oneXOk = existsSync(dest1xAbs) && statSync(dest1xAbs).mtimeMs >= statSync(srcAbs).mtimeMs;
+      if (twoXOk && oneXOk) continue;
+      thumbJobs.push({ ref, dest, dest1x, srcAbs, destAbs, dest1xAbs, shotH });
     }
   }
 
@@ -495,6 +511,7 @@ async function main() {
     console.log(`\nthumbnail plan (${thumbJobs.length} strip image(s) to generate):`);
     for (const j of thumbJobs) {
       console.log(`  thumb  ${j.ref} -> ${j.dest}  [h${2 * j.shotH}, lossy webp q80]`);
+      console.log(`         ${j.ref} -> ${j.dest1x}  [h${j.shotH}, lossy webp q75]`);
     }
   } else {
     console.log('\nthumbnails: all up to date.');
@@ -668,46 +685,62 @@ async function main() {
     posterReport.push(`poster ${ref}: ${j.width}x${j.height} -> ${destMeta.width ?? '?'}x${destMeta.height ?? '?'} (${mb(before)} -> ${mb(after)})`);
   }
 
-  // 5c. Generate strip thumbnails: small lossy WebP scaled to 2x shotHeight.
-  // These are derived files; WorkRow.astro prefers <name>-thumb.webp when it
-  // exists, falling back to the original so old builds stay correct.
+  // 5c. Generate strip thumbnails: 2x (retina) and 1x (standard DPR) WebP sidecars.
+  // WorkRow.astro serves them via srcset="...-1x.webp 1x, ...-thumb.webp 2x" so each
+  // display gets exactly the pixels it needs. Derived files; never referenced directly
+  // in work.yaml or .astro files.
   const thumbReport = [];
   for (const j of thumbJobs) {
-    const tmp = `${j.destAbs}.part.webp`;
+    const tmp2x = `${j.destAbs}.part.webp`;
+    const tmp1x = `${j.dest1xAbs}.part.webp`;
+    let meta;
     try {
-      // Probe the source dimensions so we can cap the target height to the
-      // actual source height (never upscale: a 300px source at 2x 300px shot
-      // would otherwise upscale, which wastes bytes and looks worse).
-      const meta = await sharp(j.srcAbs).metadata();
-      const srcH = meta.height ?? 0;
-      const srcW = meta.width ?? 0;
-      const targetH = srcH > 0 ? Math.min(2 * j.shotH, srcH) : 2 * j.shotH;
-      await sharp(j.srcAbs)
-        .resize({ height: targetH })
-        .webp({ quality: 80, effort: 6 })
-        .toFile(tmp);
+      // Probe source dimensions to cap target heights (never upscale).
+      meta = await sharp(j.srcAbs).metadata();
     } catch (e) {
-      rmSync(tmp, { force: true });
       failures.push(`thumb ${j.dest} (${e.message})`);
       continue;
     }
+    const srcH = meta.height ?? 0;
     const before = statSync(j.srcAbs).size;
-    const after = statSync(tmp).size;
-    if (after >= before) {
-      // Already small enough that a lossy thumb is no smaller (e.g. a tiny
-      // poster); delete the attempt and let WorkRow fall back to the original.
-      rmSync(tmp, { force: true });
-      thumbReport.push(`thumb ${j.dest}: skipped (thumb ${mb(after)} >= src ${mb(before)})`);
+
+    // 2x thumb: scaled to 2x shotHeight, q80.
+    const targetH2x = srcH > 0 ? Math.min(2 * j.shotH, srcH) : 2 * j.shotH;
+    try {
+      await sharp(j.srcAbs).resize({ height: targetH2x }).webp({ quality: 80, effort: 6 }).toFile(tmp2x);
+    } catch (e) {
+      rmSync(tmp2x, { force: true });
+      failures.push(`thumb ${j.dest} (${e.message})`);
       continue;
     }
-    renameSync(tmp, j.destAbs);
-    // Re-probe the written file for accurate dimensions after resize. Probe the
-    // source BEFORE reading the dest so both calls see the right file on disk.
-    const srcMeta = await sharp(j.srcAbs).metadata();
-    const destMeta = await sharp(j.destAbs).metadata();
-    const srcLabel = `${srcMeta.width ?? '?'}x${srcMeta.height ?? '?'}`;
-    const destLabel = `${destMeta.width ?? '?'}x${destMeta.height ?? '?'}`;
-    thumbReport.push(`thumb ${j.dest} (${srcLabel} -> ${destLabel}, ${mb(before)} -> ${mb(after)})`);
+    const after2x = statSync(tmp2x).size;
+    if (after2x >= before) {
+      rmSync(tmp2x, { force: true });
+      thumbReport.push(`thumb ${j.dest}: skipped (${mb(after2x)} >= src ${mb(before)})`);
+    } else {
+      renameSync(tmp2x, j.destAbs);
+      const destMeta = await sharp(j.destAbs).metadata();
+      thumbReport.push(`thumb ${j.dest} (${meta.width}x${meta.height} -> ${destMeta.width}x${destMeta.height}, ${mb(before)} -> ${mb(after2x)})`);
+    }
+
+    // 1x thumb: scaled to 1x shotHeight, q75 (lower res = quality loss less visible).
+    const targetH1x = srcH > 0 ? Math.min(j.shotH, srcH) : j.shotH;
+    try {
+      await sharp(j.srcAbs).resize({ height: targetH1x }).webp({ quality: 75, effort: 6 }).toFile(tmp1x);
+    } catch (e) {
+      rmSync(tmp1x, { force: true });
+      failures.push(`thumb ${j.dest1x} (${e.message})`);
+      continue;
+    }
+    const after1x = statSync(tmp1x).size;
+    if (after1x >= before) {
+      rmSync(tmp1x, { force: true });
+      thumbReport.push(`thumb ${j.dest1x}: skipped (${mb(after1x)} >= src ${mb(before)})`);
+    } else {
+      renameSync(tmp1x, j.dest1xAbs);
+      const dest1xMeta = await sharp(j.dest1xAbs).metadata();
+      thumbReport.push(`thumb ${j.dest1x} (${meta.width}x${meta.height} -> ${dest1xMeta.width}x${dest1xMeta.height}, ${mb(before)} -> ${mb(after1x)})`);
+    }
   }
 
   // 6. Hygiene: .DS_Store files ship into the build; remove them.
