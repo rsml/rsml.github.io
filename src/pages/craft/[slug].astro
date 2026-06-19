@@ -2,7 +2,9 @@
 import PortfolioLayout from '../../layouts/PortfolioLayout.astro';
 import BackLink from '../../components/BackLink.astro';
 import MarketingButton from '../../components/MarketingButton.astro';
+import { existsSync } from 'node:fs';
 import { WORK, getProject } from '../../data/work';
+import { logoPath, logoPath1x } from '../../../tools/optimize-portfolio.mjs';
 
 import ChordColors from '../../components/work/ChordColors.astro';
 import Tutor from '../../components/work/Tutor.astro';
@@ -23,6 +25,21 @@ export function getStaticPaths() {
 const { slug } = Astro.params;
 const project = getProject(slug!)!;
 const Body = bodies[project.slug];
+
+function resolveLogoSrcs(src: string): { src: string; srcset?: string } {
+  if (!src.startsWith('/')) return { src };
+  const logo2x = logoPath(src);
+  if (existsSync(`${process.cwd()}/public${logo2x}`)) {
+    const logo1x = logoPath1x(src);
+    const has1x = existsSync(`${process.cwd()}/public${logo1x}`);
+    return {
+      src: has1x ? logo1x : logo2x,
+      srcset: has1x ? `${logo1x} 1x, ${logo2x} 2x` : undefined,
+    };
+  }
+  return { src };
+}
+const logoSrcs = project.thumbImage ? resolveLogoSrcs(project.thumbImage) : null;
 ---
 <PortfolioLayout title={`${project.title} - Ross Miller`} description={project.cardDesc}>
   <main class="container dive" data-rise>
@@ -33,7 +50,7 @@ const Body = bodies[project.slug];
     <div class="dive-header" style="--rise-i:1">
       {project.thumbImage && (
         <span class:list={['dive-logo', project.thumbClass]}>
-          <img src={project.thumbImage} alt="" />
+          <img src={logoSrcs!.src} srcset={logoSrcs!.srcset} alt="" width="48" height="48" />
         </span>
       )}
       <div class="dive-heading">

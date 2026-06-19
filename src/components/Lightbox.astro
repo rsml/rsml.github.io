@@ -17,8 +17,10 @@
  * vertical moves so it animates exactly like the fixed pill. Everything else
  * lives inside the slide.
  */
+import { existsSync } from 'node:fs';
 import { youtubeId, type Project } from '../data/work';
 import ActionLinks from './ActionLinks.astro';
+import { logoPath, logoPath1x } from '../../tools/optimize-portfolio.mjs';
 interface Props { projects: Project[]; }
 const { projects } = Astro.props;
 const galleries = projects.filter((p) => p.assets.length > 0);
@@ -38,6 +40,20 @@ const linksFor = (p: Project) => [
 // CSS fallback (16/9) until the video's metadata loaded, then snapped to the true ratio: the
 // "shrinks while loading, then grows" jump. Build-time only (sharp reads the file header);
 // missing/unreadable posters just fall back to the CSS var default.
+function resolveLogoSrcs(src: string): { src: string; srcset?: string } {
+  if (!src.startsWith('/')) return { src };
+  const logo2x = logoPath(src);
+  if (existsSync(`${process.cwd()}/public${logo2x}`)) {
+    const logo1x = logoPath1x(src);
+    const has1x = existsSync(`${process.cwd()}/public${logo1x}`);
+    return {
+      src: has1x ? logo1x : logo2x,
+      srcset: has1x ? `${logo1x} 1x, ${logo2x} 2x` : undefined,
+    };
+  }
+  return { src };
+}
+
 // @ts-ignore - sharp ships types at lib/index.d.ts that don't resolve via package.json "exports"; build-time only.
 import sharp from 'sharp';
 const aspectFor = new Map<string, string>();
@@ -78,11 +94,14 @@ for (const p of galleries) {
         <div class="swiper-slide lb-project" data-slug={p.slug} data-device={p.device}>
           <div class="lb-stage">
             <header class="lb-phead">
-              {p.thumbImage && (
-                <span class:list={['lb-plogo', p.thumbClass]}>
-                  <img src={p.thumbImage} alt="" />
-                </span>
-              )}
+              {p.thumbImage && (() => {
+                const s = resolveLogoSrcs(p.thumbImage!);
+                return (
+                  <span class:list={['lb-plogo', p.thumbClass]}>
+                    <img src={s.src} srcset={s.srcset} alt="" width="52" height="52" />
+                  </span>
+                );
+              })()}
               <div class="lb-phead-text">
                 <p class="lb-prole">{p.role}</p>
                 <p class="lb-ptitle">

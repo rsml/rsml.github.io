@@ -172,6 +172,30 @@ export function thumbPath1x(ref) {
   return `${stem}-thumb-1x.webp`;
 }
 
+// Largest display size for app-icon logo tiles (lb-plogo 52px; row-logo/dive-logo 48px).
+export const LOGO_SIZE_1X = 52;
+
+/**
+ * The 2x logo sidecar path (104px): generated at LOGO_SIZE_1X * 2 for retina displays.
+ * Served via srcset in WorkRow, Lightbox, and craft/[slug] logo tiles.
+ * Examples: '/logos/chord-colors.jpg' -> '/logos/chord-colors-logo.webp'
+ */
+export function logoPath(ref) {
+  const ext = path.extname(ref);
+  const stem = ref.slice(0, ref.length - ext.length);
+  return `${stem}-logo.webp`;
+}
+
+/**
+ * The 1x logo sidecar path (52px): generated at LOGO_SIZE_1X for standard-DPR displays.
+ * Examples: '/logos/chord-colors.jpg' -> '/logos/chord-colors-logo-1x.webp'
+ */
+export function logoPath1x(ref) {
+  const ext = path.extname(ref);
+  const stem = ref.slice(0, ref.length - ext.length);
+  return `${stem}-logo-1x.webp`;
+}
+
 /**
  * The image the home-row strip shows for one asset, mirroring WorkRow.astro's
  * logic so the thumbnail step knows exactly which file to scale.
@@ -462,7 +486,9 @@ async function main() {
   // Thumbs are derived files: exclude any '-thumb.webp' path from the orphan
   // filter so a re-run never treats freshly generated thumbs as unreferenced.
   const orphansFiltered = listPublicMedia().filter(
-    (f) => !refs.has(f) && !chromeRefs.has(f) && !f.endsWith('-thumb.webp') && !f.endsWith('-thumb-1x.webp'),
+    (f) => !refs.has(f) && !chromeRefs.has(f)
+      && !f.endsWith('-thumb.webp') && !f.endsWith('-thumb-1x.webp')
+      && !f.endsWith('-logo.webp') && !f.endsWith('-logo-1x.webp'),
   );
   if (orphansFiltered.length) console.log(`\norphans (in public/ but unreferenced):\n  ${orphansFiltered.join('\n  ')}`);
 
@@ -517,6 +543,39 @@ async function main() {
     console.log('\nthumbnails: all up to date.');
   }
 
+  // Build the logo sidecar job list: 1x (52px) + 2x (104px) WebP for each unique thumbImage.
+  const logoJobs = [];
+  {
+    const thumbImageRefs = new Set();
+    for (const project of projects) {
+      if (project.thumbImage && project.thumbImage.startsWith('/')) {
+        thumbImageRefs.add(pendingRenames.get(project.thumbImage) ?? project.thumbImage);
+      }
+    }
+    for (const ref of [...thumbImageRefs].sort()) {
+      const srcAbs = onDisk(ref);
+      if (!existsSync(srcAbs)) continue;
+      if (ref.endsWith('-logo.webp') || ref.endsWith('-logo-1x.webp')) continue;
+      const dest = logoPath(ref);
+      const destAbs = onDisk(dest);
+      const dest1x = logoPath1x(ref);
+      const dest1xAbs = onDisk(dest1x);
+      const twoXOk = existsSync(destAbs) && statSync(destAbs).mtimeMs >= statSync(srcAbs).mtimeMs;
+      const oneXOk = existsSync(dest1xAbs) && statSync(dest1xAbs).mtimeMs >= statSync(srcAbs).mtimeMs;
+      if (twoXOk && oneXOk) continue;
+      logoJobs.push({ ref, dest, dest1x, srcAbs, destAbs, dest1xAbs });
+    }
+  }
+  if (logoJobs.length > 0) {
+    console.log(`\nlogo plan (${logoJobs.length} app-icon(s) to generate):`);
+    for (const j of logoJobs) {
+      console.log(`  logo   ${j.ref} -> ${j.dest}  [${2 * LOGO_SIZE_1X}px, lossy webp q80]`);
+      console.log(`         ${j.ref} -> ${j.dest1x}  [${LOGO_SIZE_1X}px, lossy webp q80]`);
+    }
+  } else {
+    console.log('\nlogos: all up to date.');
+  }
+
   // Poster delivery cap plan: every distinct poster: path in work.yaml that
   // lives in public/. Filenames never change, so no reference rewriting.
   // A poster about to be renamed by a conversion (png -> webp) is resolved
@@ -557,7 +616,7 @@ async function main() {
     console.log('\n--dry: nothing written.');
     return;
   }
-  if (videoJobs.length + imageJobs.length + thumbJobs.length + posterCapJobs.length === 0) {
+  if (videoJobs.length + imageJobs.length + thumbJobs.length + posterCapJobs.length + logoJobs.length === 0) {
     console.log('\nnothing to do.');
     return;
   }
@@ -743,6 +802,30 @@ async function main() {
     }
   }
 
+  // 5d. Generate app-icon logo sidecars: 1x (52px) and 2x (104px) WebP for every
+  // project thumbImage. Served via srcset in WorkRow, Lightbox, and craft/[slug].
+  const logoReport = [];
+  for (const j of logoJobs) {
+    for (const [size, tmp, destAbs, label] of [
+      [2 * LOGO_SIZE_1X, `${j.destAbs}.part.webp`,   j.destAbs,   j.dest],
+      [LOGO_SIZE_1X,     `${j.dest1xAbs}.part.webp`, j.dest1xAbs, j.dest1x],
+    ]) {
+      try {
+        await sharp(j.srcAbs)
+          .resize(size, size, { fit: 'cover' })
+          .webp({ quality: 80, effort: 6 })
+          .toFile(tmp);
+      } catch (e) {
+        rmSync(tmp, { force: true });
+        failures.push(`logo ${label} (${e.message})`);
+        continue;
+      }
+      renameSync(tmp, destAbs);
+      const after = statSync(destAbs).size;
+      logoReport.push(`logo ${label} (${size}x${size}, ${mb(after)})`);
+    }
+  }
+
   // 6. Hygiene: .DS_Store files ship into the build; remove them.
   let dsCount = 0;
   const sweep = (dir) => {
@@ -777,6 +860,7 @@ async function main() {
   for (const r of report) console.log(`  ${r}`);
   for (const r of posterReport) console.log(`  ${r}`);
   for (const r of thumbReport) console.log(`  ${r}`);
+  for (const r of logoReport) console.log(`  ${r}`);
   if (dsCount) console.log(`  removed ${dsCount} .DS_Store file(s) from public/`);
   console.log(`  backup: ${path.relative(ROOT, backupDir)}/`);
   if (failures.length) console.log(`  FAILED (originals untouched):\n    ${failures.join('\n    ')}`);

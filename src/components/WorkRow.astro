@@ -1,6 +1,6 @@
 ---
 import { existsSync } from 'node:fs';
-import { thumbPath, thumbPath1x } from '../../tools/optimize-portfolio.mjs';
+import { thumbPath, thumbPath1x, logoPath, logoPath1x } from '../../tools/optimize-portfolio.mjs';
 import { youtubePoster, type Project } from '../data/work';
 import ActionLinks from './ActionLinks.astro';
 import { getDims } from '../../tools/image-dims.mjs';
@@ -42,6 +42,21 @@ function resolveStripSrcs(asset: (typeof assets)[number]): { src: string; srcset
 const stripSrcs = assets.map(resolveStripSrcs);
 const dims = await Promise.all(stripSrcs.map(s => getDims(s.src)));
 
+function resolveLogoSrcs(src: string): { src: string; srcset?: string } {
+  if (!src.startsWith('/')) return { src };
+  const logo2x = logoPath(src);
+  if (existsSync(`${process.cwd()}/public${logo2x}`)) {
+    const logo1x = logoPath1x(src);
+    const has1x = existsSync(`${process.cwd()}/public${logo1x}`);
+    return {
+      src: has1x ? logo1x : logo2x,
+      srcset: has1x ? `${logo1x} 1x, ${logo2x} 2x` : undefined,
+    };
+  }
+  return { src };
+}
+const logoSrcs = project.thumbImage ? resolveLogoSrcs(project.thumbImage) : null;
+
 const actions = [
   ...(project.deepDive ? [{ label: 'Deep dive', href: `/craft/${project.slug}/`, primary: true }] : []),
   ...project.links,
@@ -51,7 +66,7 @@ const actions = [
   <header class="row-head">
     {project.thumbImage && (
       <span class:list={['row-logo', project.thumbClass]}>
-        <img src={project.thumbImage} alt="" />
+        <img src={logoSrcs!.src} srcset={logoSrcs!.srcset} alt="" width="48" height="48" />
       </span>
     )}
     <div class="row-head-text">
