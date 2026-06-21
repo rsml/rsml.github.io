@@ -1,0 +1,115 @@
+---
+import { getCollection, render } from 'astro:content';
+import PortfolioLayout from '../../layouts/PortfolioLayout.astro';
+import BackLink from '../../components/BackLink.astro';
+
+export async function getStaticPaths() {
+  const essays = await getCollection('writing');
+  return essays.map((essay) => ({
+    params: { slug: essay.id },
+    props: { essay },
+  }));
+}
+
+const { essay } = Astro.props;
+const { Content } = await render(essay);
+const formattedDate = essay.data.date.toLocaleDateString('en-US', {
+  month: 'long',
+  year: 'numeric',
+});
+---
+<PortfolioLayout
+  title={`${essay.data.title} - Ross Miller`}
+  description={essay.data.description}
+>
+  <main class="container essay" data-rise>
+    <div class="rise-slot back-row" style="--rise-i:0">
+      <BackLink />
+    </div>
+    <article style="--rise-i:1">
+      <header class="essay-header">
+        <h1 class="essay-title">{essay.data.title}</h1>
+        <time class="essay-date" datetime={essay.data.date.toISOString()}>
+          {formattedDate}
+        </time>
+      </header>
+      <div class="essay-body">
+        <Content />
+      </div>
+    </article>
+  </main>
+</PortfolioLayout>
+<style>
+  .container.essay {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 80px 24px 96px;
+  }
+  .back-row { margin-bottom: 40px; }
+  .essay-header { margin-bottom: 48px; }
+  .essay-title {
+    margin: 0 0 8px;
+    font-size: 22px;
+    font-weight: 560;
+    line-height: 1.3;
+    letter-spacing: -0.3px;
+  }
+  .essay-date {
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .essay-body {
+    font-size: 17px;
+    line-height: 1.75;
+    letter-spacing: -0.1px;
+  }
+  .essay-body p { margin: 0 0 1.4em; }
+  .essay-body p:last-child { margin-bottom: 0; }
+  .essay-body h2 {
+    margin: 2em 0 0.5em;
+    font-size: 16px;
+    font-weight: 560;
+    letter-spacing: -0.15px;
+  }
+  .essay-body h3 {
+    margin: 1.5em 0 0.4em;
+    font-size: 15px;
+    font-weight: 540;
+  }
+  .essay-body code {
+    font-family: ui-monospace, "SF Mono", "Fira Code", monospace;
+    font-size: 0.88em;
+    background: var(--shot-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .essay-body pre {
+    background: var(--shot-bg);
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .essay-body pre code {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+  }
+  .essay-body blockquote {
+    margin: 0 0 1.4em;
+    padding: 0 0 0 16px;
+    border-left: 2px solid var(--hair);
+    color: var(--muted);
+  }
+  .essay-body a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--ink) 22%, transparent);
+    transition: text-decoration-color 200ms ease;
+  }
+  .essay-body a:hover { text-decoration-color: var(--ink); }
+</style>
