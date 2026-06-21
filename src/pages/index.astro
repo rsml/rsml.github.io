@@ -41,7 +41,7 @@ const lcpImageSrc = firstStripSrc();
 
       <p>You can find me on <a href="https://www.linkedin.com/in/rossnmiller/" target="_blank" rel="noopener noreferrer">LinkedIn</a>, <a href="https://github.com/rsml" target="_blank" rel="noopener noreferrer">GitHub</a>, <a href="https://x.com/rossmllr" target="_blank" rel="noopener noreferrer">X</a>, or reach me via <a href="mailto:rossnmiller@gmail.com">email</a>.</p>
     </div>
-    <h2 class="home-section-h writings-label" style="--rise-i:1">Writings</h2>
+    <h2 class="home-section-h" style="--rise-i:1">Writings</h2>
     <ul class="writings" style="--rise-i:2">
       {writings.map((w) => {
         const label = w.data.date.toLocaleDateString('en-US', {
@@ -84,13 +84,13 @@ const lcpImageSrc = firstStripSrc();
     transition: text-decoration-color 200ms ease;
   }
   .bio a:hover { text-decoration-color: var(--ink); }
-  h2.home-section-h { margin: 0 0 4px; font-size: 14px; font-weight: 460; color: var(--muted); }
-  h2.writings-label { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+  h2.home-section-h { margin: 0 0 8px; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
   .work { margin: 0; }
   .writings {
     list-style: none;
     margin: 0 0 48px;
     padding: 0;
+    max-width: 600px;
   }
   .writings li { display: block; }
   .writings a {
