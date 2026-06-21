@@ -70,7 +70,7 @@ BackLink (top-left)
 
 **Reading-focused CSS:**
 - Prose column max-width: ~640px, centered in the existing container
-- Body font size: 17px (vs global 15/16px)
+- Body font size: 17px (vs global 14px body)
 - Line-height: 1.75
 - Generous paragraph margin (1.4em)
 - `<h2>`, `<h3>`, `<code>`, `<blockquote>` all styled to the site's existing type palette

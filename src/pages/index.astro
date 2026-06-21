@@ -41,7 +41,7 @@ const lcpImageSrc = firstStripSrc();
 
       <p>You can find me on <a href="https://www.linkedin.com/in/rossnmiller/" target="_blank" rel="noopener noreferrer">LinkedIn</a>, <a href="https://github.com/rsml" target="_blank" rel="noopener noreferrer">GitHub</a>, <a href="https://x.com/rossmllr" target="_blank" rel="noopener noreferrer">X</a>, or reach me via <a href="mailto:rossnmiller@gmail.com">email</a>.</p>
     </div>
-    <h2 class="home-section-h" style="--rise-i:1">Writings</h2>
+    <h2 class="home-section-h writings-label" style="--rise-i:1">Writings</h2>
     <ul class="writings" style="--rise-i:2">
       {writings.map((w) => {
         const label = w.data.date.toLocaleDateString('en-US', {
@@ -50,8 +50,10 @@ const lcpImageSrc = firstStripSrc();
         });
         return (
           <li>
-            <a href={`/writing/${w.id}`}>{w.data.title}</a>
-            <span class="writing-date">{label}</span>
+            <a href={`/writing/${w.id}`}>
+              <span class="writing-title">{w.data.title}</span>
+              <span class="writing-date">{label}</span>
+            </a>
           </li>
         );
       })}
@@ -83,30 +85,27 @@ const lcpImageSrc = firstStripSrc();
   }
   .bio a:hover { text-decoration-color: var(--ink); }
   h2.home-section-h { margin: 0 0 4px; font-size: 14px; font-weight: 460; color: var(--muted); }
+  h2.writings-label { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
   .work { margin: 0; }
   .writings {
     list-style: none;
     margin: 0 0 48px;
     padding: 0;
   }
-  .writings li {
+  .writings li { display: block; }
+  .writings a {
     display: flex;
     align-items: baseline;
-    gap: 12px;
-    padding: 6px 0;
-    border-bottom: 1px solid var(--hair);
-  }
-  .writings li:first-child { border-top: 1px solid var(--hair); }
-  .writings a {
+    gap: 10px;
+    padding: 4px 6px;
+    margin: 0 -6px;
+    border-radius: 4px;
     color: inherit;
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
-    text-decoration-color: color-mix(in srgb, var(--ink) 22%, transparent);
-    transition: text-decoration-color 200ms ease;
-    flex: 1;
+    text-decoration: none;
+    transition: background 120ms ease;
   }
-  .writings a:hover { text-decoration-color: var(--ink); }
+  .writings a:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  .writing-title { flex: 1; }
   .writing-date {
     color: var(--muted);
     font-size: 12px;
