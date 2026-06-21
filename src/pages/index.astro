@@ -4,10 +4,14 @@ import PortfolioLayout from '../layouts/PortfolioLayout.astro';
 import WorkRow from '../components/WorkRow.astro';
 import Lightbox from '../components/Lightbox.astro';
 import NowClock from '../components/NowClock.astro';
+import { getCollection } from 'astro:content';
 import { getWork } from '../data/work';
 import { thumbPath } from '../../tools/optimize-portfolio.mjs';
 
 const work = getWork();
+const writings = (await getCollection('writing')).sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime()
+);
 
 // Compute the strip src for the first project's first asset so we can preload it.
 // Mirrors WorkRow's resolveStripSrc logic (poster > youtube-derived > src), then
@@ -37,7 +41,22 @@ const lcpImageSrc = firstStripSrc();
 
       <p>You can find me on <a href="https://www.linkedin.com/in/rossnmiller/" target="_blank" rel="noopener noreferrer">LinkedIn</a>, <a href="https://github.com/rsml" target="_blank" rel="noopener noreferrer">GitHub</a>, <a href="https://x.com/rossmllr" target="_blank" rel="noopener noreferrer">X</a>, or reach me via <a href="mailto:rossnmiller@gmail.com">email</a>.</p>
     </div>
-    <h2 class="home-section-h" style="--rise-i:1">Selected works</h2>
+    <h2 class="home-section-h" style="--rise-i:1">Writings</h2>
+    <ul class="writings" style="--rise-i:0">
+      {writings.map((w) => {
+        const label = w.data.date.toLocaleDateString('en-US', {
+          month: 'long',
+          year: 'numeric',
+        });
+        return (
+          <li>
+            <a href={`/writing/${w.id}`}>{w.data.title}</a>
+            <span class="writing-date">{label}</span>
+          </li>
+        );
+      })}
+    </ul>
+    <h2 class="home-section-h" style="--rise-i:2">Selected works</h2>
     <div class="work" style="--rise-i:0">
       {work.map((p, i) => <WorkRow project={p} eager={i === 0} />)}
     </div>
@@ -65,4 +84,33 @@ const lcpImageSrc = firstStripSrc();
   .bio a:hover { text-decoration-color: var(--ink); }
   h2.home-section-h { margin: 0 0 4px; font-size: 14px; font-weight: 460; color: var(--muted); }
   .work { margin: 0; }
+  .writings {
+    list-style: none;
+    margin: 0 0 48px;
+    padding: 0;
+  }
+  .writings li {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--hair);
+  }
+  .writings li:first-child { border-top: 1px solid var(--hair); }
+  .writings a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--ink) 22%, transparent);
+    transition: text-decoration-color 200ms ease;
+    flex: 1;
+  }
+  .writings a:hover { text-decoration-color: var(--ink); }
+  .writing-date {
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
 </style>
