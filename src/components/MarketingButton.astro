@@ -4,10 +4,20 @@ const { href, label } = Astro.props;
 // → for an internal page, ↗ for an external link (same rule as the work cards).
 const external = /^https?:/.test(href);
 ---
-<a class="marketing-btn" href={href} data-astro-reload>{label} {external ? '↗' : '→'}</a>
+<a class="marketing-btn" href={href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : { 'data-astro-reload': true })}>
+  {label}
+  {external ? (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+  ) : (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+  )}
+</a>
 <style>
   .marketing-btn {
     flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 13px; color: var(--ink); text-decoration: none;
     border: 1px solid var(--hair); border-radius: 999px; padding: 6px 14px;
     transition: border-color 160ms ease, background 160ms ease;

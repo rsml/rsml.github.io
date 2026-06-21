@@ -71,8 +71,8 @@ const logoSrcs = project.thumbImage ? resolveLogoSrcs(project.thumbImage) : null
         {project.links.map((link: { label: string; href: string }) => {
           const external = /^https?:/.test(link.href);
           return external
-            ? <a class="dive-link" href={link.href} target="_blank" rel="noopener">{link.label} ↗</a>
-            : <a class="dive-link" href={link.href} data-astro-reload>{link.label} →</a>;
+            ? <a class="dive-link" href={link.href} target="_blank" rel="noopener noreferrer">{link.label}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg><span class="sr-only">(opens in a new tab)</span></a>
+            : <a class="dive-link" href={link.href} data-astro-reload>{link.label}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>;
         })}
       </div>
     )}
@@ -118,11 +118,16 @@ const logoSrcs = project.thumbImage ? resolveLogoSrcs(project.thumbImage) : null
   .appstore-badge img { display: block; height: 40px; width: auto; }
   .dive-links { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 32px; }
   .dive-link {
+    display: inline-flex; align-items: center; gap: 4px;
     font-size: 13px; color: var(--ink); text-decoration: none;
     border: 1px solid var(--hair); border-radius: 999px; padding: 6px 14px;
     transition: border-color 160ms ease, background 160ms ease;
   }
   .dive-link:hover { border-color: var(--hairHigh); background: rgba(17,17,17,0.025); }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
   .dive-body p { margin: 0 0 20px; }
   .case-body p { margin: 0 0 14px; max-width: 62ch; }
   .case-body code {
