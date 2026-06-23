@@ -4,6 +4,7 @@ date: "2026-06-20"
 ---
 
 import StaticGatesGraphic from '../../components/writing/StaticGatesGraphic.astro'
+import GuardrailFlow from '../../components/writing/GuardrailFlow.astro'
 import CodeCompare from '../../components/CodeCompare'
 import TierMatrix from '../../components/TierMatrix'
 
@@ -131,6 +132,8 @@ Here is what "cannot be written" means. `log` is typed to take a `string`. A sen
 
 The holes from level 2 are gone, because the type rides on the value. Alias it and the alias is still `Sensitive<string>`. Pass it to a helper and the helper's parameter has to be `Sensitive<string>`, which means the helper cannot reach `log` either. A scanner matches a shape in one place. A type follows the value into every place it goes.
 
+That difference has a name. A linter is unsound: it misses real cases, and the misses are the holes. A type is sound for the property it encodes, so there are no holes to slip through, as long as nobody casts around it. That is the whole jump from level 2 to level 3, and it is why the escape has to collapse to a single audited `reveal`.
+
 The only escape is `reveal`. The sprawling rule (never log sensitive data anywhere) collapses to a single audit point: every call to `reveal`.
 
 The same climb works for two bugs you normally catch late: the errors a function can produce, and the dependencies it needs. Both are invisible to the lower levels, and both can be lifted into the type.
@@ -211,6 +214,10 @@ const runnable = getUser("123").pipe(Effect.provide(DatabaseLive));
 
 Now the missing dependency is a type error at the line where you run the effect, caught with everything else, instead of a surprise in production.
 
+The three levels are easier to read as a decision than as a ladder. A bug is not always better off higher up; it belongs wherever its kind of mistake is caught, and some kinds have no higher home to climb to.
+
+<GuardrailFlow />
+
 ## When the climb is worth it
 
 Not every bug belongs at level 3. The clock rule already showed one that does not. The cost of level 3 is not false rejections. A model just regenerates when it hits one. The cost is that some constraints are ugly in the type system, and a contraption nobody can read is worse than the bug it prevents. A clean rule with a good message beats a baroque type.
@@ -228,6 +235,8 @@ Not every concern can reach every level. Some can be defended at compile time, a
 <TierMatrix />
 
 Sensitive data tagging has a phantom type at compile time, a lint rule at the scanner, and assertions at runtime. Resilience and security make the same climb: a typed error channel or a branded `SafeHtml` at compile time, a lint rule at the scanner, chaos tests and pentests at runtime. Accessibility stops one step short. It has strong scanners and runtime audits, but types cannot express most of what it requires. Performance is the same: types do not bound runtime cost, so it never reaches compile time. Correctness of meaning has exactly one home, runtime, because there is no static check for whether the output is right.
+
+One caveat about the whole picture. Everything above is one family of defense: catch a violation by inspecting the code. There are others this framework leaves out. You can prevent a bug by construction, which is what level 3 quietly does, by making the bad state unrepresentable so a sound checker holds you to it. You can catch it with human or AI review, which is most of the discretion at level 1. And you can contain it at runtime, with sandboxing, memory safety, or letting a process crash and restart. The levels here are the part you can automate against the source, not the whole of safety.
 
 ## The spec gets tighter
 

@@ -1,0 +1,231 @@
+---
+/*
+ * GuardrailFlow: the three levels as a real top-down flowchart.
+ *
+ * Drawn in SVG so the connectors are computed from box edges and actually
+ * touch the boxes (no floating CSS stubs). A bug enters at the top and flows
+ * down a spine of decisions; each decision draws BOTH edges (the exit to a
+ * terminal, and "yes" continuing down), and the last one fans into four
+ * terminals. Boxes are compact: the detail lives in the section each box links
+ * to (Astro auto-generates the heading ids used here).
+ *
+ * Colour is the same vocabulary as the rest of the essay (tokens from
+ * guardrail-tiers.css, shared with <CodeCompare /> and <TierMatrix />):
+ *   runtime  faint    the floor nothing static can leave
+ *   scanner  warn     a lint rule, which has holes
+ *   type     safe     a guarantee TypeScript gives you on its own
+ *   effect   accent   a guarantee Effect adds on top of TypeScript
+ *   beyond   faint    a guarantee TypeScript cannot express (dashed)
+ */
+import '../guardrail-tiers.css';
+
+const L1 = '#level-1-caught-when-it-runs';
+const L2 = '#level-2-caught-before-it-runs';
+const L3 = '#level-3-the-bug-cannot-be-written';
+const CLIMB = '#which-concerns-can-climb';
+
+type Raw = {
+  cx: number; cy: number; w: number; h: number;
+  kind: 'start' | 'decision' | 'runtime' | 'scanner' | 'type' | 'effect' | 'beyond';
+  title: string[];
+  sub?: string;
+  href?: string;
+};
+
+const RAW: Record<string, Raw> = {
+  bug:     { cx: 350, cy: 44,  w: 158, h: 46, kind: 'start',    title: ['A recurring bug'] },
+  q1:      { cx: 350, cy: 152, w: 200, h: 64, kind: 'decision', title: ['Catchable before', 'it runs?'], href: L1 },
+  runtime: { cx: 116, cy: 152, w: 152, h: 58, kind: 'runtime',  title: ['Runtime'], sub: 'level 1', href: L1 },
+  q2:      { cx: 350, cy: 282, w: 200, h: 64, kind: 'decision', title: ['Does the value', 'travel?'], href: L2 },
+  lint:    { cx: 116, cy: 282, w: 152, h: 58, kind: 'scanner',  title: ['Lint rule'], sub: 'level 2', href: L2 },
+  q3:      { cx: 350, cy: 412, w: 200, h: 64, kind: 'decision', title: ['What must the', 'type hold?'], href: L3 },
+  ts:      { cx: 95,  cy: 552, w: 158, h: 66, kind: 'type',     title: ['TypeScript'], sub: 'level 3', href: L3 },
+  efferr:  { cx: 265, cy: 552, w: 158, h: 66, kind: 'effect',   title: ['Effect: errors'], sub: 'level 3', href: L3 },
+  effdep:  { cx: 435, cy: 552, w: 158, h: 66, kind: 'effect',   title: ['Effect: deps'], sub: 'level 3', href: L3 },
+  beyond:  { cx: 605, cy: 552, w: 158, h: 66, kind: 'beyond',   title: ['Beyond TS'], sub: 'no TS home', href: CLIMB },
+};
+
+const VBW = 700;
+const VBH = 624;
+
+// Derive edges and text geometry from the raw boxes so connectors touch exactly.
+const edge = (n: Raw) => ({
+  left: n.cx - n.w / 2, right: n.cx + n.w / 2,
+  top: n.cy - n.h / 2, bottom: n.cy + n.h / 2,
+});
+
+// Box text: a centered title (1-2 lines) plus an optional muted sub line.
+function boxTexts(n: Raw) {
+  const out: { x: number; y: number; cls: string; text: string }[] = [];
+  if (n.kind === 'start') {
+    out.push({ x: n.cx, y: n.cy + 4, cls: 'ff-t-start', text: n.title[0] });
+  } else if (n.kind === 'decision') {
+    out.push({ x: n.cx, y: n.cy - 8, cls: 'ff-t-q', text: n.title[0] });
+    out.push({ x: n.cx, y: n.cy + 11, cls: 'ff-t-q', text: n.title[1] ?? '' });
+  } else {
+    out.push({ x: n.cx, y: n.cy - 4, cls: 'ff-t-title', text: n.title[0] });
+    if (n.sub) out.push({ x: n.cx, y: n.cy + 15, cls: 'ff-t-sub', text: n.sub });
+  }
+  return out;
+}
+
+const boxes = Object.entries(RAW).map(([id, n]) => ({
+  id, href: n.href, kind: n.kind,
+  x: n.cx - n.w / 2, y: n.cy - n.h / 2, w: n.w, h: n.h,
+  texts: boxTexts(n),
+}));
+
+const e = Object.fromEntries(Object.entries(RAW).map(([k, n]) => [k, edge(n)]));
+const busY = 478;
+const fan = ['ts', 'efferr', 'effdep', 'beyond'] as const;
+
+// Connector paths. Each ends exactly on a box edge; marker-end draws the arrow.
+const paths = [
+  `M350 ${e.bug.bottom} L350 ${e.q1.top}`,        // bug -> q1
+  `M${e.q1.left} 152 L${e.runtime.right} 152`,    // q1 -> runtime (no)
+  `M350 ${e.q1.bottom} L350 ${e.q2.top}`,         // q1 -> q2 (yes)
+  `M${e.q2.left} 282 L${e.lint.right} 282`,       // q2 -> lint (no)
+  `M350 ${e.q2.bottom} L350 ${e.q3.top}`,         // q2 -> q3 (yes)
+  `M350 ${e.q3.bottom} L350 ${busY}`,             // q3 -> bus stem
+  `M${RAW.ts.cx} ${busY} L${RAW.beyond.cx} ${busY}`, // the fan bus
+  ...fan.map((k) => `M${RAW[k].cx} ${busY} L${RAW[k].cx} ${e[k].top}`), // bus -> each terminal
+];
+// The bus itself has no arrowhead; the four drops and the five box-to-box edges do.
+const arrowed = new Set([0, 1, 2, 3, 4, 7, 8, 9, 10]);
+
+const elabels = [
+  { x: (e.q1.left + e.runtime.right) / 2, y: 143, t: 'no', a: 'middle' },
+  { x: 360, y: 217, t: 'yes', a: 'start' },
+  { x: (e.q2.left + e.lint.right) / 2, y: 273, t: 'no', a: 'middle' },
+  { x: 360, y: 347, t: 'yes', a: 'start' },
+  { x: RAW.ts.cx, y: 500, t: 'sensitive', a: 'middle' },
+  { x: RAW.efferr.cx, y: 500, t: 'errors', a: 'middle' },
+  { x: RAW.effdep.cx, y: 500, t: 'dependencies', a: 'middle' },
+  { x: RAW.beyond.cx, y: 500, t: 'a richer fact', a: 'middle' },
+];
+---
+
+<figure class="gg-root gg-flow" role="group" aria-label="Where a recurring bug can be defended">
+  <div class="ff-scroll">
+    <svg class="ff-svg" viewBox={`0 0 ${VBW} ${VBH}`} role="img"
+         aria-label="Flowchart: a recurring bug flows down through three decisions to the level that catches it.">
+      <defs>
+        <marker id="ff-arrow" viewBox="0 0 10 10" refX="8.5" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path class="ff-arrowhead" d="M0 0 L10 5 L0 10 z" />
+        </marker>
+      </defs>
+
+      {paths.map((d, i) => (
+        <path class="ff-edge" d={d} marker-end={arrowed.has(i) ? 'url(#ff-arrow)' : undefined} />
+      ))}
+
+      {elabels.map((l) => (
+        <text class="ff-elabel" x={l.x} y={l.y} text-anchor={l.a}>{l.t}</text>
+      ))}
+
+      {boxes.map((b) => {
+        const inner = (
+          <Fragment>
+            <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="7" />
+            {b.texts.map((t) => (
+              <text class={t.cls} x={t.x} y={t.y} text-anchor="middle">{t.text}</text>
+            ))}
+          </Fragment>
+        );
+        return b.href ? (
+          <a class={`ff-box ff-${b.kind}`} href={b.href}>{inner}</a>
+        ) : (
+          <g class={`ff-box ff-${b.kind}`}>{inner}</g>
+        );
+      })}
+    </svg>
+  </div>
+
+  <figcaption class="gg-caption">
+    A bug flows down until a box catches it. Every box links to the section that explains it.
+    Colour marks where it lands: amber a scanner (which has holes), green a guarantee TypeScript
+    gives you, indigo one Effect adds on top, and the dashed box a guarantee TypeScript cannot
+    express. Runtime is the floor nothing static can leave.
+  </figcaption>
+</figure>
+
+<style>
+  .gg-flow {
+    font-family: 'Inter var', system-ui, -apple-system, sans-serif;
+    /* bleed a little past the text column so the tree has room */
+    width: calc(100% + 48px);
+    margin: 2rem -24px;
+    --ff-line: var(--gg-muted);
+  }
+  .ff-scroll {
+    overflow-x: auto;
+    padding: 0 24px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ff-svg {
+    display: block;
+    width: 100%;
+    min-width: 580px;
+    max-width: 720px;
+    height: auto;
+    margin: 0 auto;
+  }
+
+  /* connectors -------------------------------------------------------- */
+  .ff-edge {
+    fill: none;
+    stroke: var(--ff-line);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+  }
+  .ff-arrowhead { fill: var(--ff-line); }
+
+  .ff-elabel {
+    fill: var(--gg-muted);
+    font-family: var(--gg-mono);
+    font-size: 11px;
+    /* halo so the label reads over the connector it sits on */
+    paint-order: stroke;
+    stroke: var(--bg);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+  }
+
+  /* boxes ------------------------------------------------------------- */
+  .ff-box rect {
+    fill: var(--gg-panel);
+    stroke: var(--gg-border);
+    stroke-width: 1.4;
+    transition: stroke 0.15s ease, stroke-width 0.15s ease, fill 0.15s ease;
+  }
+  .ff-box text { pointer-events: none; }
+  a.ff-box { cursor: pointer; text-decoration: none; }
+  a.ff-box:hover rect { fill: var(--gg-panel-2); stroke-width: 2.2; }
+  a.ff-box:focus-visible { outline: none; }
+  a.ff-box:focus-visible rect { stroke: var(--gg-accent); stroke-width: 2.4; }
+
+  .ff-t-start { fill: var(--gg-muted); font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+  .ff-t-q { fill: var(--gg-text); font-size: 13.5px; font-weight: 560; letter-spacing: -0.01em; }
+  .ff-t-title { fill: var(--gg-text); font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; }
+  .ff-t-sub { fill: var(--gg-muted); font-family: var(--gg-mono); font-size: 10.5px; }
+
+  /* start + decisions: filled, neutral; the spine of the tree */
+  .ff-start rect, .ff-decision rect { fill: var(--gg-panel-2); }
+  .ff-decision rect { stroke: var(--gg-muted); stroke-width: 1.6; }
+
+  /* terminals: outlined in their meaning-colour */
+  .ff-runtime rect { stroke: var(--gg-faint); }
+  .ff-scanner rect { stroke: var(--gg-warn); }
+  .ff-type rect    { stroke: var(--gg-safe); }
+  .ff-effect rect  { stroke: var(--gg-accent); }
+  .ff-beyond rect  { stroke: var(--gg-faint); stroke-dasharray: 5 4; }
+
+  a.ff-scanner:hover rect { stroke: var(--gg-warn); }
+  a.ff-type:hover rect    { stroke: var(--gg-safe); }
+  a.ff-effect:hover rect  { stroke: var(--gg-accent); }
+
+  @media (max-width: 560px) {
+    .ff-scroll { padding: 0 16px; }
+  }
+</style>
