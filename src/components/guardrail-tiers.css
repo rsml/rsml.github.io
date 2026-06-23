@@ -1,0 +1,299 @@
+/*
+ * Styles for <CodeCompare /> and <TierMatrix />.
+ * Everything is namespaced under .gg-root so it cannot collide with your site.
+ * Theme by remapping the --gg-* variables to your own design tokens.
+ * Uses color-mix() (all modern evergreen browsers, 2023+).
+ */
+
+.gg-root {
+  --gg-panel: #14161b;
+  --gg-panel-2: #1a1d24;
+  --gg-border: #262a33;
+  --gg-text: #e3e5ea;
+  --gg-muted: #878b96;
+  --gg-faint: #5b606b;
+  --gg-accent: #6e79d6; /* indigo */
+  --gg-danger: #f0616d;
+  --gg-warn: #e0a458;
+  --gg-safe: #5cc08f;
+  --gg-radius: 10px;
+  --gg-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --gg-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  color: var(--gg-text);
+  font-family: var(--gg-sans);
+  margin: 2rem 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ------------------------------------------------------------------ */
+/* CodeCompare                                                         */
+/* ------------------------------------------------------------------ */
+.gg-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+.gg-compare-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0;
+  color: var(--gg-faint);
+  font-size: 18px;
+  line-height: 1;
+  transform: rotate(90deg);
+}
+
+.gg-pane {
+  background: var(--gg-panel);
+  border: 1px solid var(--gg-border);
+  border-radius: var(--gg-radius);
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.gg-compare-grid:hover .gg-pane {
+  border-color: color-mix(in srgb, var(--gg-border) 70%, transparent);
+}
+.gg-compare-grid:hover .gg-pane:hover {
+  border-color: color-mix(in srgb, var(--gg-accent) 55%, var(--gg-border));
+}
+
+.gg-pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--gg-panel-2);
+  border-bottom: 1px solid var(--gg-border);
+}
+
+.gg-pane-titles {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.gg-pane-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.gg-pane-tier {
+  font-size: 11px;
+  color: var(--gg-muted);
+  font-family: var(--gg-mono);
+}
+
+.gg-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.gg-chip-warn {
+  color: var(--gg-warn);
+  background: color-mix(in srgb, var(--gg-warn) 12%, transparent);
+  border-color: color-mix(in srgb, var(--gg-warn) 30%, transparent);
+}
+.gg-chip-danger {
+  color: var(--gg-danger);
+  background: color-mix(in srgb, var(--gg-danger) 12%, transparent);
+  border-color: color-mix(in srgb, var(--gg-danger) 30%, transparent);
+}
+.gg-chip-safe {
+  color: var(--gg-safe);
+  background: color-mix(in srgb, var(--gg-safe) 12%, transparent);
+  border-color: color-mix(in srgb, var(--gg-safe) 30%, transparent);
+}
+.gg-chip-neutral {
+  color: var(--gg-muted);
+  background: var(--gg-panel);
+  border-color: var(--gg-border);
+}
+
+.gg-code {
+  margin: 0;
+  padding: 12px 0;
+  overflow-x: auto;
+  font-family: var(--gg-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  background: var(--gg-panel);
+}
+.gg-code code {
+  display: block;
+}
+
+.gg-line {
+  display: grid;
+  grid-template-columns: 2.25em 1fr;
+  gap: 12px;
+  padding: 0 14px;
+  min-height: 1.6em;
+  border-left: 2px solid transparent;
+}
+.gg-line-num {
+  color: var(--gg-faint);
+  text-align: right;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.gg-line-text {
+  white-space: pre;
+}
+.gg-comment {
+  color: var(--gg-faint);
+  font-style: italic;
+}
+
+.gg-line-warn {
+  background: color-mix(in srgb, var(--gg-warn) 9%, transparent);
+  border-left-color: var(--gg-warn);
+}
+.gg-line-danger {
+  background: color-mix(in srgb, var(--gg-danger) 9%, transparent);
+  border-left-color: var(--gg-danger);
+}
+.gg-line-safe {
+  background: color-mix(in srgb, var(--gg-safe) 9%, transparent);
+  border-left-color: var(--gg-safe);
+}
+
+.gg-caption {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--gg-muted);
+  line-height: 1.5;
+  text-align: left;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* TierMatrix                                                          */
+/* ------------------------------------------------------------------ */
+.gg-matrix-grid {
+  border: 1px solid var(--gg-border);
+  border-radius: var(--gg-radius);
+  overflow: hidden;
+  background: var(--gg-panel);
+}
+
+.gg-matrix-row {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr 1fr 1fr;
+  align-items: center;
+  border-bottom: 1px solid var(--gg-border);
+  transition: background 0.12s ease;
+}
+.gg-matrix-row:last-child {
+  border-bottom: none;
+}
+.gg-matrix-row:not(.gg-matrix-head):hover {
+  background: var(--gg-panel-2);
+}
+.gg-matrix-head {
+  background: var(--gg-panel-2);
+}
+
+.gg-matrix-corner,
+.gg-matrix-concern {
+  padding: 12px 16px;
+  font-size: 13px;
+}
+.gg-matrix-corner {
+  color: var(--gg-muted);
+  font-weight: 600;
+}
+.gg-matrix-concern {
+  color: var(--gg-text);
+}
+
+.gg-matrix-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  align-items: center;
+  text-align: center;
+}
+.gg-matrix-col-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.gg-matrix-col-tier {
+  font-size: 10.5px;
+  color: var(--gg-muted);
+  font-family: var(--gg-mono);
+}
+
+.gg-matrix-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px;
+}
+
+.gg-matrix-row-strong {
+  box-shadow: inset 3px 0 0 var(--gg-accent);
+}
+.gg-matrix-row-strong .gg-matrix-concern {
+  font-weight: 600;
+}
+
+.gg-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  display: inline-block;
+}
+.gg-dot-yes {
+  background: var(--gg-safe);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gg-safe) 18%, transparent);
+}
+.gg-dot-partial {
+  background: var(--gg-warn);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gg-warn) 18%, transparent);
+}
+.gg-dot-no {
+  background: transparent;
+  border: 1px solid var(--gg-faint);
+}
+
+@media (max-width: 720px) {
+  .gg-matrix-row {
+    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  }
+  .gg-matrix-concern,
+  .gg-matrix-corner {
+    padding: 10px;
+    font-size: 12px;
+  }
+  .gg-matrix-col-label {
+    font-size: 11px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Light mode (OS preference). Remove if your site drives its own theme */
+/* and map --gg-* to your tokens instead.                              */
+/* ------------------------------------------------------------------ */
+@media (prefers-color-scheme: light) {
+  .gg-root {
+    --gg-panel: #fbfbfc;
+    --gg-panel-2: #f3f4f6;
+    --gg-border: #e3e5ea;
+    --gg-text: #1c1e24;
+    --gg-muted: #6b707b;
+    --gg-faint: #9aa0ab;
+    --gg-accent: #5e6ad2;
+    --gg-danger: #d6455d;
+    --gg-warn: #b07526;
+    --gg-safe: #2f9e6b;
+  }
+}

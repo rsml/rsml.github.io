@@ -1,0 +1,75 @@
+<!-- Three levels of defense, drawn as a climb. A bug enters at level 1 (runtime,
+     the bottom rail), gets promoted up one level at a time, and ends at level 3
+     (the type system, top rail) as a solid node: caught for good, cannot be
+     written. The three faint rails are the levels; the bold path is one bug's
+     journey upward. Pure line art in currentColor so it themes for light/dark. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 430" fill="none" aria-hidden="true" class="cl">
+  <!-- the three level rails (faint, dashed) -->
+  <g class="cl-rail">
+    <line x1="120" y1="90"  x2="1080" y2="90"/>
+    <line x1="120" y1="225" x2="1080" y2="225"/>
+    <line x1="120" y1="360" x2="1080" y2="360"/>
+  </g>
+
+  <!-- left axis + a tick per level -->
+  <line class="cl-axis" x1="120" y1="70" x2="120" y2="380"/>
+  <g class="cl-tick">
+    <circle cx="120" cy="90"  r="4"/>
+    <circle cx="120" cy="225" r="4"/>
+    <circle cx="120" cy="360" r="4"/>
+  </g>
+
+  <!-- one bug's path: along level 1, up to 2, along 2, up to 3, along 3 -->
+  <path class="cl-path" d="M190 360 H470 V225 H760 V90 H1040"/>
+
+  <!-- where it leaves each level -->
+  <g class="cl-dot">
+    <circle cx="470" cy="360" r="5"/>
+    <circle cx="760" cy="225" r="5"/>
+  </g>
+
+  <!-- promotion arrows at the top of each riser -->
+  <g class="cl-arrow">
+    <polygon points="470,222 463,236 477,236"/>
+    <polygon points="760,87 753,101 767,101"/>
+  </g>
+
+  <!-- bug enters (hollow) at level 1; caught for good (solid) at level 3 -->
+  <circle class="cl-start" cx="190" cy="360" r="7"/>
+  <circle class="cl-end"   cx="1040" cy="90" r="8"/>
+</svg>
+
+<style>
+  .cl {
+    display: block;
+    width: calc(100% + 48px);
+    margin: 0 -24px 56px;
+    color: var(--ink);
+  }
+  .cl line, .cl path { vector-effect: non-scaling-stroke; }
+  .cl-rail line {
+    stroke: currentColor;
+    stroke-width: 1.4;
+    stroke-dasharray: 2 7;
+    stroke-opacity: 0.28;
+    stroke-linecap: round;
+  }
+  .cl-axis {
+    stroke: currentColor;
+    stroke-width: 1.4;
+    stroke-opacity: 0.28;
+    stroke-linecap: round;
+  }
+  .cl-tick circle { fill: currentColor; fill-opacity: 0.4; }
+  .cl-path {
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-opacity: 0.9;
+  }
+  .cl-dot circle { fill: currentColor; fill-opacity: 0.9; }
+  .cl-arrow polygon { fill: currentColor; fill-opacity: 0.9; }
+  .cl-start { stroke: currentColor; stroke-width: 2; stroke-opacity: 0.9; fill: var(--bg); }
+  .cl-end { fill: currentColor; }
+</style>
