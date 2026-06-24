@@ -3,22 +3,23 @@ title: "Making illegal states unrepresentable in TypeScript"
 date: "2026-06-24"
 ---
 
-There’s always been a desire to have very strict guardrails on code (conventions, type safety, strong linting, perfect code coverage, etc) in order to prevent certain classes of bugs. However these desires have historically been tension with the practicalities of running a software team. For instance, every new guardrail could potentially make it slower to onboard a new engineer, increase developer frustration, and slow a team’s velocity.
+There’s always been a desire to have very strict guardrails on code (conventions, type safety, strong linting, perfect code coverage, etc) in order to prevent certain classes of bugs. However for many teams, these desires have come in tension with the practicalities of running a software team. For instance, every new guardrail could historically make it slower to onboard a new engineer, increase developer frustration, and slow a team’s velocity.
 
-We used to be optimizing for the ability to write and maintain code in a fast and high quality way. Now that code is cheap, we need to shift focus to the speed at which humans can validate code in a fast and high quality way.
+Before AI coding agents, we optimized for the ability to write and maintain code in a fast and high quality way. Now that code is cheap, we need to shift focus specifically to the speed at which humans can validate code in a fast and high quality way.
 
-One of the best ways to improve confidence in the code you are shipping is with a strict type system. While the following patterns add additional verbosity which makes code slightly slower to read, they are so powerful in the safety that they can add to your code, making them almost always worth adopting.
+One of the best ways to increase confidence in your code is by using a strict type system. While the following patterns add additional verbosity which makes code slightly slower to read, they are such powerful guardrails that I believe they are almost always worth adopting in AI-generated code.
 
-Here's a quick survey of some of the advanced patterns you can do in Typescript to make your code safer. For a more detailed explanation of each pattern, click or tap on the corresponding section header below.
+Here's a quick survey of some of the advanced patterns you can do in TypeScript to make your code safer. For a more detailed explanation of each pattern, click or tap on the corresponding section header below.
 
-### [Branded type](https://www.learningtypescript.com/articles/branded-types)
+### [Branded types](https://www.learningtypeScript.com/articles/branded-types)
 
 ```ts
 // bad
 declare function getUser(id: string): User;
 const orderId = "ord_123";
 
-getUser(orderId); // compiles fine, even though orderId is an order id, not a user id
+// compiles fine, even though orderId is an order id, not a user id
+getUser(orderId);
 ```
 
 ```ts
@@ -28,56 +29,65 @@ type OrderId = string & { readonly __brand: "OrderId" };
 declare function getUser(id: UserId): User;
 const orderId = "ord_123" as OrderId;
 
-getUser(orderId); // Error: OrderId is not assignable to UserId
+// Error: OrderId is not assignable to UserId
+getUser(orderId);
 ```
 
-The brand lives only in the types. At runtime it is still a plain string.
+All types are stripped out at runtime. So at runtime UserId and OrderId are still plain strings.
 
-There's a couple different ways to express branded types in Typescript, so I encourage checking [this resource](https://www.learningtypescript.com/articles/branded-types) for more information. For instance it shows how to make your branded types even safer with "unique symbol".
-
-### [Phantom types](https://dev.to/busypeoples/notes-on-typescript-phantom-types-kg9)
+### [Phantom types](https://dev.to/busypeoples/notes-on-typeScript-phantom-types-kg9)
 
 Strictly speaking, Phantom Types are a superset of Branded Types. The difference is, Phantom Types use a parameterized type instead of a constant type. For instance instead of the "__brand" being the constant "UserId", a phantom type would be "__brand" of a variable type, e.g. "T".
 
-So let's rewrite the UserId and the OrderId branded types from the previous example using a Phantom Type called "Brand&lt;T, U>"
+So let's rewrite the UserId and OrderId branded types from the previous example using a phantom type called `Brand<T, U>`.
 
 ```ts
 // This is the Phantom Type since it is parameterized
-type Brand<T, U as string> = T & { readonly __brand: U };
+type Brand<T, U extends string> = T & { readonly __brand: U };
 
- // These are Branded Types
+// These are Branded Types
 type UserId = Brand<string, "UserId">;
 type OrderId = Brand<string, "OrderId">;
 
-getUser(orderId); // Error: OrderId is not assignable to UserId
+// Error: OrderId is not assignable to UserId
+getUser(orderId);
 ```
 
-### [Wrapper Types for Taint Tracking](https://dev.to/busypeoples/notes-on-typescript-phantom-types-kg9)
+### [Wrapper types for taint tracking](https://dev.to/busypeoples/notes-on-typeScript-phantom-types-kg9)
 
 ```ts
 // bad
 const apiKey: string = user.apiKey;
 
-log(apiKey); // compiles, and the secret is now sitting in your logs
+// Dangerous! This compiles, and a secret will leak in the logs
+log(apiKey);
 ```
 
 ```ts
 // good
-type Sensitive<T> = { [tag]: T }; // Sensitive<T> is a Phantom Type
-const apiKey: Sensitive<string> = protect(user.apiKey);
 
-function reveal(value: Sensitive<T>): T {
-  value.tag as T;
+// Sensitive<T> is a phantom type
+type Sensitive<T> = { readonly __sensitive: T };
+
+function protect<T>(value: T): Sensitive<T> {
+  return value as Sensitive<T>
 }
+
+function reveal<T>(value: Sensitive<T>): T {
+  return value.__sensitive;
+}
+
+// apiKey is now protected
+const apiKey: Sensitive<string> = protect(user.apiKey);
 
 // Error: Sensitive<string> is not assignable to string
 log(apiKey);
 
-// Succeeds. Every "reveal" invocation is greppable, so this is helpful to audit code safety.
+// Succeeds. Every "reveal" call is greppable, so it is easy to audit.
 log(reveal(apiKey));
 ```
 
-### Discriminated union
+### [Discriminated union](https://www.typeScriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions)
 
 ```ts
 // bad
@@ -89,7 +99,10 @@ function area(shape: Shape): number {
   switch (shape.kind) {
     case "circle": return Math.PI * shape.radius ** 2;
     case "square": return shape.side ** 2;
-    default: return 0; // add a shape later and it silently returns 0, no warning
+
+    // If we later add { kind: "triange" } this will return 0
+    // But it would be better if it returned a compilation error
+    default: return 0;
   }
 }
 ```
@@ -99,28 +112,31 @@ function area(shape: Shape): number {
 type Shape =
   | { kind: "circle"; radius: number }
   | { kind: "square"; side: number }
-  | { kind: "triangle"; base: number; height: number }; // added later
+  // added later
+  | { kind: "triangle"; base: number; height: number };
 
 function area(shape: Shape): number {
   switch (shape.kind) {
     case "circle": return Math.PI * shape.radius ** 2;
     case "square": return shape.side ** 2;
     default:
-      const _exhaustive: never = shape; // Error: 'triangle' is not assignable to 'never'
-      return _exhaustive;
+      // Error: 'triangle' is not assignable to 'never'
+      const __exhaustive: never = shape;
+      return __exhaustive;
   }
 }
 ```
 
-The leftover case is pinned to `never`, so a forgotten variant cannot compile.
+The default case is pinned to `never`. So if you forget to handle a case, TypeScript will fail to compile.
 
-### Typestate
+### [Typestate](https://catchts.com/type-state)
 
 ```ts
 // bad
 conn.close();
 
-conn.send("data"); // compiles, but throws at runtime: the connection is closed
+// compiles, but throws at runtime: the connection is closed
+conn.send("data");
 ```
 
 ```ts
@@ -130,90 +146,119 @@ declare class Connection<S extends "open" | "closed"> {
   close(this: Connection<"open">): Connection<"closed">;
 }
 
-const closed = conn.close(); // conn is Connection<"open">
+// conn is Connection<"open">
+const closed = conn.close();
 
-closed.send("data"); // Error: 'send' is not callable on Connection<"closed">
+// Error: 'send' is not callable on Connection<"closed">
+closed.send("data");
 ```
 
-A builder is the everyday version: `build()` only appears once the required fields are set.
-
-### Template-literal types
+### [Template-literal types](https://www.typeScriptlang.org/docs/handbook/2/template-literal-types.html)
 
 ```ts
 // bad
 declare function navigate(route: string): void;
 
-navigate("/usrs/42"); // compiles: a typo'd route is just a string, then 404s at runtime
+// compiles: a typo'd route is just a string, then 404s at runtime
+navigate("/usrs/42");
 ```
 
 ```ts
 // good
-type Route = `/users/${number}` | `/posts/${number}`;
+type Entity = 'users' | 'posts'
+type Route = `/${Entity}/${number}`
 declare function navigate(route: Route): void;
 
-navigate("/usrs/42"); // Error: '/usrs/42' is not assignable to Route
+// Error: '/usrs/42' is not assignable to Route
+navigate("/usrs/42");
 ```
 
-This is the one technique that looks inside a string.
+Just like in JavaScript, you can use template literals in TypeScript's type system.
 
-### Smart constructor
+A slot like `${number}` matches any string with a number in that position just like `${Entity}` matches any entity in that position. So `/users/42` is a valid `Route`, but `/usrs/42` is not.
+
+### [Smart constructor](https://dev.to/gcanti/functional-design-smart-constructors-14nb)
 
 ```ts
 // bad
 declare function repeat(times: number): void;
 
-repeat(3.5); // compiles: any number is allowed, whole or fractional
+// compiles: any number is allowed, whole or fractional
+repeat(3.5);
 ```
 
 ```ts
 // good
-type Integer = number & { readonly brand: "Integer" };
+type Integer = number & { readonly __brand: "Integer" };
 
-// the only way to make an Integer is to pass validation
+// toInteger is the smart constructor
 function toInteger(n: number): Integer | undefined {
   return Number.isInteger(n) ? (n as Integer) : undefined;
 }
 
 declare function repeat(times: Integer): void;
 
-repeat(3.5); // Error: number is not assignable to Integer
+// Error: number is not assignable to Integer
+repeat(3.5);
 ```
 
-The check runs once, at the edge, and nothing downstream can forget it ran.
+Despite `toInteger(n: number)` being a regular function, when it's the only way for the user to get an `Integer` type, it is often confusingly called a smart constructor.
 
-### Effect: errors and dependencies
+You'd typically run this check once, at the endge of your system. For instance, let's say you have an API route handler with some Zod validation. After a field parses as a `z.int()`, you can then use `toInteger(n: number)` to specity that value's type as an Integer. Now throughout your code you can use the Integer type and have 100% confidence that it is an integer without any additional runtime checking needed.
+
+### [Effect: errors and dependencies](https://effect.website/)
+
+[Effect](https://effect.website/) is a very useful library for AI-generated code because it enforces that errors and dependencies become part of a function's type.
 
 ```ts
 // bad
+
+// Let's assume this function can throw a CardDeclinedError
 declare function charge(id: string): Promise<Receipt>;
 
-await charge(id); // compiles, but CardDeclined is thrown and unhandled, found in prod
+// compiles, but CardDeclined is thrown and unhandled, found in prod
+await charge(id);
 ```
 
 ```ts
-// good
+// good. Written with Effect instead of plain TypeScript
+
+// can fail with CardDeclinedError, needs PaymentGateway dependency injected
 declare function charge(
   id: string,
-): Effect<Receipt, CardDeclined, PaymentGateway>; // can fail with CardDeclined, needs PaymentGateway
+): Effect<Receipt, CardDeclinedError, PaymentGateway>;
 
-Effect.runPromise(charge(id)); // Error: CardDeclined unhandled, PaymentGateway not provided
+// Error: CardDeclinedError unhandled, PaymentGateway not provided
+Effect.runPromise(charge(id));
+
+// Success:
+const result = await Effect.runPromise(
+  program.pipe(
+    Effect.catchAllCause((cause) =>
+      Cause.isFailType(cause)
+        ? Effect.succeed("Recovered from a regular error")
+        : Effect.succeed("Recovered from a defect")
+    ),
+    Effect.provideService(PaymentGateway, paymentGateway),
+  )
+);
+
 ```
 
-Handle the error and it leaves `E`. Provide the service and it leaves `R`. You cannot run it until both are gone. A raw `throw` still slips past, so this holds within Effect's discipline, not as a proof.
+Here the signature says `charge` can fail with `CardDeclinedError` and needs a `PaymentGateway` dependency injected. Due to Effect's strict type system, the TypeScript compiler will not let you run it until you have handled the error and provided the required dependency.
 
-### Beyond TypeScript
+### [Beyond TypeScript](https://en.wikipedia.org/wiki/Refinement_type)
 
 ```ts
 // not expressible in TypeScript
 function at<T>(arr: T[], i: number): T {
-  return arr[i]; // i could be out of range, and no type can promise it is not
+  // i could be out of range, and no TypeScript type can promise it is not
+  return arr[i];
 }
 ```
 
-Some guarantees need a runtime value, and TypeScript erases its types before the program runs. "This index is in bounds," "this list is sorted," "this handle is used once": those want refinement types, dependent types, or ownership. They live in other languages (Liquid Haskell, Idris, Dafny, Rust) or in a model checker like TLA+.
+There are some things that no TypeScript type can promise. For instance, the function above wants to guarantee that `i` is a valid index. But whether it is depends on a value that only exists once the program runs, and TypeScript's types are gone by then.
 
-Two more things are out of reach for a different reason. Higher-kinded types, where one `Functor` works for `Array`, `Promise`, and `Option` alike, need a kind system TypeScript does not have. Totality, a proof that a function handles every input and always halts, needs termination analysis it does not do.
+Similarly it's impossible to have types that represent "this list is sorted" or "this file handle is used exactly once." Checks like these have to survive into runtime, so they belong to languages built for it ([Rust](https://rust-lang.org/), [Idris](https://idris-lang.org/), [Dafny](https://dafny.org/)) or to a model checker like [TLA+](https://lamport.azurewebsites.net/tla/tla.html).
 
-In TypeScript you brand "this was checked" and leave the rest to runtime.
-
-A few smaller tools round this out. A GADT encoding is a discriminated union whose tag also refines a type parameter, which is how you build a typed interpreter. And `satisfies`, `const` type parameters, and `readonly` are enablers: they keep the techniques above from being widened away, but they are not guarantees on their own.
+Despite these limitations with TypeScript's, there above patterns give you a lot of type safetype. The rule of thumb is check a value once, brand it as checked, and trust runtime for the rest.
