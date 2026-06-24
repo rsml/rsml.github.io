@@ -210,39 +210,57 @@ You'd typically run this check once, at the endge of your system. For instance, 
 
 [Effect](https://effect.website/) is a very useful library for AI-generated code because it enforces that errors and dependencies become part of a function's type.
 
+Let's say you have the following Effect code
+
 ```ts
-// bad
+import { Effect, Context, Data } from "effect"
 
-// Let's assume this function can throw a CardDeclinedError
-declare function charge(id: string): Promise<Receipt>;
+type Receipt = { id: string }
 
-// compiles, but CardDeclined is thrown and unhandled, found in prod
-await charge(id);
+class CardDeclinedError extends Data.TaggedError("CardDeclinedError")<{
+  reason: string
+}> {}
+
+class PaymentGateway extends Context.Tag("PaymentGateway")
+  PaymentGateway,
+  { charge: (id: string) => Effect.Effect<Receipt, CardDeclinedError> }
+>() {}
+
+// The ledger lives in the type:
+// succeeds with Receipt, can fail with CardDeclinedError, owes PaymentGateway.
+declare function charge(
+  id: string
+): Effect.Effect<Receipt, CardDeclinedError, PaymentGateway>
 ```
 
 ```ts
-// good. Written with Effect instead of plain TypeScript
+// Bad: Does NOT compile.
+// Type 'PaymentGateway' is not assignable to type 'never'.
+// (CardDeclinedError is fine here. It would just reject at runtime.)
+Effect.runPromise(charge(id))
+```
 
-// can fail with CardDeclinedError, needs PaymentGateway dependency injected
-declare function charge(
-  id: string,
-): Effect<Receipt, CardDeclinedError, PaymentGateway>;
+```ts
+// Good: This is how you handle errors and pass in dependencies
+// In this example paymentGateway is the only dependency that needs to be injected
 
-// Error: CardDeclinedError unhandled, PaymentGateway not provided
-Effect.runPromise(charge(id));
+const paymentGateway = {
+  charge: (id: string) =>
+    Math.random() > 0.5
+      ? Effect.succeed({ id: `receipt_${id}` })
+      : Effect.fail(new CardDeclinedError({ reason: "insufficient funds" })),
+}
 
-// Success:
-const result = await Effect.runPromise(
-  program.pipe(
-    Effect.catchAllCause((cause) =>
-      Cause.isFailType(cause)
-        ? Effect.succeed("Recovered from a regular error")
-        : Effect.succeed("Recovered from a defect")
-    ),
-    Effect.provideService(PaymentGateway, paymentGateway),
-  )
-);
-
+const settled = charge(id).pipe(
+  // Handle the expected error.
+  Effect.catchTag("CardDeclinedError", (e) =>
+    Effect.succeed(`Declined: ${e.reason}`)
+  ),
+  // Provide the needed dependency
+  Effect.provideService(PaymentGateway, paymentGateway)
+)
+// settled: Effect<Receipt | string, never, never>  ->  runnable
+const result = await Effect.runPromise(settled)
 ```
 
 Here the signature says `charge` can fail with `CardDeclinedError` and needs a `PaymentGateway` dependency injected. Due to Effect's strict type system, the TypeScript compiler will not let you run it until you have handled the error and provided the required dependency.
