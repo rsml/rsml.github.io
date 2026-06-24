@@ -1,0 +1,139 @@
+---
+title: "Automated guardrails for AI-generated code"
+date: "2026-06-20"
+---
+
+import GuardrailFlow from '../../components/writing/GuardrailFlow.astro'
+
+Due to AI, the bottleneck in shipping great software has shifted from how fast can you write code to how fast can you validate code.
+
+There's always been a desire to have very strict guardrails on code (conventions, type safety, strong linting, perfect code coverage, etc) in order to prevent certain classes of bugs. However these desires were in tension with the practicalities of running a software team. For instance, every new guardrail can potentially make it slower to onboard a new engineer, increase developer frustration, and slow a team's velocity.
+
+We used to be optimizing for the ability to write and maintain code in a fast and high quality way. Now that code is cheap, we need to shift focus to the speed at which humans can validate code in a fast and high quality way.
+
+There's three different automated ways to catch a bug. If none of these are good fit, you'll have to rely on manual testing.
+
+<GuardrailFlow />
+
+## Runtime: caught when it runs
+
+The first place to catch a bug is at runtime. You run the code and see what happens.
+
+This is the floor. Some bugs never leave it.
+
+The reason is Rice's theorem. Every non-trivial question about what a program does is undecidable. You cannot write a checker that proves an arbitrary codebase is bug-free. So no matter how good our static checks get, some bugs only surface when the code runs.
+
+The clearest case is correctness.
+
+```ts
+// bad
+function applyDiscount(price: number, discountPercent: number): number {
+  return price * discountPercent; // 100 * 10 = 1000, but 10% off 100 should be 90
+}
+```
+
+```ts
+// good
+expect(applyDiscount(100, 10)).toBe(90); // a test catches the wrong number; the type cannot
+```
+
+Types check the shape. Only a test checks the answer.
+
+Runtime holds everything else you learn by running the code: integration and end-to-end tests, load and chaos tests, canary releases, metrics and traces. They share one trait. They run the code.
+
+Some bugs never make it past here. Is the report accurate? Does the feature do what was asked? These are questions about meaning. No pattern in the source tells the right answer from a plausible wrong one. You can shrink this set with more tests and better review. You cannot empty it.
+
+## Scanner: caught before it runs
+
+Some bugs are not about meaning. They are a shape you can describe. You keep seeing the same mistake in review, and a checker could match it in the text. Write the pattern down once and stop reviewing for it.
+
+A lint rule is the tool here. It is cheap and easy to read. But it has a blind spot.
+
+```ts
+// bad
+const key = user.apiKey;
+log(key); // a rule matching log(user.apiKey) misses this: key is just a string now
+
+const send = (s: string) => log(s);
+send(user.apiKey); // and this: the log moved into a helper
+```
+
+```ts
+// good
+const now = Date.now(); // Error: 'Date' is banned. a fixed token can't be renamed away.
+```
+
+The difference is whether the dangerous thing moves. A value that travels slips past a scanner. A fixed token does not.
+
+## Type system: the bug cannot be written
+
+When the dangerous thing is a value that travels, put the guarantee in the value's type.
+
+```ts
+// bad
+const apiKey: string = user.apiKey;
+
+log(apiKey); // compiles, and the secret lands in your logs
+```
+
+```ts
+// good
+declare const tag: unique symbol;
+type Sensitive<A> = { readonly [tag]: A };          // a wrapper, not a string
+const protect = <A>(a: A): Sensitive<A> => ({ [tag]: a });
+const reveal = <A>(s: Sensitive<A>): A => s[tag];   // the one way back out
+
+const apiKey = protect(user.apiKey); // Sensitive<string>
+
+log(apiKey);         // Error: Sensitive<string> is not assignable to string
+log(reveal(apiKey)); // the only way through, and every reveal is greppable
+```
+
+The tag rides the value everywhere. Alias it or pass it to a helper, and it is still `Sensitive<string>`. A scanner can only check the one spot it was told to watch. A type travels with the value into every place it goes. The lint rule has holes. The type has none.
+
+The whole sprawling rule, never log a secret anywhere, shrinks to one audit point: every call to `reveal`.
+
+The same move works beyond secrets: the errors a function can throw, the dependencies it needs, a validated email. That is a longer story, and I wrote it up [separately](/writing/making-illegal-states-unrepresentable).
+
+Not every bug earns a type, though. Some guarantees are ugly to express, and a contraption nobody can read is worse than the bug. A clean rule with a good message often wins.
+
+## Shaping, not grading
+
+Types have one more edge over rules, and it exists only because a model writes the code.
+
+A type is in-band. The model sees the constraint while it writes.
+
+```ts
+// the model sees this in the file it is editing:
+declare function log(message: string): void;
+// holding a Sensitive<string>, it sees log(secret) will not fit, and writes around it.
+```
+
+A lint rule is out-of-band. It lives in a config the model usually does not have open.
+
+```jsonc
+// .eslintrc, which the model is not looking at while it writes:
+{ "rules": { "no-log-secrets": "error" } }
+// so it writes log(secret), the build fails, and you spend a regeneration.
+```
+
+Either way the bug does not ship. But in-band prevents the mistake. Out-of-band only catches it. One shapes what the model writes. The other grades it after.
+
+## The spec gets tighter
+
+Run an AI codebase for a while and you learn which mistakes the model keeps making, which ones are expensive, and which ones your checks quietly miss. Those are the ones to promote.
+
+A recurring bug climbs. First a test, then a rule once you can name its shape, then a type once the rule starts leaking.
+
+```ts
+// 1. runtime: a test pins it
+test("never logs a secret", () => expect(logSpy).not.toHaveLoggedSecret());
+
+// 2. scanner: a rule, once you can name the shape
+// eslint: no-restricted-syntax on log(user.*)
+
+// 3. type: once the rule leaks, lift it
+declare function log(message: string): void; // and secrets are Sensitive<string>
+```
+
+You are not dragging everything to the type system. You move the bugs that earn it and leave the rest. Over time the guardrails tighten, and the best ones never fire at all, because the model has stopped making the mistake.

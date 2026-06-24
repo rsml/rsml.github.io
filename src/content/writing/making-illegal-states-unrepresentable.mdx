@@ -1,0 +1,219 @@
+---
+title: "Making illegal states unrepresentable in TypeScript"
+date: "2026-06-24"
+---
+
+There’s always been a desire to have very strict guardrails on code (conventions, type safety, strong linting, perfect code coverage, etc) in order to prevent certain classes of bugs. However these desires have historically been tension with the practicalities of running a software team. For instance, every new guardrail could potentially make it slower to onboard a new engineer, increase developer frustration, and slow a team’s velocity.
+
+We used to be optimizing for the ability to write and maintain code in a fast and high quality way. Now that code is cheap, we need to shift focus to the speed at which humans can validate code in a fast and high quality way.
+
+One of the best ways to improve confidence in the code you are shipping is with a strict type system. While the following patterns add additional verbosity which makes code slightly slower to read, they are so powerful in the safety that they can add to your code, making them almost always worth adopting.
+
+Here's a quick survey of some of the advanced patterns you can do in Typescript to make your code safer. For a more detailed explanation of each pattern, click or tap on the corresponding section header below.
+
+### [Branded type](https://www.learningtypescript.com/articles/branded-types)
+
+```ts
+// bad
+declare function getUser(id: string): User;
+const orderId = "ord_123";
+
+getUser(orderId); // compiles fine, even though orderId is an order id, not a user id
+```
+
+```ts
+// good
+type UserId = string & { readonly __brand: "UserId" };
+type OrderId = string & { readonly __brand: "OrderId" };
+declare function getUser(id: UserId): User;
+const orderId = "ord_123" as OrderId;
+
+getUser(orderId); // Error: OrderId is not assignable to UserId
+```
+
+The brand lives only in the types. At runtime it is still a plain string.
+
+There's a couple different ways to express branded types in Typescript, so I encourage checking [this resource](https://www.learningtypescript.com/articles/branded-types) for more information. For instance it shows how to make your branded types even safer with "unique symbol".
+
+### [Phantom types](https://dev.to/busypeoples/notes-on-typescript-phantom-types-kg9)
+
+Strictly speaking, Phantom Types are a superset of Branded Types. The difference is, Phantom Types use a parameterized type instead of a constant type. For instance instead of the "__brand" being the constant "UserId", a phantom type would be "__brand" of a variable type, e.g. "T".
+
+So let's rewrite the UserId and the OrderId branded types from the previous example using a Phantom Type called "Brand<T, U>"
+
+```ts
+// This is the Phantom Type since it is parameterized
+type Brand<T, U as string> = T & { readonly __brand: U };
+
+ // These are Branded Types
+type UserId = Brand<string, "UserId">;
+type OrderId = Brand<string, "OrderId">;
+
+getUser(orderId); // Error: OrderId is not assignable to UserId
+```
+
+### [Wrapper Types for Taint Tracking](https://dev.to/busypeoples/notes-on-typescript-phantom-types-kg9)
+
+```ts
+// bad
+const apiKey: string = user.apiKey;
+
+log(apiKey); // compiles, and the secret is now sitting in your logs
+```
+
+```ts
+// good
+type Sensitive<T> = { [tag]: T }; // Sensitive<T> is a Phantom Type
+const apiKey: Sensitive<string> = protect(user.apiKey);
+
+function reveal(value: Sensitive<T>): T {
+  value.tag as T;
+}
+
+// Error: Sensitive<string> is not assignable to string
+log(apiKey);
+
+// Succeeds. Every "reveal" invocation is greppable, so this is helpful to audit code safety.
+log(reveal(apiKey));
+```
+
+### Discriminated union
+
+```ts
+// bad
+type Shape =
+  | { kind: "circle"; radius: number }
+  | { kind: "square"; side: number };
+
+function area(shape: Shape): number {
+  switch (shape.kind) {
+    case "circle": return Math.PI * shape.radius ** 2;
+    case "square": return shape.side ** 2;
+    default: return 0; // add a shape later and it silently returns 0, no warning
+  }
+}
+```
+
+```ts
+// good
+type Shape =
+  | { kind: "circle"; radius: number }
+  | { kind: "square"; side: number }
+  | { kind: "triangle"; base: number; height: number }; // added later
+
+function area(shape: Shape): number {
+  switch (shape.kind) {
+    case "circle": return Math.PI * shape.radius ** 2;
+    case "square": return shape.side ** 2;
+    default:
+      const _exhaustive: never = shape; // Error: 'triangle' is not assignable to 'never'
+      return _exhaustive;
+  }
+}
+```
+
+The leftover case is pinned to `never`, so a forgotten variant cannot compile.
+
+### Typestate
+
+```ts
+// bad
+conn.close();
+
+conn.send("data"); // compiles, but throws at runtime: the connection is closed
+```
+
+```ts
+// good
+declare class Connection<S extends "open" | "closed"> {
+  send(this: Connection<"open">, data: string): void;
+  close(this: Connection<"open">): Connection<"closed">;
+}
+
+const closed = conn.close(); // conn is Connection<"open">
+
+closed.send("data"); // Error: 'send' is not callable on Connection<"closed">
+```
+
+A builder is the everyday version: `build()` only appears once the required fields are set.
+
+### Template-literal types
+
+```ts
+// bad
+declare function navigate(route: string): void;
+
+navigate("/usrs/42"); // compiles: a typo'd route is just a string, then 404s at runtime
+```
+
+```ts
+// good
+type Route = `/users/${number}` | `/posts/${number}`;
+declare function navigate(route: Route): void;
+
+navigate("/usrs/42"); // Error: '/usrs/42' is not assignable to Route
+```
+
+This is the one technique that looks inside a string.
+
+### Smart constructor
+
+```ts
+// bad
+declare function repeat(times: number): void;
+
+repeat(3.5); // compiles: any number is allowed, whole or fractional
+```
+
+```ts
+// good
+type Integer = number & { readonly brand: "Integer" };
+
+// the only way to make an Integer is to pass validation
+function toInteger(n: number): Integer | undefined {
+  return Number.isInteger(n) ? (n as Integer) : undefined;
+}
+
+declare function repeat(times: Integer): void;
+
+repeat(3.5); // Error: number is not assignable to Integer
+```
+
+The check runs once, at the edge, and nothing downstream can forget it ran.
+
+### Effect: errors and dependencies
+
+```ts
+// bad
+declare function charge(id: string): Promise<Receipt>;
+
+await charge(id); // compiles, but CardDeclined is thrown and unhandled, found in prod
+```
+
+```ts
+// good
+declare function charge(
+  id: string,
+): Effect<Receipt, CardDeclined, PaymentGateway>; // can fail with CardDeclined, needs PaymentGateway
+
+Effect.runPromise(charge(id)); // Error: CardDeclined unhandled, PaymentGateway not provided
+```
+
+Handle the error and it leaves `E`. Provide the service and it leaves `R`. You cannot run it until both are gone. A raw `throw` still slips past, so this holds within Effect's discipline, not as a proof.
+
+### Beyond TypeScript
+
+```ts
+// not expressible in TypeScript
+function at<T>(arr: T[], i: number): T {
+  return arr[i]; // i could be out of range, and no type can promise it is not
+}
+```
+
+Some guarantees need a runtime value, and TypeScript erases its types before the program runs. "This index is in bounds," "this list is sorted," "this handle is used once": those want refinement types, dependent types, or ownership. They live in other languages (Liquid Haskell, Idris, Dafny, Rust) or in a model checker like TLA+.
+
+Two more things are out of reach for a different reason. Higher-kinded types, where one `Functor` works for `Array`, `Promise`, and `Option` alike, need a kind system TypeScript does not have. Totality, a proof that a function handles every input and always halts, needs termination analysis it does not do.
+
+In TypeScript you brand "this was checked" and leave the rest to runtime.
+
+A few smaller tools round this out. A GADT encoding is a discriminated union whose tag also refines a type parameter, which is how you build a typed interpreter. And `satisfies`, `const` type parameters, and `readonly` are enablers: they keep the techniques above from being widened away, but they are not guarantees on their own.
