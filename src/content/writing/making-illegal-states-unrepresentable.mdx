@@ -39,7 +39,7 @@ There's a couple different ways to express branded types in Typescript, so I enc
 
 Strictly speaking, Phantom Types are a superset of Branded Types. The difference is, Phantom Types use a parameterized type instead of a constant type. For instance instead of the "__brand" being the constant "UserId", a phantom type would be "__brand" of a variable type, e.g. "T".
 
-So let's rewrite the UserId and the OrderId branded types from the previous example using a Phantom Type called "Brand<T, U>"
+So let's rewrite the UserId and the OrderId branded types from the previous example using a Phantom Type called "Brand&lt;T, U>"
 
 ```ts
 // This is the Phantom Type since it is parameterized
