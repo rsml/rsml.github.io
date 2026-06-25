@@ -1,6 +1,6 @@
 ---
 title: "Making illegal states unrepresentable in TypeScript"
-date: "2026-06-24"
+date: "2026-06-25"
 ---
 
 There's always been a desire to have very strict guardrails on code (conventions, type safety, strong linting, perfect code coverage, etc) in order to prevent certain classes of bugs. However for many teams, these desires have come in tension with the practicalities of running a software team. For instance, every new guardrail could historically make it slower to onboard a new engineer, increase developer frustration, and slow a team's velocity.
@@ -11,7 +11,7 @@ One of the best ways to increase confidence in your code is by using a strict ty
 
 The goal behind all of them is the same: make illegal states unrepresentable. By enforcing rules at the type level, the compiler rejects a bad value before a human ever reviews it. Every check the compiler makes is one less thing you have to read for.
 
-Here's a quick survey of some of the advanced patterns you can use in TypeScript to make your code safer. Each section header links out to a deeper mostly third-party articles if you want more detail on a pattern.
+Here's a quick survey of some of the advanced patterns you can use in TypeScript to make your code safer. Each section header links out to a deeper, mostly third-party write-up if you want more detail on a pattern.
 
 ### [Branded types](https://www.learningtypescript.com/articles/branded-types)
 
@@ -78,7 +78,7 @@ repeat(3.5);
 // Good
 type Integer = number & { readonly __brand: "Integer" };
 
-// ToInteger is the smart constructor
+// toInteger is the smart constructor
 function toInteger(n: number): Integer | undefined {
   return Number.isInteger(n) ? (n as Integer) : undefined;
 }
@@ -119,7 +119,7 @@ function reveal<T>(value: Sensitive<T>): T {
   return value.__sensitive;
 }
 
-// ApiKey is now protected
+// apiKey is now protected
 const apiKey: Sensitive<string> = protect(user.apiKey);
 
 // Error: Sensitive<string> is not assignable to string
@@ -173,7 +173,7 @@ function area(shape: Shape): number {
 }
 ```
 
-The shared `kind` field is the discriminant — it is what lets TypeScript narrow the union in each `case`. Once every `kind` is handled, the only thing `shape` can be in the default is `never`, so assigning it to `__exhaustive: never` compiles.
+The shared `kind` field is the discriminant. It is what lets TypeScript narrow the union in each `case`. Once every `kind` is handled, the only thing `shape` can be in the default is `never`, so assigning it to `__exhaustive: never` compiles.
 
 Add a new case and forget to handle it, and the assignment fails to compile because the new case is not assignable to `never`.
 
@@ -199,7 +199,7 @@ declare class Connection<S extends "open" | "closed"> {
 declare const conn: Connection<"open">;
 const closed = conn.close();
 
-// Error: the 'this' context of type 'Connection<"closed">'
+// Error: The 'this' context of type 'Connection<"closed">'
 // is not assignable to method's 'this' of type 'Connection<"open">'
 closed.send("data");
 ```
@@ -208,7 +208,7 @@ Typestate puts the object's state into its type, so the methods you can call cha
 
 `send(this: Connection<"open">, ...)` says you can only call `send` when `this` is an open connection.
 
-`close()` returns a new `Connection<"closed">`. Since the closed type has no callable `send` function, trying to call `send` on a `Connection<"closed">` will throw a TypeScript error.
+`close()` returns a new `Connection<"closed">`. Calling `send` requires `this` to be `Connection<"open">`, so calling it on a closed connection is a TypeScript compile error.
 
 ### [Template literal types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)
 
@@ -234,11 +234,11 @@ Just like in JavaScript, you can use template literals in TypeScript's type syst
 
 A slot like `${number}` matches any string with a number in that position just like `${Entity}` matches any entity in that position. So `/users/42` is a valid `Route`, but `/usrs/42` is not.
 
-### [Effect: errors and dependencies](https://effect.website/)
+### [Effect: errors and requirements](https://effect.website/)
 
 By default, TypeScript has no way to enforce that exceptions are properly handled!
 
-[Effect](https://effect.website/) comes to the rescue as very opinionated way to enforce that not only errors, but also and dependencies become explicitly part of a function's type. This means if errors or dependencies are not properly handled, TypeScript will fail to compile.
+[Effect](https://effect.website/) comes to the rescue as a very opinionated way to make both errors and requirements (the dependencies a function needs) an explicit part of its type. You cannot run a function until its requirements are provided, and any error it can produce is impossible to overlook because it sits right there in the type.
 
 Let's say you have the following Effect code
 
@@ -253,63 +253,60 @@ class CardDeclinedError extends Data.TaggedError("CardDeclinedError")<{
   reason: string
 }> {}
 
-// `Context.Tag` defines a dependency slot
-// Effect's has a special dependency injection mechanism
-// it uses to pass in dependencies to functions that need them.
-// This `PaymentGateway` class is how Effect tracks what type
-// of the dependency will need to be injected
+// `Context.Tag` defines a requirement.
+// Effect has a dependency injection mechanism that provides these
+// to the functions that need them. This `PaymentGateway` class is
+// the key Effect uses to track and inject that requirement.
 class PaymentGateway extends Context.Tag("PaymentGateway")<
   PaymentGateway,
-  { charge: (id: string) => Effect.Effect<Receipt, CardDeclinedError> }
+  { chargeCard: (id: string) => Effect.Effect<Receipt, CardDeclinedError> }
 >() {}
 
 /**
  * Effect.Effect is parameterized by up to three types.
  *   The first indicates what it returns when it succeeds, e.g. `Receipt`
  *   The second indicates what it returns when it fails, e.g. `CardDeclinedError`
- *   The third indicates what dependencies it needs, e.g. `PaymentGateway`
+ *   The third indicates its requirements, the dependencies it needs, e.g. `PaymentGateway`
  */
-declare function charge(
+declare function chargeCard(
   id: string
 ): Effect.Effect<Receipt, CardDeclinedError, PaymentGateway>
 ```
 
-Effect code is strange the first time you see it, but just think of it as a library that makes sure you're 100% explicit about all of the errors and dependencies of each of your functions.
+Effect code is strange the first time you see it, but just think of it as a library that makes sure you're 100% explicit about all of the errors and requirements of each of your functions.
 
 ```ts
 // Bad
 
 // Error: Type 'PaymentGateway' is not assignable to type 'never'
 
-// `runPromise` needs the requirements channel to be 'never', so the missing
-// PaymentGateway is what fails to compile. An unhandled CardDeclinedError is
-// Fine here: it would just reject the promise at runtime.
-const result = await Effect.runPromise(charge(id))
+// `runPromise` only runs an Effect with no leftover requirements.
+// chargeCard still needs PaymentGateway, which is why this fails to compile.
+const result = await Effect.runPromise(chargeCard(id))
 ```
 
 ```ts
 // Good
 
-// Handle the error and provide the dependency
-// `paymentGateway` is the only one that needs injecting here
+// Handle the error and provide the service `paymentGateway`
+// that fulfills the requiment `PaymentGateway`
 const paymentGateway = {
-  charge: (id: string) => (
-    // Pretend we actually charge a card here
+  // Pretend we actually charge a card here
+  chargeCard: (id: string) =>
     Math.random() > 0.5
       ? Effect.succeed({ id: `receipt_${id}` })
       : Effect.fail(new CardDeclinedError({ reason: "insufficient funds" })),
-  )
 }
 
 // Effect is declarative instead of imperative. That's what makes
 // it so powerful, but it also makes the syntax a little cumbersome
-const settled = charge(id).pipe(
+const settled = chargeCard(id).pipe(
   // Handle the expected error
   Effect.catchTag("CardDeclinedError", (e) =>
     Effect.succeed(`Declined: ${e.reason}`)
   ),
 
-  // Provide the needed dependency
+  // Provide the needed `paymentGateway` service that fulfills the `PaymentGateway` requirement
   Effect.provideService(PaymentGateway, paymentGateway)
 )
 
@@ -317,9 +314,9 @@ const settled = charge(id).pipe(
 const result = await Effect.runPromise(settled)
 ```
 
-The signature says `charge` can fail with `CardDeclinedError` and needs a `PaymentGateway`. The compiler will not let you run it until that dependency is provided.
+The signature says `chargeCard` can fail with `CardDeclinedError` and needs a `PaymentGateway`. The compiler will not let you run it until that requirement is provided.
 
-You don't strictly have to handle the error to compile. An unhandled error just rejects the promise at runtime, but handling it is usually the point. After `catchTag` and `provideService`, `settled` is `Effect<Receipt | string, never, never>`: the success type gained `string` because the caught branch returns one, and both the error and requirements channels are now `never`, so it is runnable.
+You don't strictly have to handle the error to compile. An unhandled error just rejects the promise at runtime, but handling it is usually the point. After `catchTag` and `provideService`, `settled` is `Effect<Receipt | string, never, never>`: the success type gained `string` because the caught branch returns one, and both the error and the requirements are now `never`, so it is runnable.
 
 ### [Beyond TypeScript](https://en.wikipedia.org/wiki/Refinement_type)
 
@@ -336,6 +333,6 @@ For instance, the function above wants to guarantee that `i` is a valid index. B
 
 TypeScript's `noUncheckedIndexedAccess` feature helps a little. It types `arr[i]` as `T | undefined`, forcing you to handle the missing case. But it still cannot prove the index is valid inside the type system.
 
-Similarly it's impossible to have types that represent "this list is sorted." Checks like these have to survive into runtime, so they belong to languages built for it such as [Rust](https://rust-lang.org/), [Idris](https://idris-lang.org/), or [Dafny](https://dafny.org/). Or they belong to a model checker like [TLA+](https://lamport.azurewebsites.net/tla/tla.html).
+Similarly, no TypeScript type can represent "this list is sorted" or "this file handle is used exactly once." Guarantees like these need a more powerful type system or proof tool, such as [Rust](https://rust-lang.org/), [Idris](https://idris-lang.org/), or [Dafny](https://dafny.org/), or a model checker like [TLA+](https://lamport.azurewebsites.net/tla/tla.html).
 
-Despite these limitations, the patterns above give you a lot of ways to make your types more safe.
+Despite these limitations, the patterns above give you a lot of ways to make your types safer.
