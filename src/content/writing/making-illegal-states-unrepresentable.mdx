@@ -336,6 +336,6 @@ For instance, the function above wants to guarantee that `i` is a valid index. B
 
 TypeScript's `noUncheckedIndexedAccess` feature helps a little. It types `arr[i]` as `T | undefined`, forcing you to handle the missing case. But it still cannot prove the index is valid inside the type system.
 
-Similarly it's impossible to have types that represent "this list is sorted" or "this file handle is used exactly once." Checks like these have to survive into runtime, so they belong to languages built for it such as [Rust](https://rust-lang.org/), [Idris](https://idris-lang.org/), or [Dafny](https://dafny.org/). Or they belong to a model checker like [TLA+](https://lamport.azurewebsites.net/tla/tla.html).
+Similarly it's impossible to have types that represent "this list is sorted." Checks like these have to survive into runtime, so they belong to languages built for it such as [Rust](https://rust-lang.org/), [Idris](https://idris-lang.org/), or [Dafny](https://dafny.org/). Or they belong to a model checker like [TLA+](https://lamport.azurewebsites.net/tla/tla.html).
 
 Despite these limitations, the patterns above give you a lot of ways to make your types more safe.
