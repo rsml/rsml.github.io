@@ -9,9 +9,9 @@ Before AI coding agents, we optimized for the ability to write and maintain code
 
 One of the best ways to increase confidence in your code is by using a strict type system. While the following patterns add additional verbosity which makes code slightly slower to read, they are such powerful guardrails that I believe they are almost always worth adopting in AI-generated code.
 
-The goal behind all of them is the same: make illegal states unrepresentable. By enforcing rules at the type level, the compiler rejects a bad value before a human ever reviews it. Every check the compiler makes is one less thing you have to read for.
+The goal behind all of them is is to increase confidence in your code by illegal states unrepresentable, so that you can review code faster and more confidently.
 
-Here's a quick survey of some of the advanced patterns you can use in TypeScript to make your code safer. Each section header links out to a deeper, mostly third-party write-up if you want more detail on a pattern.
+Here's a quick survey of some of the advanced patterns you can use in TypeScript to make your code safer. Each section header links out to a deeper, third-party write-up if you want more detail on a pattern.
 
 ### [Branded types](https://www.learningtypescript.com/articles/branded-types)
 
@@ -35,25 +35,19 @@ const orderId = "ord_123" as OrderId;
 getUser(orderId);
 ```
 
-`__brand` is a fake property that exists only in the type, never at runtime, so you never actually attach it. The `as` cast is how you deliberately mint a branded value. (The smart constructors section below shows how to make that cast safe.)
+`__brand` is a fake property that exists only in the type. The `as` keyword, in this example, is used to explicity give something a branded type.
 
-Type annotations and brands are erased at runtime, so `UserId` and `OrderId` are still plain strings once the code runs.
+Since types are stripped out by the TypeScript compiler, at runtime `UserId` and `OrderId` will just be normal strings.
 
-A best practice is to check a value once at a boundary of your system, brand it as checked, and trust the type from then on.
+A best practice is to check a value once at a boundary of your system, give it a branded type, and trust the type from then on.
 
-### [Phantom types](https://dev.to/busypeoples/notes-on-typescript-phantom-types-kg9)
-
-Branded types are one application of a more general idea called phantom types. What makes a type phantom is a type parameter that has no runtime representation: it exists only to carry information through the type system. The `__brand` marker above is exactly that.
-
-The one difference from a plain branded type is that the marker can be a parameter (`U`) instead of a hard-coded literal like `"UserId"`, so a single helper covers every id type.
-
-So let's rewrite the `UserId` and `OrderId` branded types from the previous example using a phantom type called `Brand<T, U>`. Here `T` is the base type being branded and `U` is the brand.
+In practice, it's usually best to create a utility type that helps create branded types like so:
 
 ```ts
-// Brand is a reusable phantom-type helper (T is the base, U is the brand)
+// Brand is a utility type for creating branded types
 type Brand<T, U extends string> = T & { readonly __brand: U };
 
-// These are branded types built from Brand
+// UserId and OrderId are branded types created using Brand
 type UserId = Brand<string, "UserId">;
 type OrderId = Brand<string, "OrderId">;
 
@@ -68,30 +62,61 @@ getUser(orderId);
 
 ```ts
 // Bad
-declare function repeat(times: number): void;
+declare function average(values: number[]): number;
 
-// Compiles: any number is allowed, whole or fractional
-repeat(3.5);
+// Dangerous! This compiles, even though the average of an empty array is undefined
+average([]);
 ```
 
 ```ts
 // Good
-type Integer = number & { readonly __brand: "Integer" };
+// This `readonly` keyword prevents the array from mutating with a `.pop()` for instance after you've already checked it!
+type NonEmptyArray<T> = readonly [T, ...T[]];
 
-// toInteger is the smart constructor
-function toInteger(n: number): Integer | undefined {
-  return Number.isInteger(n) ? (n as Integer) : undefined;
+// nonEmptyArray is the smart constructor
+function nonEmptyArray<T>(
+  first: T,
+  ...rest: T[]
+): NonEmptyArray<T> {
+  return [first, ...rest];
 }
 
-declare function repeat(times: Integer): void;
+declare function average(
+  values: NonEmptyArray<number>,
+): number;
 
-// Error: number is not assignable to Integer
-repeat(3.5);
+// Error: an empty array is not assignable to NonEmptyArray<number>
+average([]);
+
+// Valid: the smart constructor requires at least one value
+average(nonEmptyArray(10, 20, 30));
 ```
 
-`Integer` is just a branded type again, from the first pattern. What's new is `toInteger`: despite being a regular function, when it is the only way to get an `Integer`, it is often (confusingly) called a smart constructor.
+`NonEmptyArray<T>` is a type that guarantees an array contains at least one item. What's new is the `nonEmptyArray` function. Its parameters are designed so that every possible call produces a valid `NonEmptyArray`: the caller has to provide the first item.
 
-You'd typically run this check once, at the edge of your system. For instance, say you have an API route handler with some Zod validation. After a field parses as a `z.int()`, you can pass it through `toInteger`, which returns `Integer | undefined`. Handle the `undefined` case once, and from then on you can use the `Integer` type everywhere downstream with full confidence that it is an integer, with no additional runtime checks needed.
+A function that provides a controlled way to create a type while preserving that type's invariants is often called a smart constructor. Despite the name, it does not need to be a JavaScript class constructor. It can be a regular function.
+
+You would typically handle that failure once at the boundary of your system. From then on, your code can use `NonEmptyArray<T>` with confidence that the array contains at least one item.
+
+#### Partial smart constructors
+
+If you have a smart constructor that sometimes returns `undefined` it is sometimes called a "partial smart constructor." For instance `toDateRange` in the code below is a partial smart constructor.
+
+```ts
+function toDateRange(
+  start: Date,
+  end: Date,
+): DateRange | undefined {
+  if (start.getTime() > end.getTime()) {
+    return undefined;
+  }
+
+  return {
+    start,
+    end,
+  } as DateRange;
+}
+```
 
 ### [Wrapper types for taint tracking](https://allan.reyes.sh/posts/tainted-types/)
 
