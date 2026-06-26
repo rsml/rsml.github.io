@@ -198,7 +198,7 @@ function area(shape: Shape): number {
 }
 ```
 
-In the example above, `Shape` is the part that's specifically called a "discriminated union."
+In the example above, `Shape` is the part that's specifically called a "discriminated union." The word "descriminated" refers to the fact that they all share a property that distinguishes them, which in this example is called "kind."
 
 If you add a new case and forget to handle it in this switch statement, the assignment will fail to compile. Instead, the TypeScript compiler will say that the the new case is not assignable to `never`.
 
@@ -256,7 +256,7 @@ const closed = conn.close();
 closed.send("data");
 ```
 
-Typestate puts the object's state into its type, so the methods you can call change with the state. The mechanism is the `this` parameter.
+Typestate puts the object's state into its type, so the methods you can call change with the state.
 
 `send(this: Connection<"open">, ...)` says you can only call `send` when `this` is an open connection.
 
@@ -290,7 +290,7 @@ A slot like `${number}` matches any string with a number in that position just l
 
 By default, TypeScript has no way to enforce that exceptions are properly handled!
 
-[Effect](https://effect.website/) comes to the rescue as a very opinionated way to make both errors and requirements (the dependencies a function needs) an explicit part of its type. You cannot run a function until its requirements are provided, and any error it can produce is impossible to overlook because it sits right there in the type.
+[Effect](https://effect.website/) comes to the rescue as a very opinionated way to make both errors and requirements (the dependencies a function needs) an explicit part of its type.
 
 Let's say you have the following Effect code
 
@@ -337,6 +337,10 @@ Effect code is strange the first time you see it, but just think of it as a libr
 const result = await Effect.runPromise(chargeCard(id))
 ```
 
+The type signature says `chargeCard` can fail with `CardDeclinedError` and has a requirement `PaymentGateway`. The compiler will not let you run it until that requirement is provided.
+
+You don't strictly have to handle `CardDeclinedError` for the code to compile. If the Effect fails, the promise returned by `Effect.runPromise(...)` will reject at runtime. However, you will often handle expected errors inside Effect before running it. Handling `CardDeclinedError` removes it from the Effect's error type. If no other errors remain, the error type becomes `never`.
+
 ```ts
 // Good
 
@@ -366,9 +370,7 @@ const settled = chargeCard(id).pipe(
 const result = await Effect.runPromise(settled)
 ```
 
-The signature says `chargeCard` can fail with `CardDeclinedError` and needs a `PaymentGateway`. The compiler will not let you run it until that requirement is provided.
-
-You don't strictly have to handle the error to compile. An unhandled error just rejects the promise at runtime, but handling it is usually the point. After `catchTag` and `provideService`, `settled` is `Effect<Receipt | string, never, never>`: the success type gained `string` because the caught branch returns one, and both the error and the requirements are now `never`, so it is runnable.
+After `catchTag` and `provideService`, `settled` is `Effect<Receipt | string, never, never>`: the success type gained `string` because the caught branch returns one, and both the error and the requirements are now `never`, so it is runnable.
 
 ### [Beyond TypeScript](https://en.wikipedia.org/wiki/Refinement_type)
 
