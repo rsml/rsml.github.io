@@ -1,0 +1,473 @@
+---
+/**
+ * TableOfContents: a "Jump to section" nav for long-form writing.
+ *
+ * Driven entirely off Astro's `headings` (from `render(entry)`), so it works for
+ * any post, not just one. Renders ONE `<details>` element that presents two ways:
+ *   - Desktop (>=1200px): a sticky hairline rail in the left gutter with a
+ *     scroll-spy accent tick that glides to the active section. The `<summary>`
+ *     is hidden and the content is force-shown, so the disclosure state is moot.
+ *   - Below 1200px: a compact, collapsible "Jump to section" disclosure that stacks
+ *     above the article. Native `<details>` toggling works with JS disabled.
+ *
+ * Progressive enhancement: the markup is a real <nav> of <a href="#slug"> anchors
+ * that function without JS (native anchor jump + scroll-margin-top on headings).
+ * JS layers on smooth scrolling, scroll-spy, the gliding
+ * indicator, and aria-current. Everything re-inits on `astro:page-load` (the site
+ * uses <ClientRouter />, so DOMContentLoaded fires only once) and tears down clean.
+ */
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+interface Props {
+  headings: Heading[];
+}
+const { headings } = Astro.props;
+
+// Section headings only (the page renders the title h1 itself). h2-h4 covers the
+// common range; deeper headings would make the rail too dense to scan.
+const items = headings.filter((h) => h.depth >= 2 && h.depth <= 4);
+// Indent relative to the shallowest heading present, so a post written in h3s
+// (like this one) still starts flush and nests its h4s.
+const minDepth = items.length ? Math.min(...items.map((h) => h.depth)) : 2;
+
+// A one-item contents list is noise. Only render when there's something to navigate.
+const show = items.length >= 2;
+---
+{
+  show && (
+    <details class="toc" data-toc style="--rise-i:2">
+      <summary class="toc-summary">
+        <svg
+          class="toc-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.25"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+        <span>Jump to section</span>
+      </summary>
+      <nav class="toc-content" aria-label="Jump to section">
+        <p class="toc-eyebrow" aria-hidden="true">
+          Jump to section
+        </p>
+        <div class="toc-rail">
+          <span class="toc-indicator" aria-hidden="true" />
+          <ul class="toc-list">
+            {items.map((h) => (
+              <li class="toc-item" data-depth={h.depth - minDepth}>
+                <a class="toc-link" href={`#${h.slug}`} data-toc-link={h.slug}>
+                  {h.text}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </nav>
+    </details>
+  )
+}
+
+<style>
+  .toc {
+    /* Monochrome by design (Apple / Linear docs on white): the sliding indicator
+       is a near-black ink tick, NOT a color. --ink already adapts across light and
+       dark, and the blue --focus token stays reserved for real focus rings only. */
+    --toc-accent: var(--ink);
+    --toc-tick: 15px; /* keep in sync with TICK_H in the script */
+    --toc-top: 96px; /* sticky offset; matches heading scroll-margin-top */
+    --toc-w: 180px;
+    --toc-gap: 44px;
+
+    grid-column: 2; /* mobile: flow inside the centered reading column */
+    margin: 0 0 44px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+
+  /* ── Summary (the mobile disclosure button) ───────────────────────────── */
+  .toc-summary {
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 2px;
+    margin-left: -2px;
+    color: var(--muted);
+    font-weight: 540;
+    letter-spacing: -0.06px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 160ms ease;
+  }
+  .toc-summary::-webkit-details-marker {
+    display: none;
+  }
+  .toc-summary:hover {
+    color: var(--ink);
+  }
+  .toc-summary:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  .toc-chevron {
+    color: var(--hairHigh);
+    transition: transform 240ms cubic-bezier(0.16, 0.84, 0.44, 1);
+  }
+  .toc[open] .toc-chevron {
+    transform: rotate(90deg);
+  }
+
+  /* ── Content ──────────────────────────────────────────────────────────── */
+  .toc-content {
+    padding-top: 8px;
+  }
+  .toc-eyebrow {
+    display: none; /* desktop rail only */
+  }
+
+  /* ── Rail + gliding indicator ─────────────────────────────────────────── */
+  .toc-rail {
+    position: relative;
+  }
+  /* The hairline the indicator rides on. Inset top/bottom so it reads as a
+     deliberate stroke, not a full-bleed divider. */
+  .toc-rail::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 5px;
+    bottom: 5px;
+    width: 1px;
+    background: var(--hair);
+  }
+  .toc-indicator {
+    position: absolute;
+    left: -0.5px; /* center the 2px tick over the 1px rail */
+    top: 0;
+    width: 2px;
+    height: var(--toc-tick);
+    border-radius: 2px;
+    background: var(--toc-accent);
+    opacity: 0;
+    transform: translateY(var(--toc-y, 0));
+    transition:
+      transform 320ms cubic-bezier(0.16, 0.84, 0.44, 1),
+      opacity 240ms ease;
+    will-change: transform;
+  }
+  /* Snap (no glide) for the first placement and on resize/open. */
+  .toc-indicator.is-instant {
+    transition: opacity 240ms ease;
+  }
+
+  .toc-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .toc-item {
+    margin: 0;
+  }
+  .toc-link {
+    display: block;
+    padding: 5px 0 5px 17px;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: -0.06px;
+    transition:
+      color 170ms ease,
+      transform 240ms cubic-bezier(0.16, 0.84, 0.44, 1);
+  }
+  .toc-link:hover {
+    color: color-mix(in srgb, var(--ink) 80%, transparent);
+    transform: translateX(2px);
+  }
+  .toc-link.is-active {
+    color: var(--ink);
+  }
+  .toc-link:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+    color: var(--ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toc-indicator {
+      transition: opacity 240ms ease;
+    }
+    .toc-link {
+      transition: color 170ms ease;
+    }
+    .toc-link:hover {
+      transform: none;
+    }
+    .toc-chevron {
+      transition: none;
+    }
+  }
+
+  /* ── Desktop: sticky hairline rail in the left gutter ─────────────────── */
+  @media (min-width: 1200px) {
+    .toc {
+      grid-column: 1;
+      grid-row: 2; /* align the rail's top with the article body */
+      justify-self: end; /* hug the right edge of the gutter, near the prose */
+      align-self: start; /* required so position:sticky has room to travel */
+      width: var(--toc-w);
+      margin: 0 var(--toc-gap) 0 0;
+      position: sticky;
+      top: var(--toc-top);
+      max-height: calc(100vh - var(--toc-top) - 32px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+    }
+    .toc::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+    /* Force the content visible regardless of the (now-irrelevant) open state.
+       Two mechanisms: legacy engines hide the child with display:none; recent
+       Chrome wraps it in ::details-content with content-visibility:hidden. */
+    .toc > .toc-content {
+      display: block !important;
+    }
+    .toc::details-content {
+      content-visibility: visible !important;
+    }
+    .toc-summary {
+      display: none;
+    }
+    .toc-content {
+      padding-top: 0;
+    }
+    .toc-eyebrow {
+      display: block;
+      margin: 0 0 14px 17px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 560;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+  }
+</style>
+
+<script>
+  /**
+   * Scroll-spy + gliding indicator + smooth scroll. A passive, rAF-coalesced scroll
+   * listener drives a rect-based active calc (so the page bottom selects the last
+   * section), and a click pins the highlight until the smooth scroll settles
+   * (scrollend) so it never snaps backward. Re-inits on every astro:page-load and
+   * tears down on the next, so SPA navigation never leaves a stale listener behind.
+   */
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const TICK_H = 15; // mirror of --toc-tick
+  const DESKTOP = '(min-width: 1200px)';
+
+  let teardown: (() => void) | null = null;
+
+  function initToc() {
+    teardown?.();
+    teardown = null;
+
+    const root = document.querySelector<HTMLDetailsElement>('[data-toc]');
+    if (!root) return;
+
+    const rail = root.querySelector<HTMLElement>('.toc-rail');
+    const indicator = root.querySelector<HTMLElement>('.toc-indicator');
+    const links = Array.from(
+      root.querySelectorAll<HTMLAnchorElement>('[data-toc-link]'),
+    );
+    if (!rail || !indicator || !links.length) return;
+
+    // Pair each link with its heading element; drop any that don't resolve.
+    const entries = links
+      .map((link) => {
+        const id = link.dataset.tocLink ?? '';
+        const heading = id ? document.getElementById(id) : null;
+        return heading ? { id, link, heading } : null;
+      })
+      .filter((e): e is { id: string; link: HTMLAnchorElement; heading: HTMLElement } => e !== null);
+    if (!entries.length) return;
+
+    let activeId: string | null = null;
+    let locked = false; // pin active during a click-driven smooth scroll
+    let settleCleanup: (() => void) | null = null;
+    let scrollRAF = 0;
+
+    // The horizontal line a heading must cross to count as "active". Kept below
+    // the heading scroll-margin-top (96px) so a clicked heading lands above it.
+    const triggerLine = () => Math.max(112, window.innerHeight * 0.2);
+
+    function placeIndicator(link: HTMLAnchorElement, animate: boolean) {
+      if (!animate) indicator!.classList.add('is-instant');
+      const lr = link.getBoundingClientRect();
+      const rr = rail!.getBoundingClientRect();
+      const lineH = parseFloat(getComputedStyle(link).lineHeight) || lr.height;
+      // Center the tick on the first line, so multi-line labels still point true.
+      const y = lr.top - rr.top + Math.min(lr.height, lineH) / 2 - TICK_H / 2;
+      indicator!.style.setProperty('--toc-y', `${y}px`);
+      indicator!.style.opacity = '1';
+      if (!animate) {
+        // Flush the snap, then restore the transition for subsequent moves.
+        requestAnimationFrame(() => indicator!.classList.remove('is-instant'));
+      }
+    }
+
+    function setActive(id: string, animate: boolean) {
+      if (id === activeId) return;
+      activeId = id;
+      for (const e of entries) {
+        const on = e.id === id;
+        e.link.classList.toggle('is-active', on);
+        if (on) {
+          e.link.setAttribute('aria-current', 'true');
+          placeIndicator(e.link, animate);
+        } else {
+          e.link.removeAttribute('aria-current');
+        }
+      }
+    }
+
+    // Active section = the last heading whose top has passed the trigger line.
+    // At the very bottom the final heading can't reach that line, so pin the last
+    // item there (otherwise an earlier section stays selected at page end).
+    function computeActive(): string {
+      if (
+        window.scrollY + window.innerHeight >=
+        document.documentElement.scrollHeight - 2
+      ) {
+        return entries[entries.length - 1].id;
+      }
+      const line = triggerLine();
+      let current = entries[0].id;
+      for (const e of entries) {
+        if (e.heading.getBoundingClientRect().top - line <= 1) current = e.id;
+        else break;
+      }
+      return current;
+    }
+
+    function recompute(animate: boolean) {
+      if (locked) return;
+      setActive(computeActive(), animate);
+    }
+
+    // Drive the spy off a passive, rAF-coalesced scroll listener (the decision is
+    // just a few getBoundingClientRect reads). This also covers the page bottom,
+    // where no heading crosses a near-the-top trigger band.
+    const onScroll = () => {
+      if (scrollRAF) return;
+      scrollRAF = requestAnimationFrame(() => {
+        scrollRAF = 0;
+        recompute(true);
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // Unlock only once the page actually stops moving. A fixed timer would fire
+    // mid-flight on a long smooth scroll and recompute to an earlier section,
+    // snapping the highlight backward. Waiting for scrollend avoids that.
+    function releaseWhenSettled() {
+      settleCleanup?.();
+      let scrolled = false;
+      let noScrollTimer = 0;
+      let hardCap = 0;
+      const onAnyScroll = () => {
+        scrolled = true;
+      };
+      const cleanup = () => {
+        window.removeEventListener('scrollend', release);
+        window.removeEventListener('scroll', onAnyScroll);
+        window.clearTimeout(noScrollTimer);
+        window.clearTimeout(hardCap);
+        settleCleanup = null;
+      };
+      const release = () => {
+        cleanup();
+        locked = false;
+        recompute(true);
+      };
+      window.addEventListener('scroll', onAnyScroll, { passive: true });
+      window.addEventListener('scrollend', release);
+      // Target already in view: no scroll fires, so release promptly.
+      noScrollTimer = window.setTimeout(() => {
+        if (!scrolled) release();
+      }, 150);
+      // Hard cap so a missed scrollend can never freeze the spy.
+      hardCap = window.setTimeout(release, 2000);
+      settleCleanup = cleanup;
+    }
+
+    function onClick(ev: MouseEvent) {
+      const link = ev.currentTarget as HTMLAnchorElement;
+      const id = link.dataset.tocLink ?? '';
+      const heading = document.getElementById(id);
+      if (!heading) return; // fall back to native anchor jump
+      ev.preventDefault();
+      setActive(id, true);
+      locked = true;
+      history.replaceState(null, '', `#${id}`);
+      // Collapse the mobile disclosure after picking a destination.
+      if (!window.matchMedia(DESKTOP).matches) root!.open = false;
+      heading.scrollIntoView({
+        behavior: REDUCED.matches ? 'auto' : 'smooth',
+        block: 'start',
+      });
+      releaseWhenSettled();
+    }
+    links.forEach((l) => l.addEventListener('click', onClick));
+
+    // Re-measure on resize (layout shifts the rail) and when the mobile
+    // disclosure opens (its content had zero size while collapsed).
+    const onResize = () => {
+      recompute(false);
+      const cur = entries.find((e) => e.id === activeId);
+      if (cur) placeIndicator(cur.link, false);
+    };
+    window.addEventListener('resize', onResize, { passive: true });
+
+    const onToggle = () => {
+      if (!root!.open) return;
+      const cur = entries.find((e) => e.id === activeId);
+      if (cur) placeIndicator(cur.link, false);
+    };
+    root.addEventListener('toggle', onToggle);
+
+    // First paint: place the tick on the active item with no glide-from-zero.
+    activeId = computeActive();
+    for (const e of entries) {
+      const on = e.id === activeId;
+      e.link.classList.toggle('is-active', on);
+      if (on) e.link.setAttribute('aria-current', 'true');
+    }
+    const initial = entries.find((e) => e.id === activeId);
+    if (initial) placeIndicator(initial.link, false);
+
+    teardown = () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+      root!.removeEventListener('toggle', onToggle);
+      links.forEach((l) => l.removeEventListener('click', onClick));
+      cancelAnimationFrame(scrollRAF);
+      settleCleanup?.();
+    };
+  }
+
+  document.addEventListener('astro:page-load', initToc);
+</script>

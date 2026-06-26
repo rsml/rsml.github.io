@@ -5,13 +5,13 @@ date: "2026-06-25"
 
 There's always been a desire to have very strict guardrails on code (conventions, type safety, strong linting, perfect code coverage, etc) in order to prevent certain classes of bugs. However for many teams, these desires have come in tension with the practicalities of running a software team. For instance, every new guardrail could historically make it slower to onboard a new engineer, increase developer frustration, and slow a team's velocity.
 
-Before AI coding agents, we optimized for the ability to write and maintain code in a fast and high quality way. Now that code is cheap, we need to shift focus specifically to the speed at which humans can validate code in a fast and high quality way.
+Before AI coding agents, we optimized for the ability to write and maintain code in a fast and high quality way. Now that code is cheap, we need to shift focus to how fast humans can validate code without sacrificing quality.
 
 One of the best ways to increase confidence in your code is by using a strict type system. While the following patterns add additional verbosity which makes code slightly slower to read, they are such powerful guardrails that I believe they are almost always worth adopting in AI-generated code.
 
 The goal behind all of them is is to increase confidence in your code by illegal states unrepresentable, so that you can review code faster and more confidently.
 
-Here's a quick survey of some of the advanced patterns you can use in TypeScript to make your code safer. Each section header links out to a deeper, third-party write-up if you want more detail on a pattern.
+Here's a tour of some of the advanced patterns you can use in TypeScript to make your code safer. Each section header links out to a deeper, third-party write-up if you want more detail on a pattern.
 
 ### [Branded types](https://www.learningtypescript.com/articles/branded-types)
 
@@ -35,7 +35,7 @@ const orderId = "ord_123" as OrderId;
 getUser(orderId);
 ```
 
-`__brand` is a fake property that exists only in the type. The `as` keyword, in this example, is used to explicity give something a branded type.
+`__brand` is a fake property that exists only in the type. The `as` keyword, in this example, is used to explicitly give something a branded type.
 
 Since types are stripped out by the TypeScript compiler, at runtime `UserId` and `OrderId` will just be normal strings.
 
@@ -100,9 +100,12 @@ You would typically handle that failure once at the boundary of your system. Fro
 
 #### Partial smart constructors
 
-If you have a smart constructor that sometimes returns `undefined` it is sometimes called a "partial smart constructor." For instance `toDateRange` in the code below is a partial smart constructor.
+If a smart constructor can return `undefined`, it is called a "partial smart constructor." For instance, `toDateRange` below is a partial smart constructor.
 
 ```ts
+// DateRange is a branded type, so toDateRange is the only safe way to make one
+type DateRange = Brand<{ readonly start: Date; readonly end: Date }, "DateRange">;
+
 function toDateRange(
   start: Date,
   end: Date,
@@ -120,7 +123,7 @@ function toDateRange(
 
 ### [Wrapper types for taint tracking](https://allan.reyes.sh/posts/tainted-types/)
 
-Taint tracking marking a value as sensitive (an API key, a password, a token) so the type system stops it from flowing somewhere dangerous, like a log, until you explicitly unwrap it.
+Taint tracking means marking a value as sensitive (an API key, a password, a token) so the type system stops it from flowing somewhere dangerous, like a log, until you explicitly unwrap it.
 
 ```ts
 // Bad
@@ -198,11 +201,11 @@ function area(shape: Shape): number {
 }
 ```
 
-In the example above, `Shape` is the part that's specifically called a "discriminated union." The word "descriminated" refers to the fact that they all share a property that distinguishes them, which in this example is called "kind."
+In the example above, `Shape` is the part that's specifically called a "discriminated union." The word "discriminated" refers to the fact that they all share a property that distinguishes them, which in this example is `kind`.
 
-If you add a new case and forget to handle it in this switch statement, the assignment will fail to compile. Instead, the TypeScript compiler will say that the the new case is not assignable to `never`.
+If you add a new case and forget to handle it in this switch statement, the assignment will fail to compile, because the new case is not assignable to `never`.
 
-Discriminated unions are super powerful and versitile. For instance in the below code, TypeScript is smart enough to infer that `circles` is of type `Circle[]`
+Discriminated unions are super powerful and versatile. For instance, in the code below, TypeScript is smart enough to infer that `circles` is of type `Circle[]`.
 
 ```ts
 type Shape =
@@ -345,7 +348,7 @@ You don't strictly have to handle `CardDeclinedError` for the code to compile. I
 // Good
 
 // Handle the error and provide the service `paymentGateway`
-// that fulfills the requiment `PaymentGateway`
+// that fulfills the requirement `PaymentGateway`
 const paymentGateway = {
   // Pretend we actually charge a card here
   chargeCard: (id: string) =>

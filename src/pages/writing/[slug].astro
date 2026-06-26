@@ -2,6 +2,7 @@
 import { getCollection, render } from 'astro:content';
 import PortfolioLayout from '../../layouts/PortfolioLayout.astro';
 import BackLink from '../../components/BackLink.astro';
+import TableOfContents from '../../components/writing/TableOfContents.astro';
 
 export async function getStaticPaths() {
   const essays = await getCollection('writing');
@@ -12,7 +13,7 @@ export async function getStaticPaths() {
 }
 
 const { essay } = Astro.props;
-const { Content } = await render(essay);
+const { Content, headings } = await render(essay);
 const formattedDate = essay.data.date.toLocaleDateString('en-US', {
   month: 'long',
   year: 'numeric',
@@ -22,10 +23,11 @@ const formattedDate = essay.data.date.toLocaleDateString('en-US', {
   title={`${essay.data.title} - Ross Miller`}
   description={essay.data.description}
 >
-  <main class="container essay" data-rise>
+  <main class="essay-shell" data-rise>
     <div class="rise-slot back-row" style="--rise-i:0">
       <BackLink />
     </div>
+    <TableOfContents headings={headings} />
     <article style="--rise-i:1">
       <header class="essay-header">
         <h1 class="essay-title">{essay.data.title}</h1>
@@ -40,12 +42,25 @@ const formattedDate = essay.data.date.toLocaleDateString('en-US', {
   </main>
 </PortfolioLayout>
 <style>
-  .container.essay {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 80px 24px 120px;
+  /* Symmetric 3-column grid: the reading column stays dead-center in the
+     viewport (so the title/prose never shift), while the table of contents
+     floats in the left gutter. min(720px, 100% - 48px) keeps the old 24px side
+     gutters on narrow screens without a media query. */
+  .essay-shell {
+    display: grid;
+    grid-template-columns: 1fr min(720px, 100% - 48px) 1fr;
+    align-items: start;
+    padding: 80px 0 120px;
   }
-  .back-row { margin-bottom: 48px; }
+  .back-row { grid-column: 2; margin-bottom: 48px; }
+  .essay-shell > article { grid-column: 2; }
+
+  /* At the width where the rail fits, pin the back link and article to the
+     center column's two rows; the rail (grid-column 1) shares the article row. */
+  @media (min-width: 1200px) {
+    .back-row { grid-row: 1; }
+    .essay-shell > article { grid-row: 2; }
+  }
   .essay-header { margin-bottom: 64px; }
   .essay-title {
     margin: 0 0 12px;
@@ -81,6 +96,18 @@ const formattedDate = essay.data.date.toLocaleDateString('en-US', {
     font-weight: 580;
     letter-spacing: -0.15px;
   }
+  .essay-body :global(h4) {
+    margin: 1.7em 0 0.4em;
+    font-size: 16px;
+    font-weight: 580;
+    letter-spacing: -0.1px;
+    color: var(--ink);
+  }
+  /* Offset in-page anchor landings (TOC clicks, native #hash) clear of the
+     fixed top blur. Matches the rail's sticky --toc-top. */
+  .essay-body :global(h2),
+  .essay-body :global(h3),
+  .essay-body :global(h4) { scroll-margin-top: 96px; }
   .essay-body :global(strong) {
     font-weight: 600;
     color: var(--ink);
