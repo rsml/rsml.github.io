@@ -120,7 +120,7 @@ function toDateRange(
 
 ### [Wrapper types for taint tracking](https://allan.reyes.sh/posts/tainted-types/)
 
-Taint tracking means marking a value as sensitive (an API key, a password, a token) so the type system stops it from flowing somewhere dangerous, like a log, until you explicitly unwrap it.
+Taint tracking marking a value as sensitive (an API key, a password, a token) so the type system stops it from flowing somewhere dangerous, like a log, until you explicitly unwrap it.
 
 ```ts
 // Bad
@@ -156,7 +156,7 @@ log(reveal(apiKey));
 
 Because `Sensitive<string>` is a wrapper and not a `string`, passing it straight to `log` fails to compile. That is the point.
 
-The only way you should get the raw value out is by using the `reveal` function, and every `reveal` function call is easy to grep for when auditing your code.
+The only way you should get the raw value out is by using the `reveal` function, and every `reveal` function call is easy to grep for when auditing your code. In practice, you should combine this technique with some static analysis tools like a custom linter that enforces that `reveal` is only used at allowed times, and that `reveal` is the only function that accesses the `__sensitive` key.
 
 ### [Discriminated unions](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions)
 
@@ -198,9 +198,36 @@ function area(shape: Shape): number {
 }
 ```
 
-The shared `kind` field is the discriminant. It is what lets TypeScript narrow the union in each `case`. Once every `kind` is handled, the only thing `shape` can be in the default is `never`, so assigning it to `__exhaustive: never` compiles.
+In the example above, `Shape` is the part that's specifically called a "discriminated union."
 
-Add a new case and forget to handle it, and the assignment fails to compile because the new case is not assignable to `never`.
+If you add a new case and forget to handle it in this switch statement, the assignment will fail to compile. Instead, the TypeScript compiler will say that the the new case is not assignable to `never`.
+
+Discriminated unions are super powerful and versitile. For instance in the below code, TypeScript is smart enough to infer that `circles` is of type `Circle[]`
+
+```ts
+type Shape =
+  | { kind: "circle"; radius: number }
+  | { kind: "square"; side: number };
+
+// Uses the `Extract` utility type built into TypeScript
+type Circle = Extract<Shape, { kind: "circle" }>;
+
+function isCircle(shape: Shape): shape is Circle {
+  return shape.kind === "circle";
+}
+
+const shapes: Shape[] = [
+  { kind: "circle", radius: 10 },
+  { kind: "square", side: 5 },
+];
+
+// "circles" has inferred type Circle[]
+const circles = shapes.filter(isCircle);
+```
+
+That tells TypeScript that whenever `isCircle(shape)` returns `true`, the value has been narrowed from `Shape` to `Circle`.
+
+Because `filter` preserves the type narrowing from the `isCircle` predicate, the resulting array is inferred as `Circle[]` instead of `Shape[]`. You can therefore access `radius` on every item without another type check.
 
 ### [Typestate](https://catchts.com/type-state)
 
