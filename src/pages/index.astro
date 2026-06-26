@@ -41,7 +41,7 @@ const lcpImageSrc = firstStripSrc();
 
       <p>You can find me on <a href="https://www.linkedin.com/in/rossnmiller/" target="_blank" rel="noopener noreferrer">LinkedIn</a>, <a href="https://github.com/rsml" target="_blank" rel="noopener noreferrer">GitHub</a>, <a href="https://x.com/rossmllr" target="_blank" rel="noopener noreferrer">X</a>, or reach me via <a href="mailto:rossnmiller@gmail.com">email</a>.</p>
     </div>
-    <h2 class="home-section-h" style="--rise-i:1">Writings</h2>
+    <h2 class="home-section-h" style="--rise-i:1">Writing</h2>
     <ul class="writings" style="--rise-i:2">
       {writings.map((w) => {
         const label = w.data.date.toLocaleDateString('en-US', {
@@ -58,7 +58,7 @@ const lcpImageSrc = firstStripSrc();
         );
       })}
     </ul>
-    <h2 class="home-section-h" style="--rise-i:2">Selected works</h2>
+    <h2 class="home-section-h" style="--rise-i:2">Selected work</h2>
     <div class="work" style="--rise-i:0">
       {work.map((p, i) => <WorkRow project={p} eager={i === 0} />)}
     </div>
