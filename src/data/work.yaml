@@ -88,8 +88,8 @@
     - src: /chord-colors/IMG_7059.webp
       alt: img_7059
       orientation: portrait
-    - src: /chord-colors/Screenshot-2026-06-11-at-1.26.40-PM.webp
-      alt: screenshot 2026-06-11 at 1.26.40 pm
+    - src: /chord-colors/Frame-8.png
+      alt: frame 8
       orientation: portrait
     - type: video
       src: /chord-colors/wheel.mp4

@@ -1,0 +1,62 @@
+---
+// Directed graph of how the AI coach, dietitian, and prescriber coordinate around the
+// patient, for the Nourish memo. Monochrome, inherits --ink / --muted / --bg so it matches
+// light and dark mode. Each pair of arrows is truly parallel (constant offset), spaced
+// apart, with arrowheads landing on opposite node borders so none overlap. Labels wrap to
+// two lines and carry a --bg halo. The bottom edge (the care team handoff) is drawn darker.
+---
+<figure class="tri">
+  <svg viewBox="0 0 940 550" role="img" aria-label="Directed graph of how the AI coach, the dietitian, and the prescriber each interact with the patient and share context as a care team.">
+    <defs>
+      <marker id="tri-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)" />
+      </marker>
+      <marker id="tri-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--ink)" />
+      </marker>
+    </defs>
+
+    <rect class="n" x="395" y="30"  width="150" height="40" rx="20" />
+    <rect class="n" x="44"  y="402" width="118" height="40" rx="20" />
+    <rect class="n" x="410" y="402" width="120" height="40" rx="20" />
+    <rect class="n" x="778" y="402" width="134" height="40" rx="20" />
+
+    <path class="e" d="M 100 402 L 420 70" marker-end="url(#tri-a)" />
+    <path class="e" d="M 448 70 L 128 402" marker-end="url(#tri-a)" />
+
+    <path class="e" d="M 458 70 L 458 402" marker-end="url(#tri-a)" />
+    <path class="e" d="M 486 402 L 486 70" marker-end="url(#tri-a)" />
+
+    <path class="e" d="M 496 70 L 846 402" marker-end="url(#tri-a)" />
+    <path class="e" d="M 874 402 L 524 70" marker-end="url(#tri-a)" />
+
+    <path class="eh" d="M 166 422 L 406 422" marker-start="url(#tri-b)" marker-end="url(#tri-b)" />
+    <path class="eh" d="M 534 422 L 774 422" marker-start="url(#tri-b)" marker-end="url(#tri-b)" />
+    <path class="eh" d="M 150 443 Q 470 552 798 443" marker-start="url(#tri-b)" marker-end="url(#tri-b)" />
+
+    <text class="l" x="276" y="150"><tspan x="276" dy="0">coaches in</tspan><tspan x="276" dy="17">the moment</tspan></text>
+    <text class="l" x="288" y="300"><tspan x="288" dy="0">logs meals</tspan><tspan x="288" dy="17">doses, side effects</tspan></text>
+    <text class="l" x="408" y="244"><tspan x="408" dy="0">shares</tspan><tspan x="408" dy="17">progress</tspan></text>
+    <text class="l" x="528" y="244"><tspan x="528" dy="0">sets the</tspan><tspan x="528" dy="17">care plan</tspan></text>
+    <text class="l" x="652" y="150"><tspan x="652" dy="0">prescribes,</tspan><tspan x="652" dy="17">adjusts dose</tspan></text>
+    <text class="l" x="686" y="300"><tspan x="686" dy="0">reports</tspan><tspan x="686" dy="17">side effects</tspan></text>
+    <text class="lh" x="470" y="530">share context</text>
+
+    <text class="nt" x="470" y="56"  text-anchor="middle">Patient</text>
+    <text class="nt" x="103" y="428" text-anchor="middle">AI coach</text>
+    <text class="nt" x="470" y="428" text-anchor="middle">Dietitian</text>
+    <text class="nt" x="845" y="428" text-anchor="middle">Prescriber</text>
+  </svg>
+</figure>
+<style>
+  .tri { margin: 36px 0; }
+  .tri svg { width: 100%; height: auto; display: block; }
+  .tri text { font-family: inherit; }
+  .e  { fill: none; stroke: var(--muted); stroke-width: 1.25; }
+  .eh { fill: none; stroke: var(--ink);   stroke-width: 1.5; }
+  .n  { fill: var(--bg); stroke: var(--ink); stroke-width: 1.25; }
+  .nt { fill: var(--ink); font-size: 18px; font-weight: 520; }
+  .l, .lh { text-anchor: middle; paint-order: stroke; stroke: var(--bg); stroke-width: 5px; stroke-linejoin: round; }
+  .l  { fill: var(--muted); font-size: 16px; }
+  .lh { fill: var(--ink); font-size: 16px; font-weight: 500; }
+</style>

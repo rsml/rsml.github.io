@@ -11,6 +11,9 @@ export default defineConfig({
     react(),
     sitemap({
       filter: (page) => {
+        // Unlisted recruiter memo: keep /nourish out of the sitemap (it is also
+        // noindex'd in-page). Not in any collection, so nothing else links it.
+        if (page.includes('/nourish')) return false;
         if (page.includes('/craft/')) {
           return page.endsWith('/craft/chord-colors/') || page.endsWith('/craft/tutor/');
         }
