@@ -55,7 +55,7 @@ const logoSrcs = project.thumbImage ? resolveLogoSrcs(project.thumbImage) : null
       )}
       <div class="dive-heading">
         <h1 class="dive-title">
-          <span class="dive-name">{project.cardTitle}:</span>
+          <span class="dive-name">{project.cardTitle}</span>
           <span class="dive-sub">{project.subtitle}</span>
         </h1>
         <p class="dive-role">{project.role}</p>
@@ -87,8 +87,9 @@ const logoSrcs = project.thumbImage ? resolveLogoSrcs(project.thumbImage) : null
      block + stacking context, which made an absolutely-positioned button land
      under the block-level back link's full-width hit area (clicks went home). */
   .top-row { display: flex; align-items: center; justify-content: space-between; margin: 0 0 32px; }
-  /* Same header as the gallery lightbox (logo · title : subtitle · role), in the
-     case study's light theme. See Lightbox.astro's .lb-phead. */
+  /* Echoes the gallery lightbox header (see Lightbox.astro's .lb-phead) in the
+     case study's light theme, but stacks the subtitle under the name instead of
+     running it inline after a colon. */
   .dive-header { display: flex; align-items: center; gap: 12px; margin: 0 0 32px; }
   /* Square app-icon tile: inner <img> fills it; overflow:hidden + radius clip
      every source icon to one silhouette. No rim/border (owner preference); a
@@ -108,8 +109,8 @@ const logoSrcs = project.thumbImage ? resolveLogoSrcs(project.thumbImage) : null
     line-height: 1.3;
     letter-spacing: -0.012em;
   }
-  .dive-name { font-weight: 600; color: var(--ink); }
-  .dive-sub  { font-weight: 460; color: var(--muted); }
+  .dive-name { display: block; font-weight: 600; color: var(--ink); }
+  .dive-sub  { display: block; font-weight: 460; color: var(--muted); }
   .dive-role { margin: 1px 0 0; color: var(--muted); font-size: 12.5px; }
   /* Official Apple "Download on the App Store" badge (white variant), right-aligned
      past a flex spacer. Badge artwork is the unmodified official SVG. */
