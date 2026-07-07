@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Workflow(deep-research)",
+      "Bash(curl -s -m 2 http://127.0.0.1:4399/api/work)",
+      "Bash(curl -s http://127.0.0.1:4399/api/work -o /tmp/work-payload.json)",
+      "Bash(curl -s -X POST http://127.0.0.1:4399/api/save -H 'content-type: application/json' --data-binary @/tmp/work-payload.json)",
+      "Bash(curl -s -X POST http://127.0.0.1:4399/api/save -H 'content-type: application/json' -d '{\"rev\":\"stale\",\"projects\":[]}')",
+      "Bash(curl -s -o /dev/null -w 'tutor.png: %{http_code}\\\\n' http://127.0.0.1:4399/logos/tutor.png)",
+      "Bash(curl -s -o /dev/null -w 'sortable.js: %{http_code}\\\\n' http://127.0.0.1:4399/vendor/sortable.js)",
+      "Bash(curl -s -o /dev/null -w 'traversal: %{http_code}\\\\n' --path-as-is \"http://127.0.0.1:4399/../package.json\")",
+      "Bash(curl -s -X POST \"http://127.0.0.1:4399/api/upload?slug=tutor&name=test-pixel.png\" --data-binary @/tmp/test-pixel.png)",
+      "Bash(curl -s -X POST \"http://127.0.0.1:4399/api/upload?slug=tutor&name=clip.mp4\" --data-binary @/tmp/test-pixel.png)",
+      "Bash(perl -pi -e 's/^\\(    sortables\\\\.push\\\\\\(new Sortable\\\\\\(\\(?:links|strip\\), \\\\{|  sortables\\\\.push\\\\\\(new Sortable\\\\\\(projectsEl, \\\\{\\)$/$1\\\\n      forceFallback: true,/ if /new Sortable/' tools/editor/public/editor.js)",
+      "Bash(sips -s format png /tmp/editor-pdf-test.pdf --out /tmp/editor-pdf-poster.png)",
+      "Bash(qlmanage -h)",
+      "Bash(ffmpeg -f lavfi -i color=c=steelblue:s=640x360:d=1 -pix_fmt yuv420p /tmp/editor-test-clip.mp4 -y -loglevel error)",
+      "Bash(curl -s -X POST \"http://127.0.0.1:4399/api/upload?slug=tutor&name=editor-pdf-test.pdf\" --data-binary @/tmp/editor-pdf-test.pdf)",
+      "Bash(curl -s -X POST \"http://127.0.0.1:4399/api/upload?slug=tutor&name=editor-test-clip.mp4\" --data-binary @/tmp/editor-test-clip.mp4)",
+      "Bash(curl -s -X POST \"http://127.0.0.1:4399/api/webshot?slug=tutor&url=https%3A%2F%2Fexample.com%2F\")",
+      "Bash(curl -s -m 30 -X POST \"http://127.0.0.1:4399/api/webshot?slug=tutor&url=https%3A%2F%2Fexample.com%2F\")",
+      "Bash(sips -g pixelWidth -g pixelHeight public/sms/embed-example.com-poster.png)",
+      "Bash(ffmpeg -version)",
+      "Bash(rm -rf /tmp/vidtest)",
+      "Bash(mkdir -p /tmp/vidtest/src/nested /tmp/vidtest/desk)",
+      "Bash(ffmpeg -v error -y -t 3 -i public/chord-colors/wheel.mp4 -c copy -tag:v hvc1 /tmp/vidtest/src/wheel-sample.mov)",
+      "Bash(ffmpeg -v error -y -t 2 -i public/chord-colors/chords.mp4 -c copy /tmp/vidtest/src/nested/chords-sample.mp4)",
+      "Bash(ffmpeg -v error -y -f lavfi -i \"testsrc2=size=3840x2160:rate=60\" -t 2 -c:v libx264 -preset ultrafast -pix_fmt yuv420p /tmp/vidtest/desk/big-recording.mov)",
+      "Bash(curl -sI http://localhost:4340/forge/screenshots/list-mode.png)",
+      "Bash(curl -sI http://localhost:4340/tutor/screenshots/library.webp)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' --max-time 2 http://localhost:4321/)"
+    ]
+  },
+  "mcpServers": {
+    "cloudflare-api": {
+      "type": "http",
+      "url": "https://mcp.cloudflare.com/mcp"
+    }
+  }
+}
