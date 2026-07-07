@@ -1,0 +1,21 @@
+---
+// /resume is a shareable, memorable link that serves the raw resume PDF.
+// GitHub Pages sets content-type by extension, so the actual file lives at
+// /resume.pdf (correct application/pdf), and this page bounces to it. A
+// top-level redirect to the .pdf renders inline in every browser, including
+// mobile Safari, where an embedded <iframe>/<object> PDF would fail. BaseHead
+// gives the shared /resume URL a proper title and Open Graph unfurl.
+import BaseHead from '../components/BaseHead.astro';
+const target = '/resume.pdf';
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <BaseHead title="Ross Miller Resume" description="Ross Miller's resume." />
+    <meta http-equiv="refresh" content={`0; url=${target}`} />
+    <script is:inline>window.location.replace('/resume.pdf');</script>
+  </head>
+  <body>
+    <p>Redirecting to <a href={target}>Ross Miller's resume</a>.</p>
+  </body>
+</html>
