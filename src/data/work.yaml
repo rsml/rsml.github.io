@@ -134,7 +134,7 @@
       src: https://app.chordcolors.com/
       alt: try it out!
       orientation: portrait
-      poster: /chord-colors/embed-chordcolors.com-poster.webp
+      poster: /chord-colors/embed-poster.webp
   ripple:
     mode: 0
     durationMs: 900
