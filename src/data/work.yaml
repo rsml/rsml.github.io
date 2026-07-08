@@ -80,7 +80,7 @@
     - label: iOS app
       href: https://apps.apple.com/us/app/chord-colors-piano-and-guitar/id1422598441
     - label: Web app
-      href: https://chordcolors.com/
+      href: https://app.chordcolors.com/
   assets:
     - src: /chord-colors/IMG_7054.webp
       alt: img_7054
@@ -131,7 +131,7 @@
       alt: img_7061
       orientation: portrait
     - type: embed
-      src: https://chordcolors.com/
+      src: https://app.chordcolors.com/
       alt: try it out!
       orientation: portrait
       poster: /chord-colors/embed-chordcolors.com-poster.webp
