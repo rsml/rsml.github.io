@@ -11,7 +11,7 @@
 // either enharmonic spelling for a black key, so inbound matching accepts both.
 // Instrument tokens are 'guitar' / 'keyboard' ('piano' is an inbound alias).
 
-export const CHORD_COLORS_ORIGIN = 'https://app.chordcolors.com';
+export const CHORD_COLORS_ORIGIN = 'https://chordcolors.com';
 
 export type InstrumentValue = 'guitar' | 'keyboard';
 

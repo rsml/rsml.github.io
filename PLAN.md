@@ -312,7 +312,7 @@ Part 3: /system/ #premise (Section 0)
 
 Render this paragraph in #premise:
 
-<p>This site is the design system. The note-color mapping in <a href="https://chordcolors.app/">Chord Colors</a> maps 12 chromatic notes to 12 colors. That mapping IS the design system. Below: its anatomy, the typographic and spatial primitives this site is built from, and a live playground.</p>
+<p>This site is the design system. The note-color mapping in <a href="https://chordcolors.com/">Chord Colors</a> maps 12 chromatic notes to 12 colors. That mapping IS the design system. Below: its anatomy, the typographic and spatial primitives this site is built from, and a live playground.</p>
 
 Above the paragraph, render a small version chip: `<span class="version-chip">v0.1</span>`. Mono font, hairline border, --muted color.
 

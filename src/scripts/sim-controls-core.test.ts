@@ -102,13 +102,13 @@ describe('theme', () => {
 describe('buildSrc', () => {
   it('builds a C / keyboard / light url with the embed + skipOnboarding flags', () => {
     expect(buildSrc({ base: '/chords', key: 'C', instrument: 'keyboard', theme: 'light' })).toBe(
-      'https://app.chordcolors.com/chords?embed=iphone&skipOnboarding=1&key=C&instrument=keyboard&theme=light',
+      'https://chordcolors.com/chords?embed=iphone&skipOnboarding=1&key=C&instrument=keyboard&theme=light',
     );
   });
 
   it('url-encodes sharp keys and carries guitar + dark theme', () => {
     expect(buildSrc({ base: '/wheel', key: 'Cs', instrument: 'guitar', theme: 'dark' })).toBe(
-      'https://app.chordcolors.com/wheel?embed=iphone&skipOnboarding=1&key=C%23&instrument=guitar&theme=dark',
+      'https://chordcolors.com/wheel?embed=iphone&skipOnboarding=1&key=C%23&instrument=guitar&theme=dark',
     );
   });
 
