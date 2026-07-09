@@ -11,7 +11,12 @@
 // either enharmonic spelling for a black key, so inbound matching accepts both.
 // Instrument tokens are 'guitar' / 'keyboard' ('piano' is an inbound alias).
 
-export const CHORD_COLORS_ORIGIN = 'https://chordcolors.com';
+// The interactive app is served from app.chordcolors.com. The bare
+// chordcolors.com is now the marketing site and 404s on the deep-link paths
+// (/chords, /wheel, and so on), so every embed and deep link must use this
+// origin. Plain "visit the site" links elsewhere may still point at
+// chordcolors.com.
+export const CHORD_COLORS_ORIGIN = 'https://app.chordcolors.com';
 
 export type InstrumentValue = 'guitar' | 'keyboard';
 
