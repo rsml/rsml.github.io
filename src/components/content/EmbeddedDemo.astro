@@ -62,6 +62,10 @@ const initialSrc = buildSrc({
   <PlaySticker />
   <SimControls defaultKey={defaultKey} defaultInstrument={defaultInstrument} defaultTheme={defaultTheme} />
   <div class="phone-frame">
+    {/* allow-same-origin gives the embed its real app.chordcolors.com origin instead of an
+        opaque one. The app renders either way in Chrome, but Brave Shields black out
+        opaque-origin sandboxed iframes, so this is required for Brave to render the app.
+        Safe here because the frame is cross-origin and still cannot script this page. */}
     <iframe
       class="phone-iframe"
       src={initialSrc}
@@ -69,7 +73,7 @@ const initialSrc = buildSrc({
       loading={eager ? 'eager' : 'lazy'}
       allow="autoplay; encrypted-media"
       referrerpolicy="no-referrer-when-downgrade"
-      sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms"></iframe>
+      sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"></iframe>
   </div>
   <a class="open-in-browser" href={`${CHORD_COLORS_ORIGIN}${base}`} target="_blank" rel="noopener">
     Open in browser <span aria-hidden="true">↗</span>
