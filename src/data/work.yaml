@@ -81,6 +81,10 @@
       href: https://apps.apple.com/us/app/chord-colors-piano-and-guitar/id1422598441
     - label: Web app
       href: https://chordcolors.com/
+    - label: Chord Explorer
+      href: https://chordcolors.com/chords/c-major
+    - label: Scale Explorer
+      href: https://chordcolors.com/scales/g-major/guitar
   assets:
     - src: /chord-colors/IMG_7054.webp
       alt: img_7054
@@ -130,11 +134,6 @@
     - src: /chord-colors/IMG_7061.webp
       alt: img_7061
       orientation: portrait
-    - type: embed
-      src: https://app.chordcolors.com/
-      alt: try it out!
-      orientation: portrait
-      poster: /chord-colors/embed-poster.webp
   ripple:
     mode: 0
     durationMs: 900
