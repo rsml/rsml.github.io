@@ -86,13 +86,16 @@
     - label: Scale Explorer
       href: https://chordcolors.com/scales/g-major/guitar
   assets:
+    - src: /chord-colors/chordcolors-wheel.webp
+      alt: Chord Colors' interactive chord wheel on an iPhone, on a desk with an acoustic guitar, a MIDI keyboard, and a cup of coffee
+      orientation: landscape
     - src: /chord-colors/IMG_7054.webp
       alt: img_7054
       orientation: portrait
     - src: /chord-colors/IMG_7059.webp
       alt: img_7059
       orientation: portrait
-    - src: /chord-colors/Frame-8.png
+    - src: /chord-colors/Frame-8.webp
       alt: frame 8
       orientation: portrait
     - type: video

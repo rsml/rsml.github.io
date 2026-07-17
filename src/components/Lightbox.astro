@@ -35,6 +35,19 @@ const linksFor = (p: Project) => [
   ...p.links,
 ].map((a) => ({ ...a, external: /^https?:/.test(a.href) }));
 
+// The horizontal stage frames its videos/embeds by orientation (portrait vs
+// landscape sizing below). It follows the MAJORITY orientation of a project's
+// assets, not just the first one, so a project can lead with a differently
+// shaped hero (e.g. Chord Colors' landscape lifestyle shot in front of portrait
+// phone screenshots) without flipping the whole stage to that one asset's shape.
+// Images are capped to the stage on both axes regardless, so the odd-one-out
+// asset just letterboxes cleanly. Ties default to portrait.
+const stageOrientation = (p: Project) =>
+  p.assets.filter((a) => a.orientation === 'landscape').length >
+  p.assets.filter((a) => a.orientation === 'portrait').length
+    ? 'landscape'
+    : 'portrait';
+
 // Precompute each video shot's exact aspect ratio from its poster's real pixel size, so the
 // player box renders at the right shape from the FIRST paint. Without this, the box used the
 // CSS fallback (16/9) until the video's metadata loaded, then snapped to the true ratio: the
@@ -129,7 +142,7 @@ for (const p of galleries) {
               </button>
             )}
 
-            <div class:list={['lb-horiz', 'swiper', `lb-horiz--${p.assets[0].orientation}`]}>
+            <div class:list={['lb-horiz', 'swiper', `lb-horiz--${stageOrientation(p)}`]}>
               <div class="swiper-wrapper">
                 {p.assets.map((s) => (
                   <div class:list={['swiper-slide', 'lb-shot', `lb-shot--${s.type}`]} data-orientation={s.orientation} style={aspectFor.has(s.src) ? `--plyr-ar: ${aspectFor.get(s.src)}` : undefined}>
