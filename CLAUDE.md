@@ -18,16 +18,29 @@ Astro static site (SSG). Deploys to GitHub Pages via GitHub Actions on push to `
   profile; long edge capped at 1920 and level pinned to High@5.1 because iPhone
   hardware decoders stop at Level 5.2; re-runs skip marked in-spec files via an
   embedded marker and re-encode anything outside that spec, so out-of-spec files
-  self-heal), PNG/GIF to lossless WebP (JPG stays), and work.yaml posters over
-  1920px long edge to lossy WebP q80 in place (the lightbox shows them full
-  size). Renames rewrite work.yaml and the .astro files; originals are backed
-  up to `public-backup-<timestamp>/` (gitignored).
-  It also generates `<name>-thumb.webp` sidecars for every image the home strip
-  shows: lossy WebP at quality 80, scaled to 2x the project's `shotHeight` (so
-  600px tall for a 300px strip, 400px for the default 200px). WorkRow.astro
-  automatically serves the thumb when it exists and falls back to the original when
-  it does not. Thumbs are derived files and are excluded from the orphan report.
-  Settings and rationale live in `tools/optimize-portfolio.mjs`. Needs ffmpeg.
+  self-heal), and every display image (posters plus full-size lightbox and page
+  screenshots) re-derived FROM its raw master in `masters/`, capped to 1920px
+  long edge as lossy WebP q80 with an `.avif` sibling (q55, effort 9, 4:4:4) that
+  a `<picture>` serves first and the WebP backs up. Compressing from the master,
+  not the already-lossy public file, keeps re-runs idempotent (a quality tweak
+  re-derives cleanly, never compounding loss); a WebP-only master (no lossless
+  raw survived) keeps its WebP and only gains an AVIF. Renames rewrite work.yaml
+  and the .astro files; originals are backed up to `public-backup-<timestamp>/`
+  (gitignored).
+  It also generates strip-thumbnail sidecars (WebP + AVIF, 1x and 2x DPR:
+  `<name>-thumb.webp`, `<name>-thumb-1x.webp`, and `.avif` twins) scaled to the
+  project's `shotHeight`, plus app-icon logo sidecars. Every render site
+  (WorkRow, Lightbox, case-study and landing pages) serves images through an
+  inline `<picture>` built by `src/lib/pictureSource.ts`, which uses the AVIF
+  when the sibling exists and falls back to the WebP otherwise. Derived files
+  (thumbs, logos, `.avif`) are excluded from the orphan report. Settings and
+  rationale live in `tools/optimize-portfolio.mjs`. Needs ffmpeg.
+- `masters/` is the committed raw store (repo root, so it is versioned but never
+  ships to the deployed site). `pnpm optimize` compresses every display image
+  FROM it, so images can always be re-derived from the original. Populate or
+  refresh it with `node tools/consolidate-masters.mjs`, which recovers the
+  truest raw of each asset from the `public-backup-*` dirs, falling back to the
+  current public file when no lossless raw survives.
 - `pnpm push-chunked` pushes the current branch in <= 40 MB slices via a
   throwaway seed branch, then the real push sends almost nothing
   (`--chunk-mb N` to change the slice size). Use it when a plain `git push`

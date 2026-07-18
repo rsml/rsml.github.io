@@ -1,5 +1,10 @@
 ---
 import BaseHead from '../../components/BaseHead.astro';
+import { avifSourceFor } from '../../lib/pictureSource';
+const heroAvif = avifSourceFor('/tutor/screenshots/library.webp');
+const personalizeAvif = avifSourceFor('/tutor/screenshots/personalize.webp');
+const quizAvif = avifSourceFor('/tutor/screenshots/quiz.webp');
+const feedbackAvif = avifSourceFor('/tutor/screenshots/feedback.webp');
 ---
 <!doctype html>
 <html lang="en" class="scroll-smooth">
@@ -362,15 +367,19 @@ import BaseHead from '../../components/BaseHead.astro';
           <div class="screenshot-glow relative mt-[clamp(40px,6vw,64px)] max-w-[960px] mx-auto">
             <div class="screenshot-fade relative z-10 rounded-xl border border-white/[0.08] overflow-hidden bg-surface
                         shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_80px_rgba(0,0,0,0.5),0_0_120px_rgba(99,102,241,0.06)]">
-              <img
-                src="/tutor/screenshots/library.webp"
-                alt="Tutor library showing AI-generated books with custom covers"
-                data-lightbox
-                class="block w-full h-auto animate animate-d4"
-                width="2560"
-                height="1600"
-                decoding="async"
-              />
+              <picture>
+                {heroAvif && <source type="image/avif" srcset={heroAvif} />}
+                <img
+                  src="/tutor/screenshots/library.webp"
+                  alt="Tutor library showing AI-generated books with custom covers"
+                  data-lightbox
+                  class="block w-full h-auto animate animate-d4"
+                  width="2560"
+                  height="1600"
+                  fetchpriority="high"
+                  decoding="async"
+                />
+              </picture>
             </div>
           </div>
         </div>
@@ -397,14 +406,17 @@ import BaseHead from '../../components/BaseHead.astro';
                 </p>
               </div>
               <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
-                <img
-                  src="/tutor/screenshots/personalize.webp"
-                  alt="Personalization interview screen"
-                  data-lightbox
-                  class="block w-full h-auto"
-                  width="2560" height="1600"
-                  loading="lazy" decoding="async"
-                />
+                <picture>
+                  {personalizeAvif && <source type="image/avif" srcset={personalizeAvif} />}
+                  <img
+                    src="/tutor/screenshots/personalize.webp"
+                    alt="Personalization interview screen"
+                    data-lightbox
+                    class="block w-full h-auto"
+                    width="2560" height="1600"
+                    loading="lazy" decoding="async"
+                  />
+                </picture>
               </div>
             </div>
 
@@ -463,14 +475,17 @@ import BaseHead from '../../components/BaseHead.astro';
                 </p>
               </div>
               <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
-                <img
-                  src="/tutor/screenshots/quiz.webp"
-                  alt="Multiple choice quiz interface"
-                  data-lightbox
-                  class="block w-full h-auto"
-                  width="2560" height="1600"
-                  loading="lazy" decoding="async"
-                />
+                <picture>
+                  {quizAvif && <source type="image/avif" srcset={quizAvif} />}
+                  <img
+                    src="/tutor/screenshots/quiz.webp"
+                    alt="Multiple choice quiz interface"
+                    data-lightbox
+                    class="block w-full h-auto"
+                    width="2560" height="1600"
+                    loading="lazy" decoding="async"
+                  />
+                </picture>
               </div>
             </div>
 
@@ -487,14 +502,17 @@ import BaseHead from '../../components/BaseHead.astro';
                 </p>
               </div>
               <div class="md:w-[58%] rounded-xl border border-hair overflow-hidden bg-surface">
-                <img
-                  src="/tutor/screenshots/feedback.webp"
-                  alt="Feedback form for chapter content"
-                  data-lightbox
-                  class="block w-full h-auto"
-                  width="2560" height="1600"
-                  loading="lazy" decoding="async"
-                />
+                <picture>
+                  {feedbackAvif && <source type="image/avif" srcset={feedbackAvif} />}
+                  <img
+                    src="/tutor/screenshots/feedback.webp"
+                    alt="Feedback form for chapter content"
+                    data-lightbox
+                    class="block w-full h-auto"
+                    width="2560" height="1600"
+                    loading="lazy" decoding="async"
+                  />
+                </picture>
               </div>
             </div>
           </div>

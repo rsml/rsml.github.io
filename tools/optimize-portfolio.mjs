@@ -45,11 +45,18 @@
  *      lossless WebP of decoded JPEG pixels is usually LARGER, and a lossy
  *      transcode costs a generation). Existing WebP/SVG/PDF are left alone.
  *      Guard: a conversion that comes out larger keeps the original.
- *   4b. Posters (every distinct poster: in work.yaml): the lightbox shows
- *       posters full size, so any with a long edge over 1920 is rewritten in
- *       place (same filename) as lossy WebP q80 scaled to 1920, ICC profile
- *       preserved. A 2560x1600 lossless poster is ~2.2 MB on the wire and
- *       ~16 MB of decoded RGBA on a phone.
+ *   4b. Display images (every poster AND image-type src, plus <img>-referenced
+ *       page screenshots): re-derived FROM the raw master in masters/ (populated
+ *       by tools/consolidate-masters.mjs), capped to 1920px long edge as lossy
+ *       WebP q80, each with an `.avif` sibling (AVIF_QUALITY, AVIF_EFFORT, 4:4:4
+ *       chroma) that a <picture> serves first. Sourcing from the master, not the
+ *       already-lossy public webp, avoids a double-lossy generation; a webp-only
+ *       master (no lossless raw survives) keeps its webp and only gains an avif.
+ *       Strip thumbnails and app-icon logos likewise derive from the master and
+ *       gain avif twins. The 1920 cap matters for decode memory too: a 2560x1600
+ *       lossless still is ~2.2 MB on the wire and ~16 MB of decoded RGBA on a
+ *       phone. video/embed/pdf posters are capped but get no avif (they render
+ *       as <video poster>/<iframe>, never a <picture>).
  *   5. Renames (.MOV to .mp4, .png to .webp, ...) rewrite every reference in
  *      work.yaml and the .astro files by exact string replacement, then the
  *      script verifies the YAML still parses, no old path lingers in src/,
@@ -80,8 +87,23 @@ export const MARKER = 'rsml-optimized-v2';
 // within High@L5.1; posters get the same long-edge ceiling.
 export const MAX_LONG_EDGE = 1920;
 
+// AVIF delivery settings. Every shipped display image gets an `.avif` sibling
+// that a <picture> serves first, with the webp as the <img> fallback. effort 9
+// is sharp's densest/slowest setting (the owner does not care about encode
+// time); q55 was calibrated by eye against the worst-case UI screenshots (crisp
+// text, no gradient banding). Full-size images and posters also pin 4:4:4 chroma
+// so colored text edges stay clean; thumbnails are tiny on screen and keep the
+// default 4:2:0.
+export const AVIF_QUALITY = 55;
+export const AVIF_EFFORT = 9;
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
+// Committed raw store at the repo ROOT (never under public/, so it does not ship
+// to the deployed site). Every display image is compressed FROM its master, so
+// re-runs are idempotent and never compound generational loss. Populate/refresh
+// with `node tools/consolidate-masters.mjs`.
+const MASTERS = path.join(ROOT, 'masters');
 const WORK_YAML = path.join(ROOT, 'src/data/work.yaml');
 
 const VIDEO_EXTS = new Set(['.mp4', '.mov', '.m4v']);
@@ -194,6 +216,19 @@ export function logoPath1x(ref) {
   const ext = path.extname(ref);
   const stem = ref.slice(0, ref.length - ext.length);
   return `${stem}-logo-1x.webp`;
+}
+
+/**
+ * The AVIF sibling path for a shipped display image: same name, `.avif`
+ * extension. Served by <picture><source type="image/avif"> with the webp as the
+ * <img> fallback. One is generated for every full-size image, poster, thumb, and
+ * logo. Derived file; never referenced directly in work.yaml.
+ * Examples: '/a/shot.webp' -> '/a/shot.avif'
+ *           '/a/shot-thumb-1x.webp' -> '/a/shot-thumb-1x.avif'
+ */
+export function avifPath(ref) {
+  const ext = path.extname(ref);
+  return `${ref.slice(0, ref.length - ext.length)}.avif`;
 }
 
 /**
@@ -384,6 +419,22 @@ function ffprobe(file) {
 const mb = (bytes) => `${(bytes / 1024 / 1024).toFixed(1)}MB`;
 const onDisk = (ref) => path.join(PUBLIC, ref.slice(1));
 
+// Master-source resolution: the raw original in masters/ that a public display
+// image is compressed from. masters/ mirrors the public path but keeps the
+// original extension, so we scan for the stem across raw formats, rawest first.
+// Falls back to the public file when no master exists (a brand-new asset not yet
+// consolidated), so the pipeline still works before/without consolidation.
+const MASTER_EXTS = ['.png', '.tiff', '.tif', '.heic', '.heif', '.jpg', '.jpeg', '.gif', '.webp'];
+function masterFor(ref) {
+  const dir = path.join(MASTERS, path.dirname(ref).replace(/^\//, ''));
+  const stem = path.basename(ref, path.extname(ref));
+  for (const ext of MASTER_EXTS) {
+    const p = path.join(dir, stem + ext);
+    if (existsSync(p)) return p;
+  }
+  return onDisk(ref);
+}
+
 function listPublicMedia() {
   const found = [];
   const walk = (dir) => {
@@ -488,7 +539,8 @@ async function main() {
   const orphansFiltered = listPublicMedia().filter(
     (f) => !refs.has(f) && !chromeRefs.has(f)
       && !f.endsWith('-thumb.webp') && !f.endsWith('-thumb-1x.webp')
-      && !f.endsWith('-logo.webp') && !f.endsWith('-logo-1x.webp'),
+      && !f.endsWith('-logo.webp') && !f.endsWith('-logo-1x.webp')
+      && !f.endsWith('.avif'),
   );
   if (orphansFiltered.length) console.log(`\norphans (in public/ but unreferenced):\n  ${orphansFiltered.join('\n  ')}`);
 
@@ -515,7 +567,9 @@ async function main() {
       if (!rawRef) continue;
       // Apply any pending rename so the thumb points at the post-conversion file.
       const ref = pendingRenames.get(rawRef) ?? rawRef;
-      const srcAbs = onDisk(ref);
+      // Derive from the raw MASTER (falls back to the public file when none), so
+      // thumbnails are scaled from the original, not from an already-lossy webp.
+      const srcAbs = masterFor(ref);
       if (!existsSync(srcAbs)) continue;
       // Skip thumb inputs that are themselves thumbs (guards against YAML listing
       // a thumb directly, which would produce a thumb-thumb chain).
@@ -524,11 +578,13 @@ async function main() {
       const destAbs = onDisk(dest);
       const dest1x = thumbPath1x(ref);
       const dest1xAbs = onDisk(dest1x);
-      // Skip only when BOTH 1x and 2x thumbs exist and are current.
-      const twoXOk = existsSync(destAbs) && statSync(destAbs).mtimeMs >= statSync(srcAbs).mtimeMs;
-      const oneXOk = existsSync(dest1xAbs) && statSync(dest1xAbs).mtimeMs >= statSync(srcAbs).mtimeMs;
-      if (twoXOk && oneXOk) continue;
-      thumbJobs.push({ ref, dest, dest1x, srcAbs, destAbs, dest1xAbs, shotH });
+      const destAvifAbs = onDisk(avifPath(dest));
+      const dest1xAvifAbs = onDisk(avifPath(dest1x));
+      // Skip only when every sidecar (webp + avif, 1x + 2x) exists and is current.
+      const srcM = statSync(srcAbs).mtimeMs;
+      const ok = (abs) => existsSync(abs) && statSync(abs).mtimeMs >= srcM;
+      if (ok(destAbs) && ok(dest1xAbs) && ok(destAvifAbs) && ok(dest1xAvifAbs)) continue;
+      thumbJobs.push({ ref, dest, dest1x, srcAbs, destAbs, dest1xAbs, destAvifAbs, dest1xAvifAbs, shotH });
     }
   }
 
@@ -553,17 +609,20 @@ async function main() {
       }
     }
     for (const ref of [...thumbImageRefs].sort()) {
-      const srcAbs = onDisk(ref);
+      // Logos derive from the raw MASTER too (falls back to the public file).
+      const srcAbs = masterFor(ref);
       if (!existsSync(srcAbs)) continue;
       if (ref.endsWith('-logo.webp') || ref.endsWith('-logo-1x.webp')) continue;
       const dest = logoPath(ref);
       const destAbs = onDisk(dest);
       const dest1x = logoPath1x(ref);
       const dest1xAbs = onDisk(dest1x);
-      const twoXOk = existsSync(destAbs) && statSync(destAbs).mtimeMs >= statSync(srcAbs).mtimeMs;
-      const oneXOk = existsSync(dest1xAbs) && statSync(dest1xAbs).mtimeMs >= statSync(srcAbs).mtimeMs;
-      if (twoXOk && oneXOk) continue;
-      logoJobs.push({ ref, dest, dest1x, srcAbs, destAbs, dest1xAbs });
+      const destAvifAbs = onDisk(avifPath(dest));
+      const dest1xAvifAbs = onDisk(avifPath(dest1x));
+      const srcM = statSync(srcAbs).mtimeMs;
+      const ok = (abs) => existsSync(abs) && statSync(abs).mtimeMs >= srcM;
+      if (ok(destAbs) && ok(dest1xAbs) && ok(destAvifAbs) && ok(dest1xAvifAbs)) continue;
+      logoJobs.push({ ref, dest, dest1x, srcAbs, destAbs, dest1xAbs, destAvifAbs, dest1xAvifAbs });
     }
   }
   if (logoJobs.length > 0) {
@@ -576,47 +635,72 @@ async function main() {
     console.log('\nlogos: all up to date.');
   }
 
-  // Poster delivery cap plan: every distinct poster: path in work.yaml that
-  // lives in public/. Filenames never change, so no reference rewriting.
-  // A poster about to be renamed by a conversion (png -> webp) is resolved
-  // through pendingRenames so the cap lands on the post-conversion file.
-  const posterCapJobs = [];
-  {
-    const posterRefs = new Set();
-    for (const project of projects) {
-      for (const asset of (project.assets ?? [])) {
-        if (typeof asset.poster === 'string' && asset.poster.startsWith('/')) posterRefs.add(asset.poster);
+  // Display images: every full-size image a <picture> serves (posters AND
+  // image-type srcs, plus the standalone tutor/forge pages' and Screen
+  // components' <img> webp refs) is (re)derived from its raw MASTER, capped to
+  // MAX_LONG_EDGE (fit inside, never upscaled) as lossy webp q80, and given an
+  // avif sibling (AVIF_QUALITY, AVIF_EFFORT, 4:4:4 chroma). Deriving from the
+  // master, not the already-lossy public webp, avoids a double-lossy generation
+  // and lets a quality tweak re-derive cleanly. mtime skip: a public file at
+  // least as new as its master is already current.
+  // video/embed/pdf posters render as <video poster>/<iframe> (never a
+  // <picture>), so they are still capped but get no (unused) avif sibling.
+  const videoPosterRefs = new Set();
+  for (const project of projects) {
+    for (const asset of (project.assets ?? [])) {
+      if (['video', 'embed', 'pdf'].includes(asset.type)
+        && typeof asset.poster === 'string' && asset.poster.startsWith('/')) {
+        videoPosterRefs.add(pendingRenames.get(asset.poster) ?? asset.poster);
       }
     }
-    for (const rawRef of [...posterRefs].sort()) {
-      const srcAbs = onDisk(rawRef);
-      if (!existsSync(srcAbs)) continue;
-      let meta;
-      try { meta = await sharp(srcAbs).metadata(); } catch { continue; }
-      const decision = posterCapDecision(meta);
-      if (decision.action !== 'cap') continue;
-      posterCapJobs.push({
-        rawRef, // the file as it exists now (backup source)
-        ref: pendingRenames.get(rawRef) ?? rawRef, // the file the cap rewrites
-        width: meta.width, height: meta.height,
-        targetLongEdge: decision.targetLongEdge,
-      });
+  }
+  const displayJobs = [];
+  {
+    const displayRefs = new Set();
+    for (const project of projects) {
+      for (const asset of (project.assets ?? [])) {
+        if (typeof asset.poster === 'string' && asset.poster.startsWith('/')) displayRefs.add(pendingRenames.get(asset.poster) ?? asset.poster);
+        if ((asset.type == null || asset.type === 'image') && asset.src.startsWith('/')) displayRefs.add(pendingRenames.get(asset.src) ?? asset.src);
+      }
+    }
+    // Astro-referenced display images (standalone pages, Screen components) that
+    // are not work.yaml assets, so the loop above would miss them.
+    for (const ref of existing) {
+      const r = pendingRenames.get(ref) ?? ref;
+      if (!chromeRefs.has(ref) && !/-thumb(-1x)?\.webp$|-logo(-1x)?\.webp$/.test(r)) displayRefs.add(r);
+    }
+    for (const ref of [...displayRefs].filter((r) => path.extname(r).toLowerCase() === '.webp').sort()) {
+      const master = masterFor(ref);
+      const pub = onDisk(ref);
+      if (!existsSync(master)) continue; // dangling ref (no master and no public file)
+      const hasMaster = master !== pub;
+      const avifAbs = onDisk(avifPath(ref));
+      const mMtime = existsSync(master) ? statSync(master).mtimeMs : 0;
+      // Only re-derive the webp from a true RAW master. A webp-only master (no
+      // lossless raw survives) is byte-identical to the public webp, so
+      // re-encoding it webp->webp would only cost a generation; keep the public
+      // file and let its avif derive from that webp (the best source there is).
+      const masterIsRaw = path.extname(master).toLowerCase() !== '.webp';
+      const needWebp = hasMaster && masterIsRaw && (!existsSync(pub) || statSync(pub).mtimeMs < mMtime);
+      const needAvif = !videoPosterRefs.has(ref) && (!existsSync(avifAbs) || statSync(avifAbs).mtimeMs < mMtime);
+      if (!needWebp && !needAvif) continue;
+      displayJobs.push({ ref, master, hasMaster, pub, avifRef: avifPath(ref), avifAbs, needWebp, needAvif });
     }
   }
-  if (posterCapJobs.length > 0) {
-    console.log(`\nposter cap plan (${posterCapJobs.length} poster(s) exceed ${MAX_LONG_EDGE}px long edge):`);
-    for (const j of posterCapJobs) {
-      console.log(`  poster ${j.ref}  [${j.width}x${j.height} -> long edge ${j.targetLongEdge}, lossy webp q80]`);
-    }
+  if (displayJobs.length > 0) {
+    const nWebp = displayJobs.filter((j) => j.needWebp).length;
+    const nAvif = displayJobs.filter((j) => j.needAvif).length;
+    console.log(`\ndisplay image plan (${nWebp} webp re-derived from master + capped ${MAX_LONG_EDGE}px, ${nAvif} avif sibling(s)):`);
+    for (const j of displayJobs) console.log(`  display ${j.ref}${j.needWebp ? ' [webp]' : ''}${j.needAvif ? ' [avif]' : ''}`);
   } else {
-    console.log(`\nposters: all within the ${MAX_LONG_EDGE}px delivery cap.`);
+    console.log('\ndisplay images: all up to date.');
   }
 
   if (dry) {
     console.log('\n--dry: nothing written.');
     return;
   }
-  if (videoJobs.length + imageJobs.length + thumbJobs.length + posterCapJobs.length + logoJobs.length === 0) {
+  if (videoJobs.length + imageJobs.length + thumbJobs.length + displayJobs.length + logoJobs.length === 0) {
     console.log('\nnothing to do.');
     return;
   }
@@ -633,10 +717,9 @@ async function main() {
     copyFileSync(abs, dest);
   };
   for (const j of [...videoJobs, ...imageJobs]) backup(onDisk(j.ref));
-  // Posters are rewritten in place: back up the file as it exists right now
-  // (one also being converted this run was already backed up above; the
-  // second copy is the same bytes to the same path, harmless).
-  for (const j of posterCapJobs) backup(onDisk(j.rawRef));
+  // Display webp files are re-derived in place from their masters; back up the
+  // current file first. (avif siblings are brand new; masters/ is the durable raw.)
+  for (const j of displayJobs) if (j.needWebp && existsSync(j.pub)) backup(j.pub);
   backup(WORK_YAML);
   for (const f of astroFiles) backup(f);
   console.log(`\nbacked up originals to ${path.relative(ROOT, backupDir)}/`);
@@ -714,34 +797,42 @@ async function main() {
     }
   }
 
-  // 5b. Cap oversized posters in place (lossy WebP q80, long edge 1920).
-  // Runs before the thumb pass so thumbs generated this run derive from the
-  // capped file. No larger-result guard here: the point is decode size (RGBA
-  // memory on phones), not bytes, so the cap applies even if the file grows.
-  const posterReport = [];
-  for (const j of posterCapJobs) {
-    // Prefer the post-conversion path; if that conversion kept the original
-    // (or failed), cap the file that actually exists.
-    const ref = existsSync(onDisk(j.ref)) ? j.ref : j.rawRef;
-    const abs = onDisk(ref);
-    const tmp = `${abs}.part.webp`;
-    try {
-      let img = sharp(abs).resize({
-        width: j.targetLongEdge, height: j.targetLongEdge,
-        fit: 'inside', withoutEnlargement: true,
-      }).webp({ quality: 80, effort: 6 });
-      try { img = img.keepIccProfile(); } catch {}
-      await img.toFile(tmp);
-    } catch (e) {
-      rmSync(tmp, { force: true });
-      failures.push(`poster ${ref} (${e.message})`);
-      continue;
+  // 5b. Display images: re-derive the webp from the master (capped to
+  // MAX_LONG_EDGE, fit inside, never upscaled) and write the avif sibling sized
+  // to match the webp exactly (so the <picture> box is identical whichever
+  // format wins). Runs before the thumb pass. Sourcing from the master avoids a
+  // double-lossy generation; the avif is what <picture> serves first, the webp
+  // is the fallback (and the <video>/<iframe> poster for the avif-excluded ones).
+  const displayReport = [];
+  for (const j of displayJobs) {
+    if (j.needWebp) {
+      const tmp = `${j.pub}.part.webp`;
+      try {
+        let img = sharp(j.master, { limitInputPixels: false })
+          .resize({ width: MAX_LONG_EDGE, height: MAX_LONG_EDGE, fit: 'inside', withoutEnlargement: true })
+          .webp({ quality: 80, effort: 6 });
+        try { img = img.keepIccProfile(); } catch {}
+        const before = existsSync(j.pub) ? statSync(j.pub).size : 0;
+        await img.toFile(tmp);
+        renameSync(tmp, j.pub);
+        const d = await sharp(j.pub).metadata();
+        displayReport.push(`webp ${j.ref}: -> ${d.width}x${d.height} (${mb(before)} -> ${mb(statSync(j.pub).size)})`);
+      } catch (e) { rmSync(tmp, { force: true }); failures.push(`display webp ${j.ref} (${e.message})`); }
     }
-    const before = statSync(abs).size;
-    const after = statSync(tmp).size;
-    const destMeta = await sharp(tmp).metadata();
-    renameSync(tmp, abs);
-    posterReport.push(`poster ${ref}: ${j.width}x${j.height} -> ${destMeta.width ?? '?'}x${destMeta.height ?? '?'} (${mb(before)} -> ${mb(after)})`);
+    if (j.needAvif) {
+      const tmp = `${j.avifAbs}.part.avif`;
+      try {
+        const src = j.hasMaster ? j.master : j.pub;
+        const target = existsSync(j.pub) ? await sharp(j.pub).metadata() : { width: MAX_LONG_EDGE, height: MAX_LONG_EDGE };
+        let img = sharp(src, { limitInputPixels: false })
+          .resize({ width: target.width, height: target.height, fit: 'inside', withoutEnlargement: true })
+          .avif({ quality: AVIF_QUALITY, effort: AVIF_EFFORT, chromaSubsampling: '4:4:4' });
+        try { img = img.keepIccProfile(); } catch {}
+        await img.toFile(tmp);
+        renameSync(tmp, j.avifAbs);
+        displayReport.push(`avif ${j.avifRef}: ${mb(statSync(j.avifAbs).size)}`);
+      } catch (e) { rmSync(tmp, { force: true }); failures.push(`display avif ${j.ref} (${e.message})`); }
+    }
   }
 
   // 5c. Generate strip thumbnails: 2x (retina) and 1x (standard DPR) WebP sidecars.
@@ -780,6 +871,12 @@ async function main() {
       renameSync(tmp2x, j.destAbs);
       const destMeta = await sharp(j.destAbs).metadata();
       thumbReport.push(`thumb ${j.dest} (${meta.width}x${meta.height} -> ${destMeta.width}x${destMeta.height}, ${mb(before)} -> ${mb(after2x)})`);
+      // 2x avif sibling (same height), served first by <picture>.
+      const tmpA = `${j.destAvifAbs}.part.avif`;
+      try {
+        await sharp(j.srcAbs).resize({ height: targetH2x }).avif({ quality: AVIF_QUALITY, effort: AVIF_EFFORT }).toFile(tmpA);
+        renameSync(tmpA, j.destAvifAbs);
+      } catch (e) { rmSync(tmpA, { force: true }); failures.push(`thumb avif ${avifPath(j.dest)} (${e.message})`); }
     }
 
     // 1x thumb: scaled to 1x shotHeight, q75 (lower res = quality loss less visible).
@@ -799,6 +896,12 @@ async function main() {
       renameSync(tmp1x, j.dest1xAbs);
       const dest1xMeta = await sharp(j.dest1xAbs).metadata();
       thumbReport.push(`thumb ${j.dest1x} (${meta.width}x${meta.height} -> ${dest1xMeta.width}x${dest1xMeta.height}, ${mb(before)} -> ${mb(after1x)})`);
+      // 1x avif sibling.
+      const tmpA = `${j.dest1xAvifAbs}.part.avif`;
+      try {
+        await sharp(j.srcAbs).resize({ height: targetH1x }).avif({ quality: AVIF_QUALITY, effort: AVIF_EFFORT }).toFile(tmpA);
+        renameSync(tmpA, j.dest1xAvifAbs);
+      } catch (e) { rmSync(tmpA, { force: true }); failures.push(`thumb avif ${avifPath(j.dest1x)} (${e.message})`); }
     }
   }
 
@@ -806,23 +909,23 @@ async function main() {
   // project thumbImage. Served via srcset in WorkRow, Lightbox, and craft/[slug].
   const logoReport = [];
   for (const j of logoJobs) {
-    for (const [size, tmp, destAbs, label] of [
-      [2 * LOGO_SIZE_1X, `${j.destAbs}.part.webp`,   j.destAbs,   j.dest],
-      [LOGO_SIZE_1X,     `${j.dest1xAbs}.part.webp`, j.dest1xAbs, j.dest1x],
+    for (const [size, tmpW, destAbs, tmpA, destAvifAbs, label] of [
+      [2 * LOGO_SIZE_1X, `${j.destAbs}.part.webp`,   j.destAbs,   `${j.destAvifAbs}.part.avif`,   j.destAvifAbs,   j.dest],
+      [LOGO_SIZE_1X,     `${j.dest1xAbs}.part.webp`, j.dest1xAbs, `${j.dest1xAvifAbs}.part.avif`, j.dest1xAvifAbs, j.dest1x],
     ]) {
       try {
-        await sharp(j.srcAbs)
-          .resize(size, size, { fit: 'cover' })
-          .webp({ quality: 80, effort: 6 })
-          .toFile(tmp);
+        await sharp(j.srcAbs).resize(size, size, { fit: 'cover' }).webp({ quality: 80, effort: 6 }).toFile(tmpW);
       } catch (e) {
-        rmSync(tmp, { force: true });
+        rmSync(tmpW, { force: true });
         failures.push(`logo ${label} (${e.message})`);
         continue;
       }
-      renameSync(tmp, destAbs);
-      const after = statSync(destAbs).size;
-      logoReport.push(`logo ${label} (${size}x${size}, ${mb(after)})`);
+      renameSync(tmpW, destAbs);
+      try {
+        await sharp(j.srcAbs).resize(size, size, { fit: 'cover' }).avif({ quality: AVIF_QUALITY, effort: AVIF_EFFORT }).toFile(tmpA);
+        renameSync(tmpA, destAvifAbs);
+      } catch (e) { rmSync(tmpA, { force: true }); failures.push(`logo avif ${label} (${e.message})`); }
+      logoReport.push(`logo ${label} (${size}x${size}, webp ${mb(statSync(destAbs).size)} + avif ${mb(statSync(destAvifAbs).size)})`);
     }
   }
 
@@ -858,7 +961,7 @@ async function main() {
 
   console.log('\n── results ──');
   for (const r of report) console.log(`  ${r}`);
-  for (const r of posterReport) console.log(`  ${r}`);
+  for (const r of displayReport) console.log(`  ${r}`);
   for (const r of thumbReport) console.log(`  ${r}`);
   for (const r of logoReport) console.log(`  ${r}`);
   if (dsCount) console.log(`  removed ${dsCount} .DS_Store file(s) from public/`);

@@ -4,6 +4,7 @@ import { thumbPath, thumbPath1x, logoPath, logoPath1x } from '../../tools/optimi
 import { youtubePoster, type Project } from '../data/work';
 import ActionLinks from './ActionLinks.astro';
 import { getDims } from '../../tools/image-dims.mjs';
+import { avifSourceFor } from '../lib/pictureSource';
 
 interface Props { project: Project; eager?: boolean; }
 const { project, eager = false } = Astro.props;
@@ -40,6 +41,7 @@ function resolveStripSrcs(asset: (typeof assets)[number]): { src: string; srcset
 }
 
 const stripSrcs = assets.map(resolveStripSrcs);
+const stripAvif = stripSrcs.map((s) => avifSourceFor(s.src, s.srcset));
 const dims = await Promise.all(stripSrcs.map(s => getDims(s.src)));
 
 function resolveLogoSrcs(src: string): { src: string; srcset?: string } {
@@ -56,6 +58,7 @@ function resolveLogoSrcs(src: string): { src: string; srcset?: string } {
   return { src };
 }
 const logoSrcs = project.thumbImage ? resolveLogoSrcs(project.thumbImage) : null;
+const logoAvif = logoSrcs ? avifSourceFor(logoSrcs.src, logoSrcs.srcset) : null;
 
 const actions = [
   ...(project.deepDive ? [{ label: 'Deep dive', href: `/craft/${project.slug}/`, primary: true }] : []),
@@ -66,7 +69,10 @@ const actions = [
   <header class="row-head">
     {project.thumbImage && (
       <span class:list={['row-logo', project.thumbClass]}>
-        <img src={logoSrcs!.src} srcset={logoSrcs!.srcset} alt="" width="48" height="48" />
+        <picture>
+          {logoAvif && <source type="image/avif" srcset={logoAvif} />}
+          <img src={logoSrcs!.src} srcset={logoSrcs!.srcset} alt="" width="48" height="48" />
+        </picture>
       </span>
     )}
     <div class="row-head-text">
@@ -98,17 +104,20 @@ const actions = [
               `poster`; youtube derives one from its id; image/gif fall back to
               their own `src` (a GIF animates). resolveStripSrc also swaps in a
               '-thumb.webp' sidecar when one exists, keeping download weight low. */}
-          <img
-            src={stripSrcs[i].src}
-            srcset={stripSrcs[i].srcset}
-            alt={s.alt}
-            width={dims[i]?.width}
-            height={dims[i]?.height}
-            loading={eager && i === 0 ? 'eager' : 'lazy'}
-            fetchpriority={eager && i === 0 ? 'high' : undefined}
-            decoding={eager && i === 0 ? 'sync' : 'async'}
-            draggable="false"
-          />
+          <picture>
+            {stripAvif[i] && <source type="image/avif" srcset={stripAvif[i]} />}
+            <img
+              src={stripSrcs[i].src}
+              srcset={stripSrcs[i].srcset}
+              alt={s.alt}
+              width={dims[i]?.width}
+              height={dims[i]?.height}
+              loading={eager && i === 0 ? 'eager' : 'lazy'}
+              fetchpriority={eager && i === 0 ? 'high' : undefined}
+              decoding={eager && i === 0 ? 'sync' : 'async'}
+              draggable="false"
+            />
+          </picture>
           {(s.type === 'video' || s.type === 'youtube') && <span class="shot-play" aria-hidden="true"></span>}
           {(s.type === 'embed' || s.type === 'pdf') && (
             <span class="shot-embed" aria-hidden="true">

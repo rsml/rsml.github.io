@@ -30,6 +30,10 @@
   --r: 0px;
 }
 * { box-sizing: border-box; }
+/* <picture> is a transparent wrapper around its <img>: display:contents removes
+   its own box so every `.foo img` rule keeps styling the image exactly as it did
+   before the AVIF <source> was added around it. */
+picture { display: contents; }
 html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 body {
   margin: 0;

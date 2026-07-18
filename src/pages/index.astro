@@ -6,33 +6,40 @@ import Lightbox from '../components/Lightbox.astro';
 import NowClock from '../components/NowClock.astro';
 import { getCollection } from 'astro:content';
 import { getWork } from '../data/work';
-import { thumbPath } from '../../tools/optimize-portfolio.mjs';
+import { thumbPath, thumbPath1x } from '../../tools/optimize-portfolio.mjs';
+import { avifSourceFor } from '../lib/pictureSource';
 
 const work = getWork();
 const writings = (await getCollection('writing')).sort(
   (a, b) => b.data.date.getTime() - a.data.date.getTime()
 );
 
-// Compute the strip src for the first project's first asset so we can preload it.
-// Mirrors WorkRow's resolveStripSrc logic (poster > youtube-derived > src), then
-// prefers a '-thumb.webp' sidecar when one exists on disk.
+// Compute the strip src/srcset for the first project's first asset so we can
+// preload the LCP image. Mirrors WorkRow's resolveStripSrc (poster >
+// youtube-derived > src), prefers the 1x/2x '-thumb.webp' sidecars, and resolves
+// the avif siblings so the preload matches the <source> the browser will pick.
 const firstAsset = work[0]?.assets?.[0];
-function firstStripSrc() {
-  if (!firstAsset) return undefined;
+function firstStrip(): { src?: string; srcset?: string; avif: string | null } {
+  if (!firstAsset) return { avif: null };
   const ref =
     firstAsset.poster
     ?? ((firstAsset.type == null || firstAsset.type === 'image') ? firstAsset.src : undefined)
     ?? firstAsset.src;
-  if (ref?.startsWith('/') && firstAsset.type !== 'gif') {
-    const thumb = thumbPath(ref);
-    if (existsSync(`${process.cwd()}/public${thumb}`)) return thumb;
-  }
-  return ref;
+  if (!ref?.startsWith('/') || firstAsset.type === 'gif') return { src: ref, avif: null };
+  const t2 = thumbPath(ref);
+  if (!existsSync(`${process.cwd()}/public${t2}`)) return { src: ref, avif: null };
+  const t1 = thumbPath1x(ref);
+  const has1 = existsSync(`${process.cwd()}/public${t1}`);
+  const src = has1 ? t1 : t2;
+  const srcset = has1 ? `${t1} 1x, ${t2} 2x` : undefined;
+  return { src, srcset, avif: avifSourceFor(src, srcset) };
 }
-const lcpImageSrc = firstStripSrc();
+const lcp = firstStrip();
 ---
 <PortfolioLayout title="Ross Miller">
-  {lcpImageSrc && <link slot="head" rel="preload" as="image" href={lcpImageSrc} fetchpriority="high" />}
+  {lcp.avif
+    ? <link slot="head" rel="preload" as="image" type="image/avif" imagesrcset={lcp.avif} fetchpriority="high" />
+    : lcp.src && <link slot="head" rel="preload" as="image" href={lcp.src} fetchpriority="high" />}
   <main class="container" data-rise>
     <h1 class="name" style="--rise-i:0; --rise-from-y:0px; --rise-blur-from:8px; --rise-dur:1.2s">Ross Miller</h1>
     <p class="title" style="--rise-i:0; --rise-from-y:0px; --rise-blur-from:8px; --rise-dur:1.2s">Developer, designer, 4x founder</p>

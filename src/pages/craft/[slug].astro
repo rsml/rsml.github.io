@@ -5,6 +5,7 @@ import MarketingButton from '../../components/MarketingButton.astro';
 import { existsSync } from 'node:fs';
 import { WORK, getProject } from '../../data/work';
 import { logoPath, logoPath1x } from '../../../tools/optimize-portfolio.mjs';
+import { avifSourceFor } from '../../lib/pictureSource';
 
 import ChordColors from '../../components/work/ChordColors.astro';
 import Tutor from '../../components/work/Tutor.astro';
@@ -40,6 +41,7 @@ function resolveLogoSrcs(src: string): { src: string; srcset?: string } {
   return { src };
 }
 const logoSrcs = project.thumbImage ? resolveLogoSrcs(project.thumbImage) : null;
+const logoAvif = logoSrcs ? avifSourceFor(logoSrcs.src, logoSrcs.srcset) : null;
 ---
 <PortfolioLayout title={`${project.title} - Ross Miller`} description={project.cardDesc}>
   <main class="container dive" data-rise>
@@ -50,7 +52,10 @@ const logoSrcs = project.thumbImage ? resolveLogoSrcs(project.thumbImage) : null
     <div class="dive-header" style="--rise-i:1">
       {project.thumbImage && (
         <span class:list={['dive-logo', project.thumbClass]}>
-          <img src={logoSrcs!.src} srcset={logoSrcs!.srcset} alt="" width="48" height="48" />
+          <picture>
+            {logoAvif && <source type="image/avif" srcset={logoAvif} />}
+            <img src={logoSrcs!.src} srcset={logoSrcs!.srcset} alt="" width="48" height="48" />
+          </picture>
         </span>
       )}
       <div class="dive-heading">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MARKER, classifyVideo, encodeArgs, extractChromeRefs, extractRefs,
+  MARKER, avifPath, classifyVideo, encodeArgs, extractChromeRefs, extractRefs,
   findCollisions, inDeliverySpec, outputFps, posterCapDecision, remuxArgs,
   rewriteRefs, targetPath, thumbPath, stripImageRef,
 } from './optimize-portfolio.mjs';
@@ -210,6 +210,24 @@ describe('thumbPath', () => {
 
   it('works correctly when the stem itself contains dots', () => {
     expect(thumbPath('/a/my.poster.jpg')).toBe('/a/my.poster-thumb.webp');
+  });
+});
+
+describe('avifPath', () => {
+  it('swaps any final extension for .avif', () => {
+    expect(avifPath('/a/shot.webp')).toBe('/a/shot.avif');
+    expect(avifPath('/a/shot.png')).toBe('/a/shot.avif');
+    expect(avifPath('/a/photo.jpg')).toBe('/a/photo.avif');
+  });
+
+  it('handles thumb and logo sidecar names', () => {
+    expect(avifPath('/a/shot-thumb.webp')).toBe('/a/shot-thumb.avif');
+    expect(avifPath('/a/shot-thumb-1x.webp')).toBe('/a/shot-thumb-1x.avif');
+    expect(avifPath('/logos/x-logo-1x.webp')).toBe('/logos/x-logo-1x.avif');
+  });
+
+  it('works when the stem itself contains dots', () => {
+    expect(avifPath('/a/my.poster.webp')).toBe('/a/my.poster.avif');
   });
 });
 

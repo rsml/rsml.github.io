@@ -21,6 +21,7 @@ import { existsSync } from 'node:fs';
 import { youtubeId, type Project } from '../data/work';
 import ActionLinks from './ActionLinks.astro';
 import { logoPath, logoPath1x } from '../../tools/optimize-portfolio.mjs';
+import { avifSourceFor } from '../lib/pictureSource';
 interface Props { projects: Project[]; }
 const { projects } = Astro.props;
 const galleries = projects.filter((p) => p.assets.length > 0);
@@ -80,6 +81,11 @@ for (const p of galleries) {
     }
   }
 }
+
+// AVIF <source> for each image/gif shot, keyed by src (null when no sibling
+// exists, e.g. a gif or a video src). The <picture> then serves avif first.
+const lbAvif = new Map<string, string | null>();
+for (const p of galleries) for (const s of p.assets) if (!lbAvif.has(s.src)) lbAvif.set(s.src, avifSourceFor(s.src));
 ---
 <div class="lb" id="lightbox" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="Project gallery">
   <div class="lb-backdrop"></div>
@@ -109,9 +115,13 @@ for (const p of galleries) {
             <header class="lb-phead">
               {p.thumbImage && (() => {
                 const s = resolveLogoSrcs(p.thumbImage!);
+                const avif = avifSourceFor(s.src, s.srcset);
                 return (
                   <span class:list={['lb-plogo', p.thumbClass]}>
-                    <img src={s.src} srcset={s.srcset} alt="" width="52" height="52" />
+                    <picture>
+                      {avif && <source type="image/avif" srcset={avif} />}
+                      <img src={s.src} srcset={s.srcset} alt="" width="52" height="52" />
+                    </picture>
                   </span>
                 );
               })()}
@@ -181,7 +191,10 @@ for (const p of galleries) {
                         allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
                     ) : (
                       // image + gif (a GIF is just an <img> that animates).
-                      <img class="lb-media" src={s.src} alt={s.alt} loading="lazy" decoding="async" draggable="false" />
+                      <picture>
+                        {lbAvif.get(s.src) && <source type="image/avif" srcset={lbAvif.get(s.src)} />}
+                        <img class="lb-media" src={s.src} alt={s.alt} loading="lazy" decoding="async" draggable="false" />
+                      </picture>
                     )}
                   </div>
                 ))}

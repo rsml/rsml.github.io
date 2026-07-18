@@ -1,11 +1,18 @@
 ---
+import { avifSourceFor } from '../../lib/pictureSource';
 interface Props { variant?: 'static' | 'embedded'; }
 const { variant = 'static' } = Astro.props;
+const phoneAvif = avifSourceFor('/phone.webp');
 ---
 <div class:list={["phone-demo", variant === 'embedded' && 'embedded']}>
   <div class="phone-frame">
     <slot />
-    {variant === 'static' && <img class="phone-img" src="/phone.webp" alt="" />}
+    {variant === 'static' && (
+      <picture>
+        {phoneAvif && <source type="image/avif" srcset={phoneAvif} />}
+        <img class="phone-img" src="/phone.webp" alt="" />
+      </picture>
+    )}
   </div>
 </div>
 <style>
