@@ -240,6 +240,32 @@ function essays() {
     });
 }
 
+let oxipngMissingWarned = false;
+
+/**
+ * Losslessly re-encodes a PNG in place with oxipng, worth 10 to 26% here.
+ *
+ * Lossless on purpose. These cards are mostly black type on white, and a lossy
+ * encoder rings around exactly those edges, which is the artifact the 2x render
+ * was meant to eliminate. Smaller matters less than clean type.
+ *
+ * Optional: if oxipng is not installed the cards still ship, just larger.
+ */
+async function squeeze(pngPath) {
+  try {
+    await execFileP('oxipng', ['-o', 'max', '--strip', 'safe', '-q', pngPath], { timeout: 120_000 });
+  } catch (err) {
+    if (err?.code === 'ENOENT') {
+      if (!oxipngMissingWarned) {
+        console.log('  (oxipng not found, skipping compression. brew install oxipng)');
+        oxipngMissingWarned = true;
+      }
+      return;
+    }
+    throw err;
+  }
+}
+
 /**
  * Renders one HTML string to a PNG at OUT_W x OUT_H (see DPR above).
  *
@@ -278,8 +304,14 @@ async function shoot(html, outPath, label) {
       + 'Update og:image:width/height in src/components/BaseHead.astro to match.',
     );
   }
-  const kb = Math.round(readFileSync(outPath).byteLength / 1024);
-  console.log(`  ${label.padEnd(42)} -> ${outPath.replace(ROOT + '/', '')} (${width}x${height}, ${kb} KB)`);
+  const before = readFileSync(outPath).byteLength;
+  await squeeze(outPath);
+  const after = readFileSync(outPath).byteLength;
+  const saved = before === after ? '' : `, -${Math.round((1 - after / before) * 100)}%`;
+  console.log(
+    `  ${label.padEnd(42)} -> ${outPath.replace(ROOT + '/', '')}`
+    + ` (${width}x${height}, ${Math.round(after / 1024)} KB${saved})`,
+  );
 }
 
 async function main() {

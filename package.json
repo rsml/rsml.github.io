@@ -13,6 +13,7 @@
     "optimize": "node tools/optimize-portfolio.mjs",
     "favicons": "node tools/gen-favicons.mjs",
     "og": "node tools/gen-og.mjs",
+    "purge": "node tools/purge-cache.mjs",
     "push-chunked": "node tools/chunked-push.mjs"
   },
   "dependencies": {

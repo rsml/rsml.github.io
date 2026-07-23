@@ -6,3 +6,6 @@ dist/
 .astro/
 .DS_Store
 public-backup-*/
+# env / secrets
+.env
+.env.*
