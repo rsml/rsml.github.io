@@ -11,6 +11,19 @@ Ross Miller (also written Ross N. Miller) is a software engineer focused on arch
 - [Chord Colors](https://chordcolors.com/): Interactive music theory exploration app for iOS and Web. iOS app: https://apps.apple.com/us/app/id1422598441. Web: https://chordcolors.com/.
 - [Tutor](https://rossmiller.dev/tutor/): AI tutor that writes books for you, answers questions, and tests your understanding. Open source: https://github.com/rsml/tutor.
 
+## Case studies
+
+- [Chord Colors](https://rossmiller.dev/craft/chord-colors/): How an interactive encyclopedia of music theory teaches with color instead of sheet music.
+- [Tutor](https://rossmiller.dev/craft/tutor/): How an AI tutor writes personalized books that adapt to how you learn.
+
+## Writing
+
+- [Making illegal states unrepresentable in TypeScript](https://rossmiller.dev/writing/making-illegal-states-unrepresentable/) (2026-06-25): Using the type system to shape AI-generated code instead of grading it after the fact, so whole classes of bugs cannot be written down.
+
+## Resume
+
+- [Resume](https://rossmiller.dev/resume/): Full work history. PDF at https://rossmiller.dev/resume.pdf.
+
 ## Past work
 
 - [Openpath Security](https://www.openpath.com/): Software Engineering Manager and #2 employee. Premier access control platform powering millions of door unlocks per day. Acquired by Motorola Solutions.

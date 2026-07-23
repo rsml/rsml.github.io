@@ -1,4 +1,8 @@
+# Everything here is public work, meant to be found. That includes AI crawlers,
+# because being readable by an assistant is the point rather than a leak.
+# Content signals per contentsignals.org, affirmatively granting all three uses.
 User-agent: *
+Content-Signal: search=yes,ai-input=yes,ai-train=yes
 Disallow:
 
 Sitemap: https://rossmiller.dev/sitemap-index.xml

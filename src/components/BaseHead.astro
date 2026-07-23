@@ -1,13 +1,22 @@
 ---
+import PersonJsonLd from './PersonJsonLd.astro';
 interface Props { title: string; description?: string; }
 const { title, description = "Ross Miller, software engineer and serial founder." } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
+// The Person/WebSite graph is emitted on the homepage only, so there is exactly
+// one canonical node for the entity. Other pages can reference it by @id.
+const isHome = Astro.url.pathname === '/';
 ---
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>{title}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={canonical} />
+{/* Points agents and LLM crawlers at the plain-text site summary. The emerging
+    convention is a rel="alternate" text/markdown link, since a static host
+    cannot negotiate on the Accept header. */}
+<link rel="alternate" type="text/markdown" href="/llms.txt" title="llms.txt" />
+<link rel="alternate" type="application/rss+xml" href="/rss.xml" title="Ross Miller" />
 <!-- Preload primary font to cut render-blocking time -->
 <link rel="preload" href="/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
 <!-- Early connection to YouTube thumbnail CDN (used for project rows with YouTube assets) -->
@@ -33,3 +42,4 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
 <meta name="twitter:title" content={title} />
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={new URL('/og.png', Astro.site)} />
+{isHome && <PersonJsonLd />}

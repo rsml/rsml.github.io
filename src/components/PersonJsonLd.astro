@@ -1,0 +1,72 @@
+---
+/**
+ * Schema.org structured data for the homepage.
+ *
+ * "Ross Miller" is a common name. Search engines and LLMs need
+ * an explicit entity record to tell this Ross Miller apart from the others, and
+ * `sameAs` is what links this site to the LinkedIn / GitHub / X profiles so all
+ * of them resolve to one person rather than four unrelated pages. That entity is
+ * what feeds a Google Knowledge Panel and what an assistant reads when someone
+ * asks "who built Forge".
+ *
+ * Facts here mirror `public/llms.txt`. Keep the two in sync when either changes.
+ * Emitted only on the homepage (via `slot="head"` in `index.astro`) so there is
+ * exactly one canonical Person node, addressed elsewhere by its `@id`.
+ */
+const SITE = 'https://rossmiller.dev';
+
+const graph = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Person',
+      '@id': `${SITE}/#ross`,
+      name: 'Ross Miller',
+      alternateName: 'Ross N. Miller',
+      url: SITE,
+      image: `${SITE}/profile.webp`,
+      jobTitle: 'Software Engineer',
+      description:
+        'Software engineer and serial founder. Creator of Forge (native macOS terminal for AI coding agents), Vivy, Chord Colors, Tutor, and Symphony Pro. Previously Software Engineering Manager and #2 employee at Openpath Security.',
+      // The identity links. These are what collapse four profiles into one person.
+      sameAs: [
+        'https://www.linkedin.com/in/rossnmiller/',
+        'https://github.com/rsml',
+        'https://x.com/coding_ross',
+      ],
+      alumniOf: {
+        '@type': 'Organization',
+        name: 'Openpath Security',
+        url: 'https://www.openpath.com/',
+      },
+      knowsAbout: [
+        'Software engineering',
+        'Engineering leadership',
+        'AI coding agents',
+        'macOS development',
+        'SwiftUI',
+        'iOS development',
+        'React',
+        'React Native',
+        'TypeScript',
+        'Product design',
+        'User experience design',
+        'Startup founding',
+        'Rapid prototyping',
+        'Access control systems',
+      ],
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${SITE}/#website`,
+      url: SITE,
+      name: 'Ross Miller',
+      description: 'Portfolio of Ross Miller, developer, designer, and 4x founder.',
+      inLanguage: 'en',
+      publisher: { '@id': `${SITE}/#ross` },
+      about: { '@id': `${SITE}/#ross` },
+    },
+  ],
+};
+---
+<script type="application/ld+json" set:html={JSON.stringify(graph)} />
