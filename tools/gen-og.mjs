@@ -45,8 +45,17 @@ const OUT_DIR = join(PUBLIC, 'og');
 const TMP = join(ROOT, 'node_modules', '.cache', 'og');
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+// The CSS viewport, which is OG's nominal card size. All the layout numbers
+// below are in these units.
 const W = 1200;
 const H = 630;
+// Shipped at 2x. Feeds render cards on retina displays, and a 1200px file gets
+// upscaled there, which is what makes type look soft no matter how cleanly it
+// was rasterized. Every major unfurler accepts the larger image and scales it
+// down itself. og:image:width/height in BaseHead.astro must match OUT_W/OUT_H.
+const DPR = 2;
+const OUT_W = W * DPR;
+const OUT_H = H * DPR;
 
 /**
  * The Chord Colors palette in Circle of Fifths order (C clockwise to F), which
@@ -231,28 +240,46 @@ function essays() {
     });
 }
 
-/** Renders one HTML string to a PNG at exactly W x H. */
+/**
+ * Renders one HTML string to a PNG at OUT_W x OUT_H (see DPR above).
+ *
+ * Chrome rasterizes the type once, at the final output resolution, and nothing
+ * resamples it afterward. An earlier version captured at 2x and downsampled to
+ * 1200x630 with sharp, which put every glyph edge through a Lanczos filter on
+ * top of Chrome's own antialiasing. That double filtering softened the type and
+ * rang faintly around high contrast edges. Scaling now happens only in the
+ * layout (via DPR), never on the pixels.
+ */
 async function shoot(html, outPath, label) {
   mkdirSync(TMP, { recursive: true });
   const htmlPath = join(TMP, 'card.html');
-  const rawPath = join(TMP, 'card@2x.png');
   writeFileSync(htmlPath, html);
-  rmSync(rawPath, { force: true });
+  rmSync(outPath, { force: true });
 
   await execFileP(CHROME, [
     '--headless', '--disable-gpu', '--hide-scrollbars',
+    // The CSS viewport stays 1200x630; DPR multiplies it up to the real pixels,
+    // so the layout is authored at OG's nominal size and shipped at 2x detail.
     `--window-size=${W},${H}`,
-    // Capture at 2x and downsample, which keeps the type edges clean.
-    '--force-device-scale-factor=2',
+    `--force-device-scale-factor=${DPR}`,
     '--virtual-time-budget=4000',
-    `--screenshot=${rawPath}`,
+    `--screenshot=${outPath}`,
     `file://${htmlPath}`,
   ], { timeout: 30_000 });
 
-  if (!existsSync(rawPath)) throw new Error(`Chrome produced no screenshot for ${label}`);
-  await sharp(rawPath).resize(W, H, { fit: 'fill' }).png({ compressionLevel: 9 }).toFile(outPath);
+  if (!existsSync(outPath)) throw new Error(`Chrome produced no screenshot for ${label}`);
+  const { width, height } = await sharp(outPath).metadata();
+  // BaseHead.astro declares these exact numbers in og:image:width/height. If
+  // Chrome ever renders a different size, fail here rather than ship cards whose
+  // metadata lies about them.
+  if (width !== OUT_W || height !== OUT_H) {
+    throw new Error(
+      `${label}: expected ${OUT_W}x${OUT_H} but Chrome produced ${width}x${height}. `
+      + 'Update og:image:width/height in src/components/BaseHead.astro to match.',
+    );
+  }
   const kb = Math.round(readFileSync(outPath).byteLength / 1024);
-  console.log(`  ${label.padEnd(42)} -> ${outPath.replace(ROOT + '/', '')} (${kb} KB)`);
+  console.log(`  ${label.padEnd(42)} -> ${outPath.replace(ROOT + '/', '')} (${width}x${height}, ${kb} KB)`);
 }
 
 async function main() {

@@ -57,8 +57,11 @@ const isHome = Astro.url.pathname === '/';
     og:/twitter: lines: pnpm optimize only spares chrome refs it finds on
     lines matching og:|twitter:|rel=icon, a frontmatter const evades that. */}
 <meta property="og:image" content={new URL(ogImage ?? '/og.png', Astro.site)} />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
+{/* Cards ship at 2x (see DPR in tools/gen-og.mjs). Feeds render on retina, so
+    a nominal 1200x630 file gets upscaled and the type looks soft. These must
+    stay in step with the generator's OUT_W/OUT_H. */}
+<meta property="og:image:width" content="2400" />
+<meta property="og:image:height" content="1260" />
 <meta property="og:image:alt" content={`${social.title}. Ross Miller, rossmiller.dev.`} />
 <!-- Twitter card -->
 <meta name="twitter:card" content="summary_large_image" />
