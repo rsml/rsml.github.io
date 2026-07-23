@@ -110,7 +110,12 @@ const VIDEO_EXTS = new Set(['.mp4', '.mov', '.m4v']);
 const IMAGE_EXTS = new Set(['.png', '.gif']);
 const SKIP_EXTS = new Set(['.jpg', '.jpeg', '.webp', '.svg', '.pdf']);
 // public/ subtrees that are standalone apps or site chrome, never assets.
-const EXCLUDED_DIRS = new Set(['games', 'prototypes', 'fonts', 'badges']);
+// 'og' holds the social cards from `pnpm og`. They must stay PNG because link
+// unfurlers reject WebP, and excluding the whole directory makes that true no
+// matter how a page references a card. The og:/twitter: line skip alone is not
+// enough: a page can pass a card through an `ogImage` prop, which puts the
+// literal path on an ordinary line that the skip does not cover.
+const EXCLUDED_DIRS = new Set(['games', 'prototypes', 'fonts', 'badges', 'og']);
 
 /* ── Reference scanning (pure) ─────────────────────────────────────────── */
 

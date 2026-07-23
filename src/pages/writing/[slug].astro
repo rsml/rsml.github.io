@@ -22,6 +22,7 @@ const formattedDate = essay.data.date.toLocaleDateString('en-US', {
 <PortfolioLayout
   title={`${essay.data.title} - Ross Miller`}
   description={essay.data.description}
+  ogImage={`/og/writing-${essay.id}.png`}
 >
   <main class="essay-shell" data-rise>
     <div class="rise-slot back-row" style="--rise-i:0">

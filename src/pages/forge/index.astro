@@ -4,27 +4,19 @@ import BaseHead from '../../components/BaseHead.astro';
 <!doctype html>
 <html lang="en" class="scroll-smooth">
   <head>
+    {/* Social copy is passed to BaseHead rather than written here. This page
+        used to emit its own full og:/twitter: block on top of BaseHead's, so
+        every tag shipped twice and unfurlers took BaseHead's generic version
+        first. The good copy below was never actually seen by anything. */}
     <BaseHead
       title="Forge | Native macOS terminal manager for AI coding agents"
       description="A native macOS terminal manager for running multiple AI coding agents in parallel. Get notified when an agent finishes, stalls at a prompt, or needs input. Built with SwiftUI on libghostty."
+      ogTitle="Forge: focus on the agent that's ready. Forget the ones that aren't."
+      ogDescription="Run many AI coding agents from one native macOS window. Forge notices when one finishes, stalls, or hits a prompt, and pings you to triage. Persistent sessions, two-mode workflow, built on Ghostty."
+      ogImage="/og/forge.png"
     />
     <meta name="color-scheme" content="dark" />
-
-    <meta property="og:title" content="Forge: focus on the agent that's ready. Forget the ones that aren't." />
-    <meta property="og:description" content="Run many AI coding agents from one native macOS window. Forge notices when one finishes, stalls, or hits a prompt, and pings you to triage. Persistent sessions, two-mode workflow, built on Ghostty." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://rossmiller.dev/forge/" />
-    <meta property="og:image" content="https://rossmiller.dev/forge/screenshots/list-mode.webp" />
-    <meta property="og:image:width" content="2560" />
-    <meta property="og:image:height" content="1600" />
-    <meta property="og:image:alt" content="Forge in list mode, showing the sidebar with projects and a terminal running an AI coding agent" />
     <meta property="og:site_name" content="Forge" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Forge: focus on the agent that's ready. Forget the ones that aren't." />
-    <meta name="twitter:description" content="Native macOS terminal manager for running many AI coding agents in parallel. Forge watches every agent and pings you the moment one needs you." />
-    <meta name="twitter:image" content="https://rossmiller.dev/forge/screenshots/list-mode.webp" />
-    <meta name="twitter:image:alt" content="Forge in list mode, showing the sidebar with projects and a terminal running an AI coding agent" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

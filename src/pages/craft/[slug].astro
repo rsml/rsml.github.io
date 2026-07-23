@@ -20,8 +20,13 @@ const bodies: Record<string, any> = {
   openpath: Openpath, sms: Sms, vivy: Vivy,
 };
 
+// `deepDive` is the single gate for a case study existing. It already controls
+// the "Deep dive" link on the home row and in the lightbox, so gating the route
+// on it too means a page can never be built without a way to reach it. The
+// other bodies stay wired up in `bodies` above, so finishing a case study is
+// just setting `deepDive: true` in work.yaml.
 export function getStaticPaths() {
-  return WORK.map((p) => ({ params: { slug: p.slug } }));
+  return WORK.filter((p) => p.deepDive).map((p) => ({ params: { slug: p.slug } }));
 }
 const { slug } = Astro.params;
 const project = getProject(slug!)!;
@@ -43,7 +48,7 @@ function resolveLogoSrcs(src: string): { src: string; srcset?: string } {
 const logoSrcs = project.thumbImage ? resolveLogoSrcs(project.thumbImage) : null;
 const logoAvif = logoSrcs ? avifSourceFor(logoSrcs.src, logoSrcs.srcset) : null;
 ---
-<PortfolioLayout title={`${project.title} - Ross Miller`} description={project.cardDesc}>
+<PortfolioLayout title={`${project.title} - Ross Miller`} description={project.cardDesc} ogImage={`/og/craft-${project.slug}.png`}>
   <main class="container dive" data-rise>
     <div class="rise-slot top-row" style="--rise-i:0">
       <BackLink />

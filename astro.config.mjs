@@ -14,9 +14,9 @@ export default defineConfig({
         // Unlisted recruiter memo: keep /nourish out of the sitemap (it is also
         // noindex'd in-page). Not in any collection, so nothing else links it.
         if (page.includes('/nourish')) return false;
-        if (page.includes('/craft/')) {
-          return page.endsWith('/craft/chord-colors/') || page.endsWith('/craft/tutor/');
-        }
+        // /craft/ needs no filter here. The route itself is gated on `deepDive`
+        // in craft/[slug].astro, so an unfinished case study is never built at
+        // all and cannot reach the sitemap.
         return true;
       },
     }),

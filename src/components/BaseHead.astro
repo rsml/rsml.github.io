@@ -1,7 +1,30 @@
 ---
 import PersonJsonLd from './PersonJsonLd.astro';
-interface Props { title: string; description?: string; }
-const { title, description = "Ross Miller, software engineer and serial founder." } = Astro.props;
+interface Props {
+  title: string;
+  description?: string;
+  ogImage?: string;
+  // Social copy can differ from the page's own title and meta description. A
+  // page title is read in a tab next to other tabs, where a share card is read
+  // cold in a feed and can afford to sell harder. Pages that set these must not
+  // also hand-roll their own og:/twitter: tags, or both sets ship and unfurlers
+  // silently take whichever comes first.
+  ogTitle?: string;
+  ogDescription?: string;
+}
+// `ogImage` has no default here on purpose. Its fallback is written inline on
+// the og:/twitter: lines below, because `pnpm optimize` only spares an image
+// path from WebP conversion when it finds it on a line matching og:|twitter:,
+// and unfurlers reject WebP. A default in this destructure would put the
+// literal on an unprotected line and the card would be silently converted.
+const {
+  title,
+  description = "Ross Miller, software engineer and serial founder.",
+  ogImage,
+  ogTitle,
+  ogDescription,
+} = Astro.props;
+const social = { title: ogTitle ?? title, description: ogDescription ?? description };
 const canonical = new URL(Astro.url.pathname, Astro.site);
 // The Person/WebSite graph is emitted on the homepage only, so there is exactly
 // one canonical node for the entity. Other pages can reference it by @id.
@@ -26,20 +49,20 @@ const isHome = Astro.url.pathname === '/';
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <!-- Open Graph -->
-<meta property="og:title" content={title} />
-<meta property="og:description" content={description} />
+<meta property="og:title" content={social.title} />
+<meta property="og:description" content={social.description} />
 <meta property="og:type" content="website" />
 <meta property="og:url" content={canonical} />
 {/* og.png stays PNG (unfurlers reject webp) and its path lives INSIDE these
     og:/twitter: lines: pnpm optimize only spares chrome refs it finds on
     lines matching og:|twitter:|rel=icon, a frontmatter const evades that. */}
-<meta property="og:image" content={new URL('/og.png', Astro.site)} />
+<meta property="og:image" content={new URL(ogImage ?? '/og.png', Astro.site)} />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content="Ross Miller, full-stack engineer, designer, 4x founder" />
+<meta property="og:image:alt" content={`${social.title}. Ross Miller, rossmiller.dev.`} />
 <!-- Twitter card -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content={title} />
-<meta name="twitter:description" content={description} />
-<meta name="twitter:image" content={new URL('/og.png', Astro.site)} />
+<meta name="twitter:title" content={social.title} />
+<meta name="twitter:description" content={social.description} />
+<meta name="twitter:image" content={new URL(ogImage ?? '/og.png', Astro.site)} />
 {isHome && <PersonJsonLd />}
